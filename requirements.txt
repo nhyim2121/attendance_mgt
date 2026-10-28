@@ -1,0 +1,7 @@
+streamlit>=1.36
+pandas>=2.1
+openpyxl>=3.1
+xlrd>=2.0        # 구형 .xls 파일 읽기용
+lxml>=5.0        # HTML 형식으로 저장된 .xls 읽기용
+plotly>=5.20
+pytest>=8.0
