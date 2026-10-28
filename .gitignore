@@ -1,13 +1,21 @@
-.venv/
-__pycache__/
-*.pyc
-.pytest_cache/
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
+# 서버 PC 전용 설정 (Supabase 키, 메일 비밀번호)
+.env*.local
+.env
+
+# Supabase CLI 임시 파일
+supabase/.temp/
+supabase/.branches/
+
 # 실제 출입기록은 개인정보이므로 저장소에 올리지 않음
-data/uploads/
-data/output/
-data/db/
-.streamlit/secrets.toml
+data/
 *.xlsx
 *.xls
-!data/sample/*.xlsx
-data/logs/
+
+# 이전 Python 사이트 잔여물
+.venv/
+__pycache__/

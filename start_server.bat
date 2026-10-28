@@ -1,15 +1,26 @@
 @echo off
-rem CAPS attendance site - serve on the office network. Closing this window stops the site.
+rem CAPS attendance site - run in this window (Next.js + Supabase). Closing this window stops the site.
+rem The background site (Task Scheduler) must be stopped first: site_stop.bat
 cd /d "%~dp0"
 
-if not exist ".venv\Scripts\python.exe" (
-  echo [ERROR] .venv not found. Run the setup steps in README.md first.
+if not exist "node_modules" (
+  echo [ERROR] node_modules not found. Run the setup steps in README.md first.
+  pause
+  exit /b 1
+)
+
+echo Starting database (Supabase / Docker)...
+call npx supabase start
+if errorlevel 1 (
+  echo [ERROR] Supabase did not start. Is Docker Desktop running?
   pause
   exit /b 1
 )
 
 echo Backing up database...
-".venv\Scripts\python.exe" scripts\backup_db.py
+node scripts\backup-db.mjs
+
+if not exist ".next\BUILD_ID" call npm run build
 
 echo.
 echo ============================================================
@@ -21,6 +32,5 @@ echo  Keep this window open. Closing it stops the site.
 echo ============================================================
 echo.
 
-set PYTHONIOENCODING=utf-8
-".venv\Scripts\python.exe" -m streamlit run app.py --server.address 0.0.0.0 --server.port 8501 --server.headless true --browser.gatherUsageStats false
+call npm run start
 pause
