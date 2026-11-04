@@ -348,6 +348,12 @@ export async function addVacation(v: Omit<Vacation, "id" | "createdAt">): Promis
   }), "휴가 등록");
 }
 
+/** 표시(note)가 같은 그 사람의 휴가 중 fromDay 이후 것을 지운다 (일일 근태 보고서 휴가일정과 맞추기) */
+export async function deleteMarkedVacations(note: string, name: string, fromDay: DateStr): Promise<void> {
+  const sb = await createClient();
+  check(await sb.from("vacations").delete().eq("note", note).eq("name", name).gte("start_day", fromDay), "휴가 정리");
+}
+
 export async function deleteVacation(id: number): Promise<void> {
   const sb = await createClient();
   check(await sb.from("vacations").delete().eq("id", id), "휴가 삭제");

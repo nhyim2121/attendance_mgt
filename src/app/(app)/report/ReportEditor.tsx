@@ -2,9 +2,9 @@
 
 import { toBlob, toPng } from "html-to-image";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, useTransition } from "react";
-import { LEAVE_TYPES, renderReportHtml, type ReportRow, splitReportTypes } from "@/lib/daily";
-import { dayLabel } from "@/lib/time";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { LEAVE_TYPES, renderReportHtml, type ReportRow, returnDays, SCHEDULE_TYPES, scheduleText, splitReportTypes, tidySchedule } from "@/lib/daily";
+import { addDays, dayLabel, isDateStr, weekday } from "@/lib/time";
 import { carryAction, deleteReportAction, prefillAction, saveReportAction, sendReportMail } from "./actions";
 
 interface Props {
@@ -17,6 +17,7 @@ interface Props {
   deptOf: Record<string, string>;
   ranks: Record<string, string>;
   holidayDates: string[]; // 휴일 근태 표에 기본으로 보일 날짜 (직전 주말·최근 공휴일)
+  holidays: string[]; // 공휴일 전체 (출근예정 계산)
   mail: { configured: boolean; sender: string; to: string; cc: string; subject: string; greeting: string };
 }
 
@@ -30,15 +31,17 @@ const norm = (rows: ReportRow[]) => rows.filter((r) => r.name.trim())
   .map((r) => KEYS.map((k) => String(r[k] ?? "")).join("\u0000")).sort().join("\n"); // 순서는 비교하지 않음
 
 /** 근태현황 탭은 '근태 건' 단위로 편집한다: 근태·근무지·내용·비고가 같은 사람들을 한 줄(인원)로. 저장은 사람별 행. */
-interface Group { id: number; types: string; title: string; detail: string; note: string; names: string[] }
+interface Group { id: number; types: string; title: string; detail: string; note: string; names: string[]; from: string; to: string }
 let gid = 0;
-const newGroup = (g: Partial<Group> = {}): Group => ({ id: ++gid, types: "", title: "", detail: "", note: "", names: [], ...g });
+const newGroup = (g: Partial<Group> = {}): Group => ({ id: ++gid, types: "", title: "", detail: "", note: "", names: [], from: "", to: "", ...g });
+const RANGE = /^(\d{4}-\d{2}-\d{2})~(\d{4}-\d{2}-\d{2})$/;
 function toGroups(rows: ReportRow[]): Group[] {
   const m = new Map<string, Group>();
   for (const r of rows.filter((x) => x.section === "근태")) {
     const types = splitReportTypes(r.types).join(",");
-    const k = [splitReportTypes(r.types).sort().join(","), r.title.trim(), r.detail.trim(), r.note.trim()].join("\u0000");
-    const g = m.get(k) ?? newGroup({ types, title: r.title, detail: r.detail, note: r.note });
+    const k = [splitReportTypes(r.types).sort().join(","), r.title.trim(), r.detail.trim(), r.note.trim(), r.value].join("\u0000");
+    const rg = RANGE.exec(r.value ?? "");
+    const g = m.get(k) ?? newGroup({ types, title: r.title, detail: r.detail, note: r.note, from: rg?.[1] ?? "", to: rg?.[2] ?? "" });
     if (r.name && !g.names.includes(r.name)) g.names.push(r.name);
     m.set(k, g);
   }
@@ -49,7 +52,10 @@ const TABS: [string, string][] = [["근태", "근태현황"], ["도제", "일학
 
 export default function ReportEditor(p: Props) {
   const router = useRouter();
-  const [rows, setRows] = useState<ReportRow[]>(p.saved.filter((r) => r.section !== "근태")); // 근태현황 밖의 탭
+  // 근태현황 밖의 탭. 예전 휴가일정 줄은 사람·종류·시간별 한 줄로 정리해서 연다
+  const [rows, setRows] = useState<ReportRow[]>(() => tidySchedule(p.saved.filter((r) => r.section !== "근태"), p.day));
+  const hset = useMemo(() => new Set(p.holidays), [p.holidays]);
+  const isWorkday = (d: string) => weekday(d) < 5 && !hset.has(d);
   const [groups, setGroups] = useState<Group[]>(() => toGroups(p.saved));
   // 저장돼 있던 사람별 부서·직급 (직접 고친 값 유지)
   const info = useMemo(() => new Map(p.saved.filter((r) => r.section === "근태").map((r) => [r.name, r])), [p.saved]);
@@ -66,13 +72,23 @@ export default function ReportEditor(p: Props) {
     const att: ReportRow[] = groups.flatMap((g) => g.names.map((n) => ({
       ...blank("근태"), name: n, dept: info.get(n)?.dept ?? "", rank: info.get(n)?.rank ?? "",
       types: g.types, title: g.title, detail: g.detail, note: g.note,
+      value: g.from && g.to && g.to > g.from ? `${g.from}~${g.to}` : "",
     })));
-    return [...att, ...rows].filter((r) => r.name.trim()).map((r) => ({
+    // 휴가일정: 출근 예정은 날짜에서 자동 계산
+    const sch = rows.map((r) => (r.section === "휴가일정" && r.types
+      ? { ...r, value: returnDays(splitReportTypes(r.types), isWorkday).map((d) => dayLabel(d)).join(", ") } : r));
+    return [...att, ...sch].filter((r) => r.name.trim()).map((r) => ({
       ...r, dept: r.dept || p.deptOf[r.name] || "", rank: r.rank || p.ranks[r.name] || "",
       ord: (ord[r.section] = (ord[r.section] ?? 0) + 1),
     }));
   }, [rows, groups, info, p.deptOf, p.ranks]);
-  const dirty = norm(final) !== norm(p.saved);
+  // 자동 저장: 마지막으로 저장한 내용(baseline)과 다르면 입력을 멈추고 1.5초 뒤 저장한다 (화면은 그대로 둔다)
+  const [baseline, setBaseline] = useState<string | null>(null);
+  useEffect(() => { setBaseline((b) => b ?? norm(final)); }, [final]);
+  const [savedOnce, setSavedOnce] = useState(p.isSaved);
+  const [autoAt, setAutoAt] = useState("");
+  const dirty = baseline !== null && norm(final) !== baseline;
+  const isSaved = savedOnce;
   const noType = groups.filter((g) => g.names.length && !g.types).flatMap((g) => g.names);
   const setG = (id: number, patch: Partial<Group>) => setGroups((gs) => gs.map((g) => (g.id === id ? { ...g, ...patch } : g)));
   const toggleGType = (g: Group, t: string) => {
@@ -96,6 +112,22 @@ export default function ReportEditor(p: Props) {
     const cur = splitReportTypes(rows[i].types);
     set(i, { types: (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]).join(",") });
   };
+  const saveNow = (manual: boolean) => start(async () => {
+    const snap = norm(final);
+    const r = await saveReportAction(p.day, final);
+    if (r?.ok) {
+      setBaseline(snap);
+      setSavedOnce(true);
+      setAutoAt(new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }));
+      if (manual) setMsg(r);
+    } else setMsg(r);
+  });
+  useEffect(() => {
+    if (!dirty || noType.length || pending) return;
+    const t = setTimeout(() => saveNow(false), 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [final, dirty]);
   const run = (fn: () => Promise<Res>, refresh = true) => start(async () => {
     const r = await fn();
     setMsg(r);
@@ -162,7 +194,7 @@ export default function ReportEditor(p: Props) {
         {tab === "근태" && (
           <div className="tbl-wrap">
             <table className="tbl edit">
-              <thead><tr><th>근태 (여러 개 가능)</th><th>근무지·사유</th><th>내용</th><th>비고</th><th>인원</th><th /></tr></thead>
+              <thead><tr><th>근태 (여러 개 가능)</th><th title="연속 출장 등: 기간 안의 다른 근무일 보고서에도 같은 줄이 들어갑니다">기간</th><th>근무지·사유</th><th>내용</th><th>비고</th><th>인원</th><th /></tr></thead>
               <tbody>
                 {groups.map((g) => (
                   <tr key={g.id}>
@@ -172,6 +204,13 @@ export default function ReportEditor(p: Props) {
                           <input type="checkbox" checked={splitReportTypes(g.types).includes(t)} onChange={() => toggleGType(g, t)} />{t}
                         </label>
                       ))}
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <input type="date" value={g.from || p.day} style={{ width: 132 }}
+                        onChange={(e) => setG(g.id, { from: e.target.value, to: g.to && g.to >= e.target.value ? g.to : e.target.value })} />
+                      <span className="muted"> ~ </span>
+                      <input type="date" value={g.to || g.from || p.day} min={g.from || p.day} style={{ width: 132 }}
+                        onChange={(e) => setG(g.id, { from: g.from || p.day, to: e.target.value })} />
                     </td>
                     <td><input type="text" value={g.title} placeholder="예: SKL에너지(하남), 개인사유" style={{ minWidth: 160 }}
                       onChange={(e) => setG(g.id, { title: e.target.value })} /></td>
@@ -205,7 +244,53 @@ export default function ReportEditor(p: Props) {
             </table>
           </div>
         )}
-        {tab !== "근태" && <div className="tbl-wrap">
+        {tab === "휴가일정" && (
+          <div className="tbl-wrap">
+            <table className="tbl edit">
+              <thead><tr><th>성명</th><th>휴가 종류</th><th>날짜 (여러 개)</th><th>시간</th><th>사유</th><th>출근 예정</th><th /></tr></thead>
+              <tbody>
+                {idx.map(([r, i]) => {
+                  const legacy = !r.types && !r.title && !!r.note; // 정리하지 못한 예전 줄
+                  const ds = splitReportTypes(r.types).filter(isDateStr).sort();
+                  return (
+                    <tr key={i}>
+                      <td>{nameSelect(i, r)}</td>
+                      {legacy ? <>
+                        <td colSpan={4}>{text(i, "note", "예: 10/29(목) 1일 연차", 320)}<span className="caption"> (예전 형식)</span></td>
+                        <td>{text(i, "value", "예: 10/30(금)")}</td>
+                      </> : <>
+                        <td><select value={r.title || "연차"} onChange={(e) => set(i, { title: e.target.value })}>
+                          {SCHEDULE_TYPES.map((t) => <option key={t}>{t}</option>)}</select></td>
+                        <td style={{ minWidth: 260, whiteSpace: "normal" }}>
+                          <div className="row" style={{ gap: 4 }}>
+                            {ds.map((d) => (
+                              <span key={d} className="name-chip">{dayLabel(d)}
+                                <button type="button" title="빼기" onClick={() => set(i, { types: ds.filter((x) => x !== d).join(",") })}>×</button></span>
+                            ))}
+                            <input type="date" value="" title="날짜 추가" style={{ width: 140 }} onChange={(e) => {
+                              const v = e.target.value;
+                              if (v && !ds.includes(v)) set(i, { types: [...ds, v].sort().join(","), title: r.title || "연차" });
+                            }} />
+                          </div>
+                        </td>
+                        <td>{text(i, "detail", "예: 16:30~17:30", 110)}</td>
+                        <td>{text(i, "note", "", 120)}</td>
+                        <td className="muted" style={{ whiteSpace: "normal", minWidth: 110 }}>
+                          {returnDays(ds, isWorkday).map((d) => dayLabel(d)).join(", ") || "-"}</td>
+                      </>}
+                      <td><button className="btn sm danger" onClick={() => remove(i)} title="행 삭제">삭제</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {rows.some((r) => r.section === "휴가일정" && r.types) && (
+              <p className="caption" style={{ marginTop: 6 }}>보고서에는 「{scheduleText({ types: "2026-11-06,2026-11-09", title: "외출", detail: "16:30~17:30", note: "" })}」처럼 한 줄로 나옵니다.
+                저장하면 오늘 이후 날짜는 <b>휴가 관리</b>에도 휴가로 등록됩니다 (다시 저장하면 최신 내용으로 바뀜).</p>
+            )}
+          </div>
+        )}
+        {tab !== "근태" && tab !== "휴가일정" && <div className="tbl-wrap">
           <table className="tbl edit">
             <thead><tr>
               <th>성명</th><th>부서</th><th>직급</th>
@@ -242,9 +327,11 @@ export default function ReportEditor(p: Props) {
           </table>
         </div>}
         <div className="row" style={{ marginTop: 8 }}>
-          <button className="btn sm" onClick={() => (tab === "근태" ? setGroups((gs) => [...gs, newGroup()]) : setRows((rs) => [...rs, blank(tab)]))}>+ 행 추가</button>
+          <button className="btn sm" onClick={() => (tab === "근태" ? setGroups((gs) => [...gs, newGroup()])
+            : setRows((rs) => [...rs, tab === "휴가일정" ? { ...blank(tab), title: "연차" } : blank(tab)]))}>+ 행 추가</button>
           <span className="caption" style={{ margin: 0 }}>
-            {tab === "근태" && "근태 한 건마다 한 줄입니다. 같은 출장·휴가에 해당하는 사람은 [+ 인원]으로 고르세요. 부서·직급은 직원 명부에서 자동으로 채웁니다."}
+            {tab === "근태" && "근태 한 건마다 한 줄입니다. 같은 출장·휴가에 해당하는 사람은 [+ 인원]으로 고르세요. 기간을 정하면 그 기간의 다른 근무일 보고서에도 같은 줄이 들어갑니다. 부서·직급은 직원 명부에서 자동으로 채웁니다."}
+            {tab === "휴가일정" && "한 사람당 한 줄: 종류를 고르고 날짜를 여러 개 넣으세요. 출근 예정은 자동으로 계산됩니다."}
             {tab === "휴일근무" && "근무한 휴일 날짜에 체크하세요. 기본으로 직전 주말과 최근 공휴일이 표시됩니다."}
           </span>
         </div>
@@ -252,8 +339,7 @@ export default function ReportEditor(p: Props) {
 
       {noType.length > 0 && <div className="msg warn" style={{ marginTop: 12 }}>근태 종류가 비어 있는 사람: {noType.join(", ")}</div>}
       <div className="row" style={{ margin: "12px 0" }}>
-        <button className="btn primary" disabled={pending || (!dirty && p.isSaved)}
-          onClick={() => run(() => saveReportAction(p.day, final))}>저장</button>
+        <button className="btn primary" disabled={pending || (!dirty && isSaved)} onClick={() => saveNow(true)}>저장</button>
         <button className="btn" disabled={pending || !dirty} onClick={() => { setRows(p.saved.filter((r) => r.section !== "근태")); setGroups(toGroups(p.saved)); }}>편집 취소</button>
         <details className="pop left">
           <summary className="btn" aria-disabled={!p.isSaved}>보고서 삭제</summary>
@@ -266,7 +352,9 @@ export default function ReportEditor(p: Props) {
             </div>
           )}
         </details>
-        {dirty && <span style={{ color: "#e07b00" }}>저장하지 않은 변경 사항이 있습니다.</span>}
+        {pending ? <span className="muted">저장 중…</span>
+          : dirty ? <span style={{ color: "#e07b00" }}>{noType.length ? "근태 종류를 고르면 자동 저장됩니다." : "잠시 후 자동 저장됩니다…"}</span>
+            : autoAt ? <span style={{ color: "#1f8a3b" }}>✓ 자동 저장됨 {autoAt}</span> : null}
       </div>
 
       <div className="card">
@@ -295,12 +383,12 @@ export default function ReportEditor(p: Props) {
           onChange={(e) => setMail({ ...mail, subject: e.target.value })} /></label>
         <label className="field" style={{ marginTop: 10 }}>본문 인사말<textarea rows={3} value={mail.greeting}
           onChange={(e) => setMail({ ...mail, greeting: e.target.value })} /></label>
-        {(dirty || !p.isSaved) && <div className="msg warn" style={{ marginTop: 10 }}>저장된 보고서만 보낼 수 있습니다. 먼저 <b>저장</b>해 주세요.</div>}
+        {(dirty || !isSaved) && <div className="msg warn" style={{ marginTop: 10 }}>저장된 보고서만 보낼 수 있습니다. 먼저 <b>저장</b>해 주세요.</div>}
         <label className="row" style={{ gap: 6, margin: "10px 0" }}>
           <input type="checkbox" checked={mail.ok} onChange={(e) => setMail({ ...mail, ok: e.target.checked })} />
           위 받는 사람·참조에게 저장된 보고서를 보냅니다.
         </label>
-        <button className="btn primary" disabled={pending || !p.mail.configured || !mail.ok || !mail.to.trim() || dirty || !p.isSaved}
+        <button className="btn primary" disabled={pending || !p.mail.configured || !mail.ok || !mail.to.trim() || dirty || !isSaved}
           onClick={() => run(() => sendReportMail(p.day, mail.to, mail.cc, mail.subject, mail.greeting))}>
           {pending ? "보내는 중..." : "메일 보내기"}</button>
       </div>

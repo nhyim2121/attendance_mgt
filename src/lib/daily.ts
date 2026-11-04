@@ -7,7 +7,7 @@
  * - 휴일근무 : 성명 | 유형(근무한 휴일 날짜들, 'YYYY-MM-DD,YYYY-MM-DD') | 제목(작업내용/근무지) | 비고
  */
 import { dedupeLeaves, type Leave, sortLeaves } from "./leave";
-import { addDays, type DateStr, dayLabel, isDateStr, weekday } from "./time";
+import { addDays, type DateStr, dayLabel, isDateStr, makeDate, weekday } from "./time";
 
 export const SECTIONS = ["근태", "도제", "휴가일정", "휴일근무"] as const;
 export type Section = (typeof SECTIONS)[number];
@@ -239,7 +239,7 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
     parts.push(section(SECTION_TITLES.휴가일정, sub.length,
       table([["부서", "80px"], ["성명", "110px"], ["출근 예정", "130px"], ["휴가 일정", ""]],
         sub.map((r) => [esc(r.dept), person(r), `<span style="${TXT}font-weight:800;color:#d42a2a">${esc(r.value)}</span>`,
-          esc(r.note)]))));
+          esc(r.types ? scheduleText(r) : r.note)]))));
   }
 
   // 휴일 근무
@@ -261,6 +261,48 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   }
   parts.push("</div>");
   return parts.join("");
+}
+
+// ---------------------------------------------------------------- 휴가일정 (사람별 한 줄: title = 종류, types = 날짜들, detail = 시간)
+export const SCHEDULE_TYPES = ["연차", "월차", "반차", "반반차", "외출", "공가", "경조휴가", "병가"];
+const LEGACY_SCHEDULE = /^\s*(\d{1,2})\/(\d{1,2})\([^)]*\)\s*(연차|월차|반차|반반차|외출|공가|경조휴가|병가)\s*(\d{1,2}:\d{2}\s*~\s*\d{1,2}:\d{2})?\s*(.*)$/;
+
+/** 휴가일정 날짜들 -> '11/6(금)·11/9(월) 외출 16:30~17:30 (사유)' */
+export function scheduleText(r: Pick<ReportRow, "types" | "title" | "detail" | "note">): string {
+  const ds = splitReportTypes(r.types).filter(isDateStr).sort();
+  return [ds.map((d) => dayLabel(d)).join("·"), r.title, r.detail.trim(), r.note.trim() ? `(${r.note.trim()})` : ""].filter(Boolean).join(" ");
+}
+
+/** 출근 예정: 이어지는 휴가 묶음마다 그다음 근무일 */
+export function returnDays(dates: DateStr[], isWorkday: (d: DateStr) => boolean): DateStr[] {
+  const ds = [...new Set(dates.filter(isDateStr))].sort();
+  const out: DateStr[] = [];
+  for (let i = 0; i < ds.length; i++) {
+    let next = addDays(ds[i], 1);
+    while (!isWorkday(next)) next = addDays(next, 1);
+    if (ds[i + 1] === next) continue; // 다음 날도 휴가면 묶음이 이어진다
+    out.push(next);
+  }
+  return out;
+}
+
+/** 예전 휴가일정 줄('11/6(금) 외출 16:30~17:30')을 사람·종류·시간별 한 줄(날짜 여러 개)로 정리한다. */
+export function tidySchedule(rows: ReportRow[], reportDay: DateStr): ReportRow[] {
+  const y = +reportDay.slice(0, 4), rm = +reportDay.slice(5, 7);
+  const out: ReportRow[] = [];
+  for (const r of rows) {
+    if (r.section !== "휴가일정" || r.types || r.title) { out.push(r); continue; }
+    const m = LEGACY_SCHEDULE.exec(r.note);
+    if (!m) { out.push(r); continue; }
+    const mm = +m[1], yy = mm < rm - 6 ? y + 1 : mm > rm + 6 ? y - 1 : y; // 연말·연초 넘김
+    const d = makeDate(yy, mm, +m[2]);
+    if (!d) { out.push(r); continue; }
+    const time = (m[4] ?? "").replace(/\s+/g, "");
+    const same = out.find((x) => x.section === "휴가일정" && x.name === r.name && x.title === m[3] && x.detail === time && x.types);
+    if (same) same.types = [...splitReportTypes(same.types), d].sort().join(",");
+    else out.push({ ...r, title: m[3], types: d, detail: time, note: m[5].trim(), value: "" });
+  }
+  return out;
 }
 
 /** 메일 제목·미리보기용 한 줄 요약: '연차 1, 반차 1, 출장 3' */

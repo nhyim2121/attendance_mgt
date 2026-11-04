@@ -46,7 +46,7 @@ export default async function ReportView({ sp }: { sp: SearchParams }) {
         isSaved={!!info} canDelete={user?.role === "관리자" || info?.author === user?.loginId}
         hasPrev={written.some((d) => d < day)} names={names}
         deptOf={Object.fromEntries(base.roster.map((r) => [r.name, r.dept]))} ranks={rankMap(fileLeaves, allRows)}
-        holidayDates={holidayDates}
+        holidayDates={holidayDates} holidays={Object.keys(holidays)}
         mail={{
           configured: !!cfg, sender: cfg ? `${cfg.senderName} <${cfg.user}> · ${cfg.host}:${cfg.port}` : "",
           to: mailTo, cc: mailCc, subject: `[근태현황] ${dayLabel(day)} - ${summaryText(saved)}`,

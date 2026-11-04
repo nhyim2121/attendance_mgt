@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { revertEdits, saveEdits } from "./actions";
 import { Kinds, rowTone } from "./kinds";
 
@@ -42,11 +42,13 @@ const splitNote = (s: string) => s.split(/[\s,·/]+/).map((x) => x.trim()).filte
 export default function Editor({ employee, rows, staff = [] }: { employee: string; rows: EditRow[]; staff?: string[] }) {
   const router = useRouter();
   const [draft, setDraft] = useState(rows);
+  const [base, setBase] = useState(rows); // 마지막으로 저장한 값 (자동 저장 기준)
+  const [autoAt, setAutoAt] = useState("");
   const [msg, setMsg] = useState<{ ok?: string; error?: string } | null>(null);
   const [revert, setRevert] = useState<string[]>([]);
   const [pending, start] = useTransition();
 
-  const changed = (i: number, k: keyof EditRow) => String(draft[i][k]).trim() !== String(rows[i][k]).trim();
+  const changed = (i: number, k: keyof EditRow) => String(draft[i][k]).trim() !== String(base[i][k]).trim();
   const changes = draft.map((r, i) => {
     const ch: Record<string, string> = {};
     for (const [k] of COLS) if (changed(i, k)) ch[k] = String(r[k]).trim();
@@ -74,6 +76,23 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
     setMsg(r);
     if (r.ok) router.refresh();
   });
+
+  // 자동 저장: 입력을 멈추고 1.5초 뒤 바뀐 날만 저장 (화면은 그대로)
+  const autoSave = () => start(async () => {
+    const snap = draft;
+    const r = await saveEdits(changes as Parameters<typeof saveEdits>[0]);
+    if (r.ok) {
+      setBase(snap);
+      setAutoAt(new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }));
+      if (r.ok.includes("같이 근무한")) setMsg(r);
+    } else setMsg(r);
+  });
+  useEffect(() => {
+    if (!changes.length || bad.length || pending) return;
+    const t = setTimeout(autoSave, 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft]);
 
   return (
     <>
@@ -126,7 +145,10 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
           onClick={() => run(() => saveEdits(changes as Parameters<typeof saveEdits>[0]))}>
           저장 ({changes.length}일 변경)
         </button>
-        <button className="btn" disabled={pending || !changes.length} onClick={() => setDraft(rows)}>편집 취소</button>
+        <button className="btn" disabled={pending || !changes.length} onClick={() => setDraft(base)}>편집 취소</button>
+        {pending ? <span className="muted">저장 중…</span>
+          : changes.length ? <span style={{ color: "#e07b00" }}>{bad.length ? "시각 형식을 고치면 자동 저장됩니다." : "잠시 후 자동 저장됩니다…"}</span>
+            : autoAt ? <span style={{ color: "#1f8a3b" }}>✓ 자동 저장됨 {autoAt}</span> : null}
         <details className="pop left">
           <summary className="btn" aria-disabled={!edited.length}>수정 되돌리기</summary>
           {edited.length > 0 && (

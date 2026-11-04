@@ -18,15 +18,15 @@ try {
         $n = @($changed).Count
         $msgFile = Join-Path $env:TEMP "caps-auto-commit-msg.txt"
         @(
-            "자동 저장: $(Get-Date -Format 'yyyy-MM-dd HH:mm') (파일 $n개)",
+            "자동 저장: $(Get-Date -Format 'yyyy-MM-dd HH:mm') (파일 $($n)개)",
             "",
             "매일 18:00 작업 스케줄러가 바뀐 코드를 커밋합니다 (scripts/auto_commit.ps1).",
             "",
             "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-        ) | Out-File -FilePath $msgFile -Encoding utf8
+        ) -join "`n" | ForEach-Object { [System.IO.File]::WriteAllText($msgFile, $_, [System.Text.UTF8Encoding]::new($false)) }
         git commit -q -F $msgFile
         if ($LASTEXITCODE -ne 0) { Write-Log "커밋 실패 (코드 $LASTEXITCODE)"; exit 1 }
-        Write-Log "커밋함: 파일 $n개"
+        Write-Log "커밋함: 파일 $($n)개"
     } else {
         Write-Log "바뀐 파일 없음"
     }
@@ -35,7 +35,7 @@ try {
     $ahead = (git rev-list --count origin/main..HEAD 2>$null)
     if ($ahead -and [int]$ahead -gt 0) {
         git push -q origin main
-        if ($LASTEXITCODE -eq 0) { Write-Log "GitHub에 올림: 커밋 $ahead개" } else { Write-Log "GitHub 올리기 실패 (코드 $LASTEXITCODE) - 다음 실행 때 다시 시도" ; exit 1 }
+        if ($LASTEXITCODE -eq 0) { Write-Log "GitHub에 올림: 커밋 $($ahead)개" } else { Write-Log "GitHub 올리기 실패 (코드 $LASTEXITCODE) - 다음 실행 때 다시 시도" ; exit 1 }
     }
 } catch {
     Write-Log "오류: $($_.Exception.Message)"
