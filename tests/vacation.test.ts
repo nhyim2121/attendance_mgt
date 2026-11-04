@@ -7,7 +7,7 @@ import type { Employee } from "@/lib/employees";
 import { groupTrips } from "@/lib/evidence";
 import { employeeRows, SHEET_COLUMNS } from "@/lib/splitter";
 import {
-  addMonths, annualGrant, DEFAULT_POLICY, expandVacations, fyOf, fyRange, leaveBalances, monthlyGrants, outingHours,
+  addMonths, annualGrant, DEFAULT_POLICY, expandVacations, fyOf, fyRange, leaveBalances, monthlyGrants, normalizeDay, outingHours,
   type Vacation,
 } from "@/lib/vacation";
 import { leave, mini, RULE } from "./helpers";
@@ -70,6 +70,28 @@ describe("회계연도 연차", () => {
     const [, c] = leaveBalances(emps, lv, adj, 2026, "2026-10-30", { ...P, outingDeduct: true });
     expect(c.used).toBe(0.5);
     expect(outingHours("09:00 ~ 10:30")).toBe(1.5);
+  });
+
+  it("입사 1년 날 남은 월차는 자동 소멸 (전년도 이월 포함, 그 전에 쓴 휴가 차감)", () => {
+    const emps = [emp({ name: "가나다", joinDate: "2025-04-21" })];
+    const lv = [
+      leave("2026-01-16", "가나다", "", "", "연차", ""), leave("2026-02-10", "가나다", "", "", "연차", ""),
+      leave("2026-03-05", "가나다", "", "", "연차", ""), leave("2026-04-17", "가나다", "", "", "연차", ""),
+      leave("2026-06-01", "가나다", "", "", "연차", ""), // 1년 뒤 = 연차
+    ];
+    const adj = [
+      { id: 1, name: "가나다", fy: 2026, days: 2, reason: "2025년 잔여 이월", createdBy: "", createdAt: "" },
+      { id: 2, name: "가나다", fy: 2026, days: 1, reason: "포상휴가", createdBy: "", createdAt: "" }, // 소멸 계산에 안 넣음
+    ];
+    // 2026년 월차 1/21·2/21·3/21 = 3 + 이월 2 - 1년 전 사용 4 = 1일 소멸 (4/21)
+    const [a] = leaveBalances(emps, lv, adj, 2026, "2026-11-04", P);
+    expect(a).toMatchObject({ monthly: 3, expired: 1, expireDay: "2026-04-21", adjust: 2, used: 5 });
+    expect(a.total).toBe(a.annual + 3 + 2);
+    // 기준일이 1년 날 전이면 예정으로만 (잔여에서 빼지 않음)
+    const [b] = leaveBalances(emps, lv, adj, 2026, "2026-03-31", P);
+    expect(b).toMatchObject({ expired: 0, expireLater: 1, adjust: 3 });
+    // 1년 날이 없는 회계연도는 소멸 없음
+    expect(leaveBalances(emps, lv, [], 2025, "2025-12-31", P)[0]).toMatchObject({ expired: 0, expireDay: null });
   });
 
   it("등록 휴가 펼치기: 기간은 근무일만", () => {
@@ -138,5 +160,28 @@ describe("직원별 시트·증빙", () => {
     expect(t.map((x) => [x.title, x.from, x.to, x.days.length])).toEqual([
       ["김포발전소", "2026-10-23", "2026-10-26", 2], ["울산", "2026-10-28", "2026-10-28", 1],
     ]);
+  });
+});
+
+describe("휴가 기록 정리 (외출+반차, 30분 단위)", () => {
+  const L = (type: string, content: string) => leave("2026-08-12", "홍길동", "생산팀", "", type, content);
+  const norm = (...rows: ReturnType<typeof L>[]) => normalizeDay(rows).map((x) => [x.type, x.hours]);
+  it("외출 시간은 30분 단위 올림, 점심 12~13시 제외", () => {
+    expect(outingHours("10:00~10:40")).toBe(1);
+    expect(outingHours("11:30~13:30")).toBe(1);
+    expect(outingHours("08:30~09:30 + 15:30~17:30")).toBe(3);
+  });
+  it("외출+오후반차 13:00~17:30 -> 반차 + 외출 0.5시간 (연차로 올라와도)", () => {
+    expect(norm(L("연차", "외출+오후반차\n13:00~17:30"), L("외출", "외출+오후반차\n13:00~17:30"))).toEqual([["반차", 0], ["외출", 0.5]]);
+    expect(norm(L("반차", "외출+오후반차"))).toEqual([["반차", 0], ["외출", 0.5]]);
+  });
+  it("외출만 4시간 이상 -> 반차 + 나머지, 반반차+외출 -> 반반차 + 나머지", () => {
+    expect(norm(L("외출", "개인사유\n13:00~17:30"))).toEqual([["반차", 0], ["외출", 0.5]]);
+    expect(norm(L("외출", "13:30~17:30"))).toEqual([["반차", 0]]);
+    expect(norm(L("반반차", "개인사유\n14:00~17:30"), L("외출", "개인사유\n14:00~17:30"))).toEqual([["반반차", 0], ["외출", 1.5]]);
+  });
+  it("연차로 올라온 '오후 반차'는 반차, '5/28 반차, 5/29 연차'는 연차", () => {
+    expect(norm(L("연차", "오후 반차"))).toEqual([["반차", 0]]);
+    expect(norm(L("연차", "개인사유\n5/28(목) 반차, 5/29(금) 연차"))).toEqual([["연차", 0]]);
   });
 });

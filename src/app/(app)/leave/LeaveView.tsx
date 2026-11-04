@@ -12,7 +12,7 @@ import { getHolidays, getLeavePolicy, getRule, loadBase, type SearchParams } fro
 import * as store from "@/lib/store";
 import { addDays, dayLabel, daysInMonth, isDateStr, makeDate, shortKst, todayKst, weekday } from "@/lib/time";
 import {
-  fyLabel, fyOf, fyRange, leaveBalances, outingHours, RANGE_TYPES, VACATION_TYPES, vacationDays,
+  fyLabel, fyOf, fyRange, leaveBalances, RANGE_TYPES, VACATION_TYPES, vacationDays,
 } from "@/lib/vacation";
 import { StatusBars } from "@/components/Charts";
 import { Ico, Stat } from "@/components/HomeKit";
@@ -20,7 +20,7 @@ import MonthCalendar from "@/components/MonthCalendar";
 import { leaveBg, leaveFg } from "@/lib/leaveColors";
 import { ApprovalForm } from "../upload/forms";
 import { AdjustForm, DeleteButton, PolicyForm, VacationForm } from "./forms";
-import { EvidenceTab, PersonReport, SummaryReport } from "./Report";
+import { EvidenceTab, PersonReport, PromoteReport, SummaryReport } from "./Report";
 
 export const TABS = {
   status: "연차 현황", evidence: "신청서 증빙", report: "현황 보고서", register: "휴가 등록·설정", calendar: "휴가 캘린더",
@@ -38,7 +38,7 @@ export type LeaveTab = keyof typeof TABS;
 
 export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; tab: LeaveTab }) {
   // 메뉴 하나에 화면 여러 개: 연차 현황(현황표·요약 보고서·직원별 내역서), 휴가 등록·설정(휴가 등록·연차 조정·연차 기준)
-  const tab: LeaveTab = page === "status" && (sp.view === "summary" || sp.view === "person") ? "report"
+  const tab: LeaveTab = page === "status" && (sp.view === "summary" || sp.view === "person" || sp.view === "promote") ? "report"
     : page === "register" && sp.sec === "adjust" ? "adjust" : page === "register" && sp.sec === "policy" ? "policy" : page;
   const [base, policy, adjusts, rule, holidays] = await Promise.all([
     loadBase(), getLeavePolicy(), store.loadAdjusts(), getRule(), getHolidays(),
@@ -73,6 +73,7 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
           <Link href={hrefWith(sp, "/leave/status", { view: null, emp: null })} className={tab === "status" ? "on" : ""} scroll={false}>현황표</Link>
           <Link href={hrefWith(sp, "/leave/status", { view: "summary", emp: null })} className={sp.view === "summary" ? "on" : ""} scroll={false}>요약 보고서</Link>
           <Link href={hrefWith(sp, "/leave/status", { view: "person" })} className={sp.view === "person" ? "on" : ""} scroll={false}>직원별 내역서</Link>
+          <Link href={hrefWith(sp, "/leave/status", { view: "promote", emp: null })} className={sp.view === "promote" ? "on" : ""} scroll={false}>연차 사용 촉진</Link>
         </div>
       )}
       {page === "register" && (
@@ -118,7 +119,7 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
   }
 
   if (tab === "report") {
-    const view = sp.view === "person" ? "person" : "summary";
+    const view = sp.view === "person" ? "person" : sp.view === "promote" ? "promote" : "summary";
     const emp = String(sp.emp ?? "");
     const order = [...new Set(emps.map((e) => e.dept).filter(Boolean))];
     const people = bal.filter((b) => !emp || b.name === emp);
@@ -140,9 +141,11 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
           <PrintButton className="btn primary" />
         </div>
         <div className="doc">
-          {view === "summary"
+          {view === "promote"
+            ? <PromoteReport bal={bal} fyText={fyText} range={[fs, fe]} asOf={asOf} today={today} />
+            : view === "summary"
             ? <SummaryReport bal={bal} atts={vacAtts} fyText={fyText} range={[fs, fe]} asOf={asOf} today={today} deptOrder={order} trend={trend} />
-            : byJoin(people).map((b) => <PersonReport key={b.name} b={b} atts={vacAtts} fyText={fyText} range={[fs, fe]} asOf={asOf} today={today} />)}
+            : byJoin(people).map((b) => <PersonReport key={b.name} b={b} all={bal} fyText={fyText} range={[fs, fe]} asOf={asOf} today={today} />)}
         </div>
       </>
     );
@@ -217,6 +220,9 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
 
   if (tab === "adjust") {
     const list = adjusts.filter((a) => a.fy === fy);
+    // 자동 조정: 입사 1년 날 남은 월차 소멸 (기준일 뒤면 예정)
+    const auto = leaveBalances(emps, base.leaves, adjusts, fy, asOf, policy)
+      .filter((b) => b.expireDay && !excl.has(b.name)).sort((a, b) => (a.expireDay! < b.expireDay! ? -1 : 1));
     return (
       <>
         {head}
@@ -227,13 +233,26 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
         </div>
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card-title">{fyLabel(fy, policy)} 조정 내역</div>
-          {list.length ? (
+          {list.length || auto.length ? (
             <table className="tbl"><thead><tr><th>직원</th><th className="num">일수</th><th>사유</th><th>등록</th><th /></tr></thead>
               <tbody>{list.map((a) => (
                 <tr key={a.id}><td>{a.name}</td><td className="num">{a.days > 0 ? "+" : ""}{a.days}</td><td>{a.reason}</td>
                   <td className="muted">{a.createdBy} {shortKst(a.createdAt)}</td><td><DeleteButton id={a.id} kind="adjust" /></td></tr>
-              ))}</tbody></table>
+              ))}
+              {auto.map((b) => {
+                const later = b.expireDay! > asOf, n = later ? b.expireLater : b.expired;
+                return (
+                  <tr key={`auto-${b.name}`} className={later ? "planned" : ""}>
+                    <td>{b.name}</td><td className="num">{n ? `-${n2(n)}` : "0"}</td>
+                    <td>월차 소멸 {later ? "예정 " : ""}(입사 1년 {b.expireDay} · 남은 월차{later ? ", 지금 기록 기준" : ""})</td>
+                    <td className="muted">자동 계산</td><td />
+                  </tr>
+                );
+              })}</tbody></table>
           ) : <p className="muted">조정 내역이 없습니다.</p>}
+          <p className="caption" style={{ marginTop: 8 }}>
+            월차 소멸은 자동입니다: 입사 1년이 되는 날, 그 해에 생긴 월차와 사유에 &apos;이월&apos;·&apos;초과&apos;가 들어간 조정을 더하고 그날 전에 쓴 휴가를 뺀 나머지를 없앱니다.
+            기준일 뒤의 소멸은 &apos;예정&apos;으로만 보이고 잔여에서 빼지 않습니다.</p>
         </div>
       </>
     );
@@ -246,7 +265,11 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
   // ---------------------------------------------------------------- 연차 현황
   const total = bal.reduce((t, b) => t + b.total, 0), used = bal.reduce((t, b) => t + b.used, 0);
   const noJoin = bal.filter((b) => !b.joinDate).map((b) => b.name);
-  const types = ["연차", "월차", "반차", "반반차", "외출", "공가", "경조휴가", "병가"].filter((t) => bal.some((b) => b.counts[t]));
+  const LEAVE_ONLY = ["연차", "월차", "반차", "반반차", "외출", "공가", "경조휴가", "병가"];
+  const types = LEAVE_ONLY.filter((t) => bal.some((b) => b.counts[t]));
+  const n4 = (x: number) => String(Math.round(x * 10000) / 10000);
+  // 내역 팝업은 휴가만 (출장·교육·휴일근무·연장근무 제외)
+  const leaveItems = (b: (typeof bal)[number]) => b.items.filter((it) => LEAVE_ONLY.includes(it.type));
   const plannedSum = bal.reduce((t, b) => t + b.planned, 0), remainSum = bal.reduce((t, b) => t + b.remain, 0);
   const rateOf = (b: (typeof bal)[number]) => (b.total ? (b.used / b.total) * 100 : 0);
   const rateColor = (r: number) => (r >= 80 ? "#0c3994" : r >= 50 ? "#3a5db0" : r >= 20 ? "#e9a23b" : "#e84340");
@@ -313,7 +336,7 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
           <thead><tr>
             <th>부서</th><th>이름</th><th>입사일</th><th className="num">연차</th><th className="num" title="기준일까지 발생 (+ 이 회계연도 안에 더 발생할 일수)">월차</th>
             <th className="num">조정</th><th className="num">총 부여</th><th className="num">사용</th><th className="num">예정</th><th className="num">잔여</th>
-            <th>사용률</th>{types.map((t) => <th key={t} className="num"><span className={`tag t-${t}`}>{t}</span></th>)}<th className="num">외출(h)</th><th className="noprint" />
+            <th>사용률</th>{types.map((t) => <th key={t} className="num" title={t === "외출" ? "시간 (일수)" : "일수"}><span className={`tag t-${t}`}>{t}</span></th>)}<th className="noprint" />
           </tr></thead>
           <tbody>
             {byJoin(bal).map((b) => (
@@ -323,7 +346,8 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
                 <td className="num" title={b.annualNote}>{n2(b.annual)}</td>
                 <td className="num" title={b.monthlyItems.map(([d, n, why]) => `${d} +${n} (${why})`).join("\n")}>
                   {n2(b.monthly)}{b.monthlyLater ? <span className="muted"> (+{n2(b.monthlyLater)})</span> : ""}</td>
-                <td className="num">{b.adjust ? n2(b.adjust) : ""}</td>
+                <td className="num" title={b.expired ? `월차 소멸 -${n2(b.expired)} (${b.expireDay}) 포함` : b.expireLater ? `${b.expireDay} 월차 소멸 예정 ${n2(b.expireLater)}일` : undefined}>
+                  {b.adjust ? n2(b.adjust) : ""}</td>
                 <td className="num"><b>{n2(b.total)}</b></td>
                 <td className="num">{n2(b.used)}</td>
                 <td className="num">{b.planned ? n2(b.planned) : ""}</td>
@@ -331,21 +355,23 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
                 <td><div className="rate"><div className="bar"><div style={{ width: `${Math.min(100, rateOf(b))}%`, background: rateColor(rateOf(b)) }} /></div>
                   <span style={{ color: rateColor(rateOf(b)) }}>{Math.round(rateOf(b))}%</span></div></td>
                 {types.map((t) => (
-                  <td key={t} className="num">{b.counts[t] ? <span className="pill" style={{ color: leaveFg(t), background: leaveBg(t) }}>{b.counts[t]}</span> : ""}</td>
+                  <td key={t} className="num" title={b.counts[t] ? `${b.counts[t]}건` : undefined}>{b.counts[t] ? (
+                    <span className="pill" style={{ color: leaveFg(t), background: leaveBg(t) }}>
+                      {t === "외출" ? `${n2(b.outingHours)}h` : `${n4(b.typeDays[t])}일`}</span>) : ""}
+                    {t === "외출" && b.outingHours > 0 && <div className="muted" style={{ fontSize: 11 }}>{n4(b.typeDays[t])}일</div>}</td>
                 ))}
-                <td className="num">{b.outingHours ? n2(b.outingHours) : ""}</td>
                 <td className="noprint">
-                  {b.items.length > 0 && (
+                  {leaveItems(b).length > 0 && (
                     <details className="pop">
                       <summary className="btn sm">내역</summary>
                       <div className="pop-body">
                         <b>{b.name} · {fyLabel(fy, policy)}</b>
-                        <p className="caption" style={{ margin: "4px 0 8px" }}>연차 {n2(b.annual)}일 ({b.annualNote}){b.monthlyItems.length ? ` · 월차 ${b.monthlyItems.map(([d, n]) => `${+d.slice(5, 7)}/${+d.slice(8)} +${n}`).join(", ")}` : ""}</p>
+                        <p className="caption" style={{ margin: "4px 0 8px" }}>연차 {n2(b.annual)}일 ({b.annualNote}){b.monthlyItems.length ? ` · 월차 ${b.monthlyItems.map(([d, n]) => `${+d.slice(5, 7)}/${+d.slice(8)} +${n}`).join(", ")}` : ""}{b.expired ? ` · 월차 소멸 -${n2(b.expired)} (${b.expireDay})` : ""}</p>
                         <table className="tbl"><thead><tr><th>일자</th><th>유형</th><th className="num">차감</th><th>내용</th><th>출처</th></tr></thead>
-                          <tbody>{b.items.map((it, i) => (
+                          <tbody>{leaveItems(b).map((it, i) => (
                             <tr key={i} className={it.planned ? "planned" : ""}><td>{dayLabel(it.day)}</td><td>{it.type}{it.applied && it.applied !== it.type && <span className="muted"> ({it.applied} 신청)</span>}</td>
-                              <td className="num">{it.days ? n2(it.days) : ""}</td>
-                              <td>{it.content.split("\n")[0]}{it.type === "외출" && outingHours(it.content) ? ` (${outingHours(it.content)}h)` : ""}</td>
+                              <td className="num">{it.days ? n4(it.days) : ""}</td>
+                              <td>{it.content.split("\n")[0]}{it.type === "외출" && it.hours ? ` (${it.hours}h)` : ""}</td>
                               <td className="muted">{it.src === "사이트" ? "일일 근태 보고서" : it.src === "휴가관리" ? "휴가 등록" : "근태현황 파일"}</td></tr>
                           ))}</tbody></table>
                       </div>
@@ -357,7 +383,8 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
           </tbody>
         </table></div>
         <p className="caption" style={{ marginTop: 8 }}>
-          연차·월차는 1일, 반차 0.5일, 반반차 0.25일 차감{policy.outingDeduct ? `, 외출은 ${policy.outingHoursPerDay}시간 = 1일로 차감` : " (외출·공가·경조휴가·병가는 차감 안 함)"}.
+          연차·월차는 1일, 반차 0.5일, 반반차 0.25일 차감{policy.outingDeduct ? `, 외출은 30분 단위(점심 12~13시 제외)로 ${policy.outingHoursPerDay}시간 = 1일로 차감` : " (외출·공가·경조휴가·병가는 차감 안 함)"}.
+          외출+반차를 한 번에 낸 경우(예: 13:00~17:30)는 반차 + 나머지 시간 외출로, 외출만 4시간 이상이면 반차 + 나머지 외출로 셉니다. 유형 칸은 일수(외출은 시간)입니다.
           월차 칸의 괄호는 이 회계연도 안에 앞으로 더 생길 월차입니다. 숫자에 마우스를 올리면 계산 근거가 보입니다.
           입사 1년이 되기 전에 쓴 휴가는 연차로 신청했어도 월차로 셉니다. 잔여: <span className="remain low" style={{ padding: "0 6px" }}>2일 이하</span> <span className="remain neg" style={{ padding: "0 6px" }}>초과 사용</span>
         </p>

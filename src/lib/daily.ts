@@ -147,6 +147,19 @@ function twoLine(title: string, detail: string): string {
   return t + d || `<span style="color:${SUB}">-</span>`;
 }
 
+/** 근태 줄 본문: 출장·교육·휴일연장 = 장소(굵게) + 내용, 휴가류 = 사유 + 시간(종일), 경조·공가·병가 = 사유 + 비고 */
+function attText(r: ReportRow): string {
+  const cat = attCat(r.types);
+  if (cat === "leave") {
+    const unit = leaveUnit(r.types);
+    const time = unit === "day" ? "종일 (1일)" : timeLabel(r.detail);
+    const reason = r.title.trim();
+    if (!reason && !time) return `<span style="color:${SUB}">-</span>`;
+    return reason ? twoLine(reason, time) : `<div style="${TXT}font-weight:700">${esc(time)}</div>`;
+  }
+  return twoLine(r.title, r.detail);
+}
+
 function person(r: ReportRow): string {
   const rank = r.rank ? ` <span style="${TXT}font-size:12px;color:${SUB}">${esc(r.rank)}</span>` : "";
   return `<span style="${TXT}font-weight:700">${esc(r.name)}</span>${rank}`;
@@ -224,11 +237,21 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   // 근태 현황 (항상 표시)
   const att = rows.filter((r) => r.section === "근태");
   const lines = (xs: string[]) => xs.map((x) => `<div style="${TXT}line-height:1.6">${x}</div>`).join("");
+  // 묶인 줄 안에서 부서별로 사람을 모으고, 부서 이름은 그 부서 첫 사람 옆에만
+  const byDept = (g: ReportRow[]) => {
+    const order = [...new Set(g.map((r) => r.dept))];
+    return [...g].sort((a, b) => order.indexOf(a.dept) - order.indexOf(b.dept));
+  };
+  const deptLines = (g: ReportRow[]) => g.map((r, i) => {
+    const first = i === 0 || g[i - 1].dept !== r.dept;
+    return `<div style="${TXT}line-height:1.6;${first ? "font-weight:700" : ""}">${first ? esc(r.dept) || "&nbsp;" : "&nbsp;"}</div>`;
+  }).join("");
+  const nameLines = (g: ReportRow[]) => g.map((r) => `<div style="${TXT}line-height:1.6">${person(r)}</div>`).join("");
   const inner = att.length
-    ? table([["부서", "80px"], ["성명", "110px"], ["근태", "130px"], ["근무지·사유", ""], ["비고", "110px"]],
-      groupAttendance(att).map((g) => [
-        lines([...new Set(g.map((r) => r.dept))].map(esc)), lines(g.map(person)),
-        splitReportTypes(g[0].types).map(badge).join(""), twoLine(g[0].title, g[0].detail),
+    ? table([["부서", "80px"], ["성명", "110px"], ["근태", "130px"], ["장소 · 내용 (사유·시간)", ""], ["비고", "110px"]],
+      groupAttendance(att).map(byDept).map((g) => [
+        deptLines(g), nameLines(g),
+        splitReportTypes(g[0].types).map(badge).join(""), attText(g[0]),
         lines([...new Set(g.map((r) => r.note).filter(Boolean))].map(esc))]))
     : `<div style="${TXT}color:${SUB};padding:6px 0">오늘 근태 특이사항이 없습니다.</div>`;
   parts.push(section(SECTION_TITLES.근태, att.length, inner));
@@ -261,6 +284,48 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   }
   parts.push("</div>");
   return parts.join("");
+}
+
+// ---------------------------------------------------------------- 근태 종류 분류·휴가 시간 (보고서 입력칸·표시 공용)
+/** 한 줄에 여러 근태가 있으면 출장 > 교육 > 휴일·연장 > 경조·공가·병가 > 휴가 순으로 칸 모양을 정한다 */
+export type AttCat = "trip" | "edu" | "work" | "special" | "leave" | "none";
+export function attCat(types: string): AttCat {
+  const t = splitReportTypes(types);
+  if (t.some((x) => x === "출장" || x === "외근")) return "trip";
+  if (t.includes("교육")) return "edu";
+  if (t.some((x) => x === "휴일근무" || x === "연장근무")) return "work";
+  if (t.some((x) => x === "경조휴가" || x === "공가" || x === "병가")) return "special";
+  if (t.some((x) => ["연차", "월차", "반차", "반반차", "외출"].includes(x))) return "leave";
+  return "none";
+}
+/** 휴가 시간 단위: 연차·월차만 = 종일, 반차만 = 4시간, 반반차만 = 2시간, 외출이나 섞인 경우 = 30분 단위 자유 */
+export function leaveUnit(types: string): "day" | 4 | 2 | "free" {
+  const t = splitReportTypes(types).filter((x) => ["연차", "월차", "반차", "반반차", "외출"].includes(x));
+  if (t.length && t.every((x) => x === "연차" || x === "월차")) return "day";
+  if (t.length === 1 && t[0] === "반차") return 4;
+  if (t.length === 1 && t[0] === "반반차") return 2;
+  return "free";
+}
+export const LUNCH: [number, number] = [12 * 60, 13 * 60]; // 점심 12:00~13:00 (반차·반반차 끝 시각·시간 계산에서 뺀다)
+const toMin = (s: string) => { const m = /^(\d{1,2}):(\d{2})$/.exec(s.trim()); return m ? +m[1] * 60 + +m[2] : null; };
+const toHM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+/** 시작 + 근무 n시간 (점심을 지나면 그만큼 뒤로) */
+export function addWorkHours(start: string, hours: number): string {
+  const s = toMin(start);
+  if (s === null) return "";
+  let t = s, left = hours * 60;
+  while (left > 0) { if (!(t >= LUNCH[0] && t < LUNCH[1])) left--; t++; } // 점심시간은 세지 않는다
+  return toHM(t);
+}
+/** '16:30~17:30' -> '16:30~17:30 (1시간)'. 시작·끝이 다 있어야 하고, 점심은 뺀다. 아니면 빈 글. */
+export function timeLabel(detail: string): string {
+  const m = /^\s*(\d{1,2}:\d{2})\s*~\s*(\d{1,2}:\d{2})\s*$/.exec(detail ?? "");
+  if (!m) return "";
+  const a = toMin(m[1])!, b = toMin(m[2])!;
+  if (b <= a) return "";
+  const mins = b - a - Math.max(0, Math.min(b, LUNCH[1]) - Math.max(a, LUNCH[0]));
+  const h = Math.floor(mins / 60), mm = mins % 60;
+  return `${toHM(a)}~${toHM(b)} (${h ? `${h}시간` : ""}${h && mm ? " " : ""}${mm ? `${mm}분` : ""})`;
 }
 
 // ---------------------------------------------------------------- 휴가일정 (사람별 한 줄: title = 종류, types = 날짜들, detail = 시간)

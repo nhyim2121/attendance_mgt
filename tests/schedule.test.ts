@@ -33,3 +33,20 @@ describe("휴가일정", () => {
     expect(tidySchedule([row({ note: "1/2(금) 연차" })], "2026-12-30")[0].types).toBe("2027-01-02");
   });
 });
+
+import { addWorkHours, leaveUnit, timeLabel } from "@/lib/daily";
+describe("휴가 시간", () => {
+  it("단위와 끝 시각 (점심 12:00~13:00 제외)", () => {
+    expect(leaveUnit("연차")).toBe("day");
+    expect(leaveUnit("반차")).toBe(4);
+    expect(leaveUnit("반반차")).toBe(2);
+    expect(leaveUnit("반차,외출")).toBe("free");
+    expect(addWorkHours("08:30", 4)).toBe("13:30"); // 08:30~12:00 3.5h + 13:00~13:30
+    expect(addWorkHours("13:30", 4)).toBe("17:30");
+    expect(addWorkHours("10:00", 2)).toBe("12:00");
+    expect(addWorkHours("11:00", 2)).toBe("14:00");
+    expect(timeLabel("16:30~17:30")).toBe("16:30~17:30 (1시간)");
+    expect(timeLabel("11:30~13:30")).toBe("11:30~13:30 (1시간)");
+    expect(timeLabel("~17:30")).toBe("");
+  });
+});

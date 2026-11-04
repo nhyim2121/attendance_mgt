@@ -18,7 +18,8 @@ export interface Override {
   outType: string | null;
   place: string | null;
   note: string | null; // 인원
-  work?: string | null; // 업무내용
+  work?: string | null; // 업무내용 (조출·휴일·출장 등)
+  workOt?: string | null; // 연장 업무내용
   editedBy: string;
   editedAt: string;
 }

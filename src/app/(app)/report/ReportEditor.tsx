@@ -3,7 +3,10 @@
 import { toBlob, toPng } from "html-to-image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { LEAVE_TYPES, renderReportHtml, type ReportRow, returnDays, SCHEDULE_TYPES, scheduleText, splitReportTypes, tidySchedule } from "@/lib/daily";
+import {
+  addWorkHours, attCat, LEAVE_TYPES, leaveUnit, renderReportHtml, type ReportRow, returnDays, SCHEDULE_TYPES, scheduleText, splitReportTypes,
+  tidySchedule, timeLabel,
+} from "@/lib/daily";
 import { addDays, dayLabel, isDateStr, weekday } from "@/lib/time";
 import { carryAction, deleteReportAction, prefillAction, saveReportAction, sendReportMail } from "./actions";
 
@@ -194,7 +197,7 @@ export default function ReportEditor(p: Props) {
         {tab === "근태" && (
           <div className="tbl-wrap">
             <table className="tbl edit">
-              <thead><tr><th>근태 (여러 개 가능)</th><th title="연속 출장 등: 기간 안의 다른 근무일 보고서에도 같은 줄이 들어갑니다">기간</th><th>근무지·사유</th><th>내용</th><th>비고</th><th>인원</th><th /></tr></thead>
+              <thead><tr><th>근태 (여러 개 가능)</th><th title="연속 출장 등: 기간 안의 다른 근무일 보고서에도 같은 줄이 들어갑니다">기간</th><th>장소</th><th>목적·내용·사유</th><th>비고</th><th>인원</th><th /></tr></thead>
               <tbody>
                 {groups.map((g) => (
                   <tr key={g.id}>
@@ -212,10 +215,7 @@ export default function ReportEditor(p: Props) {
                       <input type="date" value={g.to || g.from || p.day} min={g.from || p.day} style={{ width: 132 }}
                         onChange={(e) => setG(g.id, { from: g.from || p.day, to: e.target.value })} />
                     </td>
-                    <td><input type="text" value={g.title} placeholder="예: SKL에너지(하남), 개인사유" style={{ minWidth: 160 }}
-                      onChange={(e) => setG(g.id, { title: e.target.value })} /></td>
-                    <td><input type="text" value={g.detail} placeholder="예: MCOP 취외 작업, 08:30~13:30" style={{ minWidth: 160 }}
-                      onChange={(e) => setG(g.id, { detail: e.target.value })} /></td>
+                    <GroupFields g={g} setG={setG} />
                     <td><input type="text" value={g.note} style={{ minWidth: 100 }} onChange={(e) => setG(g.id, { note: e.target.value })} /></td>
                     <td style={{ minWidth: 220, whiteSpace: "normal" }}>
                       <div className="row" style={{ gap: 4 }}>
@@ -394,4 +394,75 @@ export default function ReportEditor(p: Props) {
       </div>
     </>
   );
+}
+
+// ---------------------------------------------------------------- 근태 종류별 입력칸
+// title = 장소(출장·교육·휴일연장) 또는 사유(휴가류), detail = 내용 또는 시간('HH:MM~HH:MM')
+const catOf = attCat;
+const PLACES = ["1공장", "2공장", "출장"];
+const TIME = /^(\d{1,2}:\d{2})\s*~\s*(\d{1,2}:\d{2})$/;
+// 30분 단위 시각 07:00 ~ 22:00
+const SLOTS = Array.from({ length: 31 }, (_, i) => `${String(7 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
+
+function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="gf"><span>{label}</span>{children}</label>;
+}
+
+function GroupFields({ g, setG }: { g: { id: number; types: string; title: string; detail: string }; setG: (id: number, p: { title?: string; detail?: string }) => void }) {
+  const cat = catOf(g.types);
+  const title = (label: string, ph: string) => (
+    <Labeled label={label}><input type="text" value={g.title} placeholder={ph} onChange={(e) => setG(g.id, { title: e.target.value })} /></Labeled>
+  );
+  const detail = (label: string, ph: string) => (
+    <Labeled label={label}><input type="text" value={g.detail} placeholder={ph} onChange={(e) => setG(g.id, { detail: e.target.value })} /></Labeled>
+  );
+  const none = <span className="muted gf-none">—</span>;
+  if (cat === "trip") return <><td>{title("근무장소", "예: SK나래에너지(하남)")}</td><td>{detail("목적/작업내용", "예: MCOP 취외 작업")}</td></>;
+  if (cat === "edu") return <><td>{title("교육장소", "예: 서산상공회의소")}</td><td>{detail("교육목적/내용", "예: 산업안전 보건교육")}</td></>;
+  if (cat === "work") {
+    const custom = g.title && !PLACES.includes(g.title);
+    return <>
+      <td><Labeled label="근무장소">
+        <select value={custom ? "__" : g.title} onChange={(e) => setG(g.id, { title: e.target.value === "__" ? g.title : e.target.value })}>
+          <option value="">선택</option>{PLACES.map((p) => <option key={p}>{p}</option>)}
+          {custom && <option value="__">{g.title}</option>}
+        </select>
+      </Labeled></td>
+      <td>{detail("목적/작업내용", "예: 신공장 배관 작업")}</td>
+    </>;
+  }
+  if (cat === "special") return <><td>{none}</td><td><div className="gf-two">{title("구분 사유", "예: 본인 결혼, 예비군, 진단명")}{detail("비고", "예: 증빙 제출 예정")}</div></td></>;
+  if (cat === "leave") {
+    const unit = leaveUnit(g.types);
+    const m = TIME.exec(g.detail.trim());
+    const [st, et] = m ? [m[1].padStart(5, "0"), m[2].padStart(5, "0")] : ["", ""];
+    const sel = (v: string, on: (x: string) => void, opts = SLOTS) => (
+      <select value={v} onChange={(e) => on(e.target.value)} style={{ width: 92 }}>
+        <option value="">--:--</option>{opts.map((t) => <option key={t}>{t}</option>)}
+      </select>
+    );
+    let timeBox: React.ReactNode;
+    if (unit === "day") timeBox = <span className="gf-fixed">종일 (1일)</span>;
+    else if (unit === 4 || unit === 2) {
+      // 반차·반반차: 시작만 고르면 끝은 자동 (점심을 지나면 그만큼 뒤로)
+      timeBox = <span className="row" style={{ gap: 4, flexWrap: "nowrap" }}>
+        {sel(st, (x) => setG(g.id, { detail: x ? `${x}~${addWorkHours(x, unit)}` : "" }))}
+        <span>~ {st ? addWorkHours(st, unit) : "--:--"}</span><small className="muted">({unit}시간)</small>
+      </span>;
+    } else {
+      timeBox = <span className="row" style={{ gap: 4, flexWrap: "nowrap" }}>
+        {sel(st, (x) => setG(g.id, { detail: x && et && et > x ? `${x}~${et}` : x ? `${x}~` : "" }))}~
+        {sel(et, (x) => setG(g.id, { detail: st && x ? `${st}~${x}` : "" }), SLOTS.filter((t) => !st || t > st))}
+        {timeLabel(g.detail) && <small className="muted">{timeLabel(g.detail).replace(/^.*\(/, "(")}</small>}
+      </span>;
+    }
+    return <>
+      <td>{none}</td>
+      <td><div className="gf-two">
+        {title("사유", "예: 개인사유, 병원")}
+        <Labeled label={unit === "day" ? "기간" : unit === "free" ? "시간 (30분 단위)" : `시간 (${unit}시간)`}>{timeBox}</Labeled>
+      </div></td>
+    </>;
+  }
+  return <><td>{title("장소·사유", "")}</td><td>{detail("내용", "")}</td></>;
 }

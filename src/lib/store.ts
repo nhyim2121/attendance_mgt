@@ -179,15 +179,16 @@ export async function saveApprovals(list: Approval[], file: string, user: string
 // ---------------------------------------------------------------- 기입·수정
 interface OverrideRow {
   employee: string; day: string; clock_in: string | null; in_type: string | null; clock_out: string | null;
-  out_type: string | null; place: string | null; note: string | null; work: string | null; edited_by: string; edited_at: string;
+  out_type: string | null; place: string | null; note: string | null; work: string | null; work_ot: string | null; edited_by: string; edited_at: string;
 }
-const OV_FIELDS = ["clock_in", "in_type", "clock_out", "out_type", "place", "note", "work"] as const; // note = 인원, work = 업무내용
+// note = 인원, work = 업무내용(조출·휴일·출장 등), work_ot = 연장 업무
+const OV_FIELDS = ["clock_in", "in_type", "clock_out", "out_type", "place", "note", "work", "work_ot"] as const;
 export type OverrideField = (typeof OV_FIELDS)[number];
 export type OverrideChange = { employee: string; day: DateStr } & Partial<Record<OverrideField, string>>;
 
 const toOverride = (r: OverrideRow): Override => ({
   employee: r.employee, day: r.day, clockIn: r.clock_in, inType: r.in_type, clockOut: r.clock_out, outType: r.out_type,
-  place: r.place, note: r.note, work: r.work ?? null, editedBy: r.edited_by, editedAt: r.edited_at,
+  place: r.place, note: r.note, work: r.work ?? null, workOt: r.work_ot ?? null, editedBy: r.edited_by, editedAt: r.edited_at,
 });
 
 export async function loadOverrides(): Promise<Override[]> {

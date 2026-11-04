@@ -365,6 +365,13 @@ label.btn input[type=file] { display: none; }
 
 @page { size: A4 landscape; margin: 5mm; }
 @page org { size: A4 landscape; margin: 4mm; }
+/* 인쇄 버튼의 세로·가로 선택 (<html data-print>) */
+@page port { size: A4 portrait; margin: 5mm; }
+@page land { size: A4 landscape; margin: 5mm; }
+html[data-print="port"] main.main, html[data-print="port"] main.main .doc-page { page: port; }
+html[data-print="land"] main.main, html[data-print="land"] main.main .doc-page { page: land; }
+.print-ctl { display: inline-flex; align-items: center; gap: 6px; }
+.print-ctl .seg button { cursor: pointer; font: inherit; font-size: .85rem; border-top: 0; border-bottom: 0; border-left: 0; }
 @media print {
   html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .side, .noprint { display: none !important; }
@@ -501,6 +508,31 @@ table.doc-tbl.full { width: 100%; }
 .doc-confirm { margin-top: 22px; text-align: right; font-size: .9rem; }
 .doc-line { display: inline-block; width: 140px; border-bottom: 1px solid var(--ink); }
 .doc-appendix { margin-top: 18px; }
+/* 개인별 휴가 사용 현황 (그래프) */
+.pr-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+.pr-card { margin: 0; border: 1px solid #cdd6ea; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; break-inside: avoid; }
+.pr-card figcaption { font-size: .82rem; font-weight: 700; color: var(--ink-2); align-self: stretch; text-align: center; }
+.pr-donut { display: flex; flex-direction: column; align-items: center; font-size: .78rem; }
+.pr-note { font-size: .76rem; color: var(--ink-2); text-align: center; }
+.pr-top1 { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: .82rem; }
+.pr-big { font-size: 2rem; font-weight: 800; }
+.pr-hbars { display: flex; flex-direction: column; gap: 6px; }
+.pr-hbar { display: grid; grid-template-columns: 64px 1fr 150px; align-items: center; gap: 8px; font-size: .82rem; }
+.pr-hl { font-weight: 700; }
+.pr-track { height: 14px; background: #eef1f7; border-radius: 7px; overflow: hidden; }
+.pr-track > div { height: 100%; border-radius: 7px; }
+.pr-hv { font-size: .78rem; color: var(--ink-2); }
+.pr-months { width: 100%; height: auto; display: block; }
+.pr-cal { display: flex; flex-direction: column; gap: 2px; break-inside: avoid; }
+.pr-cal-row { display: grid; grid-template-columns: 34px repeat(31, 1fr); gap: 2px; align-items: center; }
+.pr-cal-m { font-size: .72rem; color: var(--muted); }
+.pr-cell { height: 15px; border-radius: 2px; background: #eef1f7; font-size: 8.5px; line-height: 15px; text-align: center; color: #fff; font-weight: 700;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pr-cell.off { background: transparent; }
+.pr-cell.planned { opacity: .4; }
+.pr-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; font-size: .75rem; color: var(--ink-2); }
+.pr-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.pr-top, .pr-track > div, .pr-months { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .doc-fig { margin: 0 0 16px; break-before: page; }
 .doc-fig figcaption { font-size: .82rem; font-weight: 700; margin-bottom: 6px; color: var(--ink-2); }
 .doc-fig img { display: block; max-width: 100%; max-height: 250mm; margin: 0 auto; border: 1px solid var(--line-2); }
@@ -681,7 +713,10 @@ details.fold { border: 1px solid #e1e6f0; border-radius: 10px; }
 .edit-print .ep-tbl .kinds { flex-wrap: wrap; justify-content: center; }
 .edit-print .ep-tbl th { white-space: nowrap; letter-spacing: -0.03em; }
 .edit-print .ep-period { white-space: nowrap; }
-.edit-print .ep-head { grid-template-columns: 120px 1fr auto; }
+.edit-print .ep-head { grid-template-columns: 120px 1fr auto auto; }
+.edit-print .ep-sign { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.edit-print .ep-vac { color: #6b7280; }
+.edit-print .ep-confirm { font-size: 9.5px; color: #374151; white-space: nowrap; }
 .edit-print .ep-logo { width: 120px; }
 
 /* 근태 보고서: 인원 칩 */
@@ -689,3 +724,14 @@ details.fold { border: 1px solid #e1e6f0; border-radius: 10px; }
   font-size: .82rem; border-radius: 12px; padding: 2px 4px 2px 10px; }
 .name-chip button { border: 0; background: transparent; color: #6b7280; cursor: pointer; font-size: .9rem; padding: 0 4px; }
 .name-chip button:hover { color: var(--red); }
+
+/* 근태 기입: 일일 근태 보고서에서 가져온 값 */
+.tbl.edit input.from-rep { color: #0c3994; background: #eef3fd; border-color: #c5d3ef; }
+
+/* 근태 보고서: 근태 종류별 입력칸 */
+.gf { display: flex; flex-direction: column; gap: 2px; min-width: 150px; }
+.gf > span { font-size: .72rem; font-weight: 700; color: #3b4a6b; }
+.gf-two { display: flex; gap: 8px; flex-wrap: wrap; }
+.gf-none { display: inline-block; min-width: 60px; text-align: center; }
+
+.gf-fixed { display: inline-block; padding: 6px 10px; background: #e3eafa; color: #0c3994; border-radius: 6px; font-weight: 700; font-size: .85rem; }

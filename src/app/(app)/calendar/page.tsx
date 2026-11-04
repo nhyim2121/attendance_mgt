@@ -25,7 +25,16 @@ export default async function AttendanceCalendar({ searchParams }: { searchParam
   const months = [...new Set([today.slice(0, 7), addDays(today, 31).slice(0, 7), ...lv.map((l) => l.day.slice(0, 7))])].sort().reverse();
   const month = months.includes(String(sp.month)) ? String(sp.month) : today.slice(0, 7);
   const only = TYPES.includes(String(sp.type)) ? String(sp.type) : "";
-  const mine = lv.filter((l) => l.day.startsWith(month) && (!only || l.type === only));
+  // 근태 기입에서 직접 적은 근무지·업무내용이 있으면 그것으로 (보고서가 없는 날도 반영)
+  const ov = new Map(base.overrides.map((o) => [`${o.employee}|${o.day}`, o]));
+  const mine = lv.filter((l) => l.day.startsWith(month) && (!only || l.type === only)).map((l) => {
+    const o = ov.get(`${l.name}|${l.day}`);
+    if (!o) return l;
+    const [title, ...rest] = String(l.content).split("\n");
+    const work = l.type === "연장근무" ? o.workOt ?? o.work : o.work;
+    if (l.type === "휴일근무" || l.type === "연장근무") return work != null ? { ...l, content: work } : l;
+    return { ...l, content: [o.place ?? title, work ?? rest.join(" ")].filter(Boolean).join("\n") };
+  });
   const deptOf = new Map(base.employees.map((e) => [e.name, e.dept]));
 
   // 부서별 색 (직원 명부의 부서 순서)
@@ -35,29 +44,43 @@ export default async function AttendanceCalendar({ searchParams }: { searchParam
   const shownDepts = [...new Set(mine.filter((l) => !NAME_ONLY.has(l.type)).map((l) => deptName(l.name)))]
     .sort((a, b) => deptList.indexOf(a) - deptList.indexOf(b));
 
-  // 출장·교육: 같은 날·유형·목적지·부서끼리 한 줄 / 휴일·연장근무: 그날 일한 사람 이름만 한 줄
+  // 출장·교육: 같은 날·유형·목적지끼리 한 줄 (부서가 달라도) / 휴일·연장근무: 그날 일한 사람 이름만 한 줄
   const groups = new Map<string, { day: string; type: string; title: string; dept: string; names: string[]; details: string[] }>();
   for (const l of mine) {
     const title = NAME_ONLY.has(l.type) ? "" : firstLine(l.content);
-    const dept = NAME_ONLY.has(l.type) ? "" : deptName(l.name);
-    const k = `${l.day}|${l.type}|${title}|${dept}`;
-    const g = groups.get(k) ?? { day: l.day, type: l.type, title, dept, names: [], details: [] };
+    const k = `${l.day}|${l.type}|${title}`;
+    const g = groups.get(k) ?? { day: l.day, type: l.type, title, dept: "", names: [], details: [] };
     if (!g.names.includes(l.name)) g.names.push(l.name);
     const why = NAME_ONLY.has(l.type) ? `${l.name}: ${firstLine(l.content)}` : String(l.content).split("\n").slice(1).join(" ").trim();
     if (why && !g.details.includes(why)) g.details.push(why);
     groups.set(k, g);
   }
+  // 같이 간 사람은 부서 순 → 이름 순. 줄 색은 첫 부서 색, 여러 부서면 이름마다 부서 색
+  const byDept = (a: string, b: string) => deptList.indexOf(deptName(a)) - deptList.indexOf(deptName(b));
+  for (const g of groups.values()) {
+    if (NAME_ONLY.has(g.type)) continue;
+    g.names.sort(byDept);
+    g.dept = deptName(g.names[0]);
+  }
+  const deptsOf = (g: { names: string[] }) => [...new Set(g.names.map(deptName))];
   const entries: CalEntry[] = [...groups.values()]
     .sort((a, b) => TYPES.indexOf(a.type) - TYPES.indexOf(b.type) || deptList.indexOf(a.dept) - deptList.indexOf(b.dept))
-    .map((g) => ({
-      day: g.day, type: g.type,
-      color: g.dept ? deptColor(g.dept) : undefined,
-      text: NAME_ONLY.has(g.type)
-        ? <><b>{g.type}</b> {g.names.join(", ")}</>
-        : <><b>{g.type}</b> {g.title && <>{g.title} · </>}{g.names.join(", ")}</>,
-      title: NAME_ONLY.has(g.type) ? `${g.type}\n${g.details.join("\n")}`
-        : `${g.type} ${g.title} (${g.dept})${g.details.length ? `\n${g.details.join(" / ")}` : ""}\n${g.names.join(", ")}`,
-    }));
+    .map((g) => {
+      const mixed = !NAME_ONLY.has(g.type) && deptsOf(g).length > 1;
+      const names = mixed
+        ? g.names.map((n, i) => <span key={n}>{i ? ", " : ""}<span style={{ color: deptColor(deptName(n)) }}>{n}</span></span>)
+        : g.names.join(", ");
+      return {
+        day: g.day, type: g.type,
+        color: g.dept ? deptColor(g.dept) : undefined,
+        text: NAME_ONLY.has(g.type)
+          ? <><b>{g.type}</b> {names}</>
+          : <><b>{g.type}</b> {g.title && <>{g.title} · </>}{names}</>,
+        title: NAME_ONLY.has(g.type) ? `${g.type}\n${g.details.join("\n")}`
+          : `${g.type} ${g.title}${g.details.length ? `\n${g.details.join(" / ")}` : ""}\n`
+            + g.names.map((n) => `${n} (${deptName(n)})`).join(", "),
+      };
+    });
   const hols: Record<string, string | true> = {};
   for (let i = 1; i <= daysInMonth(month); i++) {
     const d = makeDate(+month.slice(0, 4), +month.slice(5), i)!;
@@ -102,7 +125,7 @@ export default async function AttendanceCalendar({ searchParams }: { searchParam
         </div>
         <h2 className="print-only" style={{ margin: "0 0 8px" }}>{+month.slice(0, 4)}년 {+month.slice(5)}월 근태 캘린더 (출장·교육·휴일근무·연장근무)</h2>
         <MonthCalendar month={month} today={today} holidays={hols} entries={entries} />
-        <p className="caption" style={{ marginTop: 8 }}>출장·교육은 부서별 색으로, 같은 날 같은 곳에 간 같은 부서 사람은 한 줄로 묶었습니다. 휴일·연장근무는 그날 일한 사람 이름만 보여 주고, 마우스를 올리면 작업 내용이 보입니다. 휴일근무는 일일 근태 보고서에 체크한 실제 근무일에 표시됩니다. 마우스를 올리면 내용이 보입니다.</p>
+        <p className="caption" style={{ marginTop: 8 }}>출장·교육은 부서별 색으로, 같은 날 같은 곳에 간 사람은 부서가 달라도 한 줄로 묶었습니다 (여러 부서면 이름을 부서 색으로). 휴일·연장근무는 그날 일한 사람 이름만 보여 주고, 마우스를 올리면 작업 내용이 보입니다. 휴일근무는 일일 근태 보고서에 체크한 실제 근무일에 표시됩니다. 마우스를 올리면 내용이 보입니다.</p>
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>
