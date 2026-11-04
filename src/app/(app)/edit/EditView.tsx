@@ -161,17 +161,18 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
           <colgroup>
             <col style={{ width: "5.5%" }} /><col style={{ width: "3.5%" }} /><col style={{ width: "11%" }} />
             <col style={{ width: "6%" }} /><col style={{ width: "8.5%" }} /><col style={{ width: "6%" }} /><col style={{ width: "8.5%" }} />
-            <col style={{ width: "11%" }} /><col style={{ width: "11%" }} /><col style={{ width: "15%" }} /><col style={{ width: "14%" }} />
+            <col style={{ width: "12%" }} /><col style={{ width: "13%" }} /><col style={{ width: "26%" }} />
           </colgroup>
-          <thead><tr><th>일자</th><th>요일</th><th>근태 구분</th><th>출근</th><th>출근 형태</th><th>퇴근</th><th>퇴근 형태</th><th>근무지</th><th>인원</th><th>업무내용</th><th>연장 업무</th></tr></thead>
+          <thead><tr><th>일자</th><th>요일</th><th>근태 구분</th><th>출근</th><th>출근 형태</th><th>퇴근</th><th>퇴근 형태</th><th>근무지</th><th>인원</th><th>업무내용</th></tr></thead>
           <tbody>{printRows.map((r) => (
             <tr key={r.day} className={`${rowTone(r)}${r.holiday ? " we" : ""}`}>
               <td>{+r.day.slice(5, 7)}/{+r.day.slice(8)}</td><td className={r.holiday ? "hol" : ""}>{r.wd}</td><td><Kinds r={r} /></td>
               <td>{r.clock_in.slice(0, 5)}</td><td className={tyCls(r.in_type || r.inAuto)}>{shortType(r.in_type || r.inAuto)}</td>
               <td>{r.clock_out.slice(0, 5)}</td><td className={tyCls(r.out_type || r.outAuto)}>{shortType(r.out_type || r.outAuto)}</td>
               <td className="wrap">{typed(r.day).place}</td><td className="wrap">{split(typed(r.day).note).names}</td>
-              <td className="wrap">{vacText.get(r.day) && <div className="ep-vac">{vacText.get(r.day)}</div>}{typed(r.day).work || split(typed(r.day).note).rest}</td>
-              <td className="wrap">{typed(r.day).work_ot}</td>
+              <td className="wrap">{vacText.get(r.day) && <div className="ep-vac">{vacText.get(r.day)}</div>}{typed(r.day).work || split(typed(r.day).note).rest}
+                {/* 연장 업무 칸은 없앴으므로, 적어 둔 연장 업무는 업무내용 아래에 붙인다 (업무내용과 같으면 생략) */}
+                {typed(r.day).work_ot && typed(r.day).work_ot !== typed(r.day).work && <div>연장: {typed(r.day).work_ot}</div>}</td>
             </tr>
           ))}</tbody>
         </table>

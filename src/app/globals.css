@@ -735,3 +735,15 @@ details.fold { border: 1px solid #e1e6f0; border-radius: 10px; }
 .gf-none { display: inline-block; min-width: 60px; text-align: center; }
 
 .gf-fixed { display: inline-block; padding: 6px 10px; background: #e3eafa; color: #0c3994; border-radius: 6px; font-weight: 700; font-size: .85rem; }
+
+/* 근태 기입 인쇄·PDF: 칸은 칠하지 않고 글자만 근태 색으로
+   (근태 구분·출근/퇴근 형태는 각자 색, 근무지·인원·업무내용은 그 줄의 근태 색) */
+.edit-print .ep-tbl tr td { background: none !important; }
+.edit-print .ep-tbl .kinds .tag { background: none; padding: 0 1px; font-weight: 700; }
+.edit-print .ep-tbl tr.tone-hol td:nth-child(n+8) { color: #b45309; }
+.edit-print .ep-tbl tr.tone-ot td:nth-child(n+8) { color: #be123c; }
+.edit-print .ep-tbl tr.tone-early td:nth-child(n+8) { color: #0369a1; }
+.edit-print .ep-tbl tr.tone-leave td:nth-child(n+8) { color: #0c3994; }
+.edit-print .ep-tbl tr.tone-trip td:nth-child(n+8) { color: #6d28d9; }
+.edit-print .ep-tbl tr[class*="tone-"] td:nth-child(n+8) { font-weight: 600; }
+.edit-print .ep-tbl .ep-vac { color: inherit; }
