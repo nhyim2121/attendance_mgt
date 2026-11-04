@@ -5,10 +5,10 @@ import { requireUser } from "@/lib/auth";
 import * as store from "@/lib/store";
 import { dayLabel, isDateStr, parseClock } from "@/lib/time";
 
-const FIELDS = ["clock_in", "in_type", "clock_out", "out_type", "place", "note"] as const;
+const FIELDS = ["clock_in", "in_type", "clock_out", "out_type", "place", "note", "work"] as const;
 
-/** changes: [{employee, day, 필드: 값}] 바뀐 필드만 */
-export async function saveEdits(changes: store.OverrideChange[]): Promise<{ ok?: string; error?: string }> {
+/** changes: [{employee, day, 필드: 값, mates?}] 바뀐 필드만. mates(같이 근무한 직원)에게는 같은 날 근무지·인원·업무내용을 함께 넣는다. */
+export async function saveEdits(changes: (store.OverrideChange & { mates?: string[] })[]): Promise<{ ok?: string; error?: string }> {
   const user = await requireUser();
   const bad: string[] = [];
   const clean = changes.filter((c) => isDateStr(c.day) && c.employee).map((c) => {
@@ -26,9 +26,26 @@ export async function saveEdits(changes: store.OverrideChange[]): Promise<{ ok?:
     return out;
   });
   if (bad.length) return { error: `시각 형식이 맞지 않습니다 (HH:MM): ${bad.join(", ")}` };
-  const n = await store.saveOverrides(clean, user.loginId);
+  // 같이 근무한 직원: 같은 날 근무지(있으면)·업무내용(있으면)을 똑같이, 인원은 "나를 뺀 같이 일한 사람"으로
+  // 예) 김환복이 이정헌·조승연을 고르면 이정헌 = 김환복 조승연, 조승연 = 김환복 이정헌
+  const mateRows: store.OverrideChange[] = [];
+  for (const c of changes) {
+    if (!isDateStr(c.day) || !Array.isArray(c.mates)) continue;
+    const place = String(c.place ?? "").trim(), work = String(c.work ?? "").trim();
+    const mates = [...new Set(c.mates.map((x) => String(x).trim()).filter((x) => x && x !== c.employee))];
+    const group = [c.employee, ...mates];
+    const words = String(c.note ?? "").split(/[\s,·/]+/).filter(Boolean);
+    const rest = words.filter((w) => !group.includes(w)); // 이름이 아닌 글은 그대로 둔다
+    for (const m of mates) {
+      if ([...clean, ...mateRows].some((x) => x.employee === m && x.day === c.day)) continue;
+      const note = [...group.filter((x) => x !== m), ...rest].join(" ");
+      mateRows.push({ employee: m, day: c.day, note, ...(place ? { place } : {}), ...(work ? { work } : {}) });
+    }
+  }
+  const n = await store.saveOverrides([...clean, ...mateRows], user.loginId);
   revalidatePath("/", "layout");
-  return { ok: `${clean[0]?.employee ?? ""}: ${n}일을 저장했습니다.` };
+  const who = [...new Set(mateRows.map((r) => r.employee))];
+  return { ok: `${clean[0]?.employee ?? ""}: ${n - mateRows.length}일을 저장했습니다.${who.length ? ` 같이 근무한 ${who.join(", ")}에게도 ${mateRows.length}건 반영했습니다.` : ""}` };
 }
 
 export async function revertEdits(employee: string, days: string[]): Promise<{ ok?: string; error?: string }> {

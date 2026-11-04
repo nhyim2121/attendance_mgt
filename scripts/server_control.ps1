@@ -41,7 +41,9 @@ function Show-Status {
 switch ($Action) {
     "install" {
         $user = "$env:USERDOMAIN\$env:USERNAME"
-        $act = New-ScheduledTaskAction -Execute $Node -Argument "`"$Runner`"" -WorkingDirectory $Root
+        # node.exe를 바로 실행하면 콘솔 창이 떠 있으므로 conhost --headless로 창 없이 실행한다 (-Hidden은 작업 목록에서만 숨김)
+        $act = New-ScheduledTaskAction -Execute "$env:WINDIR\System32\conhost.exe" `
+            -Argument "--headless `"$Node`" `"$Runner`"" -WorkingDirectory $Root
         $trg = @(New-ScheduledTaskTrigger -AtLogOn -User $user)
         # 감시기 자체가 멈춰도 5분 안에 다시 켜지도록 (이미 돌고 있으면 IgnoreNew로 무시됨)
         $rep = New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes 5) `

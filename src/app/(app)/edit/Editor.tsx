@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { revertEdits, saveEdits } from "./actions";
+import { Kinds, rowTone } from "./kinds";
 
 export interface EditRow {
   day: string;
@@ -13,7 +14,13 @@ export interface EditRow {
   clock_out: string;
   out_type: string;
   place: string;
-  note: string;
+  note: string; // 인원
+  work: string; // 업무내용
+  workHint: string; // 하이웍스·보고서의 사유 (업무내용이 비었을 때 회색으로)
+  placeHint: string; // 보고서·하이웍스에서 자동으로 채워지는 근무지 (회색 안내)
+  noteHint: string; // 자동으로 채워지는 같이 간 사람 (회색 안내)
+  kinds: string[]; // 근태 구분: 휴가·출장 종류 + 휴일근무·연장근무
+  holiday: boolean;
   edited: string; // 최근 수정 (수정자 MM-DD HH:MM)
 }
 
@@ -23,28 +30,45 @@ const COLS: [keyof EditRow, string, string][] = [
   ["clock_out", "퇴근 시각", "예: 18:30"],
   ["out_type", "퇴근 근무형태", "예: 연장(20:00), 휴일(17:30)"],
   ["place", "근무지", ""],
-  ["note", "비고", ""],
+  ["note", "인원", "같이 근무한 직원 ([+ 인원]으로 고르기)"],
+  ["work", "업무내용", "비우면 하이웍스·보고서의 사유가 회색으로 보입니다"],
 ];
+const typeClass = (k: string, v: string) =>
+  (k === "in_type" || k === "out_type") && v ? (v.startsWith("연장") ? " ty-ot" : v.startsWith("휴일") ? " ty-hol" : v.startsWith("조출") ? " ty-early" : "") : "";
 const TIME_RE = /^$|^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+/** 비고(인원) 칸의 낱말 중 직원 이름 */
+const splitNote = (s: string) => s.split(/[\s,·/]+/).map((x) => x.trim()).filter(Boolean);
 
-export default function Editor({ employee, rows }: { employee: string; rows: EditRow[] }) {
+export default function Editor({ employee, rows, staff = [] }: { employee: string; rows: EditRow[]; staff?: string[] }) {
   const router = useRouter();
   const [draft, setDraft] = useState(rows);
   const [msg, setMsg] = useState<{ ok?: string; error?: string } | null>(null);
   const [revert, setRevert] = useState<string[]>([]);
   const [pending, start] = useTransition();
 
-  const changed = (i: number, k: keyof EditRow) => draft[i][k].trim() !== rows[i][k].trim();
+  const changed = (i: number, k: keyof EditRow) => String(draft[i][k]).trim() !== String(rows[i][k]).trim();
   const changes = draft.map((r, i) => {
     const ch: Record<string, string> = {};
-    for (const [k] of COLS) if (changed(i, k)) ch[k] = r[k].trim();
-    return Object.keys(ch).length ? { employee, day: r.day, ...ch } : null;
+    for (const [k] of COLS) if (changed(i, k)) ch[k] = String(r[k]).trim();
+    if (!Object.keys(ch).length) return null;
+    // 인원을 바꿨으면 같이 일한 사람에게도 같은 근무지·인원을 넣는다
+    const mates = "note" in ch ? splitNote(r.note).filter((n) => staff.includes(n) && n !== employee) : [];
+    return { employee, day: r.day, ...ch, ...(mates.length ? { mates, place: r.place.trim(), work: r.work.trim() } : {}) };
   }).filter((x) => x !== null);
   const bad = draft.flatMap((r) => (["clock_in", "clock_out"] as const).filter((k) => !TIME_RE.test(r[k].trim()))
     .map((k) => `${r.day} ${r[k]}`));
   const edited = rows.filter((r) => r.edited);
 
   const set = (i: number, k: keyof EditRow, v: string) => setDraft((d) => d.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
+  // 인원 체크: 비고 칸의 이름 목록에 넣고 뺀다 (이름이 아닌 글은 그대로 둔다)
+  const toggleMate = (i: number, name: string) => {
+    const words = splitNote(draft[i].note);
+    const has = words.includes(name);
+    const names = words.filter((w) => staff.includes(w));
+    const rest = words.filter((w) => !staff.includes(w));
+    const next = has ? names.filter((n) => n !== name) : [...names, name];
+    set(i, "note", [...staff.filter((s) => next.includes(s)), ...rest].join(" "));
+  };
   const run = (fn: () => Promise<{ ok?: string; error?: string }>) => start(async () => {
     const r = await fn();
     setMsg(r);
@@ -65,12 +89,30 @@ export default function Editor({ employee, rows }: { employee: string; rows: Edi
           </tr></thead>
           <tbody>
             {draft.map((r, i) => (
-              <tr key={r.day} className={COLS.some(([k]) => changed(i, k)) ? "changed" : ""}>
-                <td className="ro">{r.day}</td><td className="ro">{r.wd}</td><td className="ro">{r.status}</td>
+              <tr key={r.day} className={`${rowTone(r)}${COLS.some(([k]) => changed(i, k)) ? " changed" : ""}`}>
+                <td className="ro">{r.day.slice(5)}</td><td className={`ro${r.holiday ? " hol" : ""}`}>{r.wd}</td>
+                <td className="ro"><Kinds r={r} /></td>
                 {COLS.map(([k]) => (
-                  <td key={k} style={{ minWidth: k === "place" || k === "note" ? 160 : 96 }}>
-                    <input type="text" value={r[k]} onChange={(e) => set(i, k, e.target.value)}
-                      className={(k === "clock_in" || k === "clock_out") && !TIME_RE.test(r[k].trim()) ? "bad" : ""} />
+                  <td key={k} style={{ minWidth: k === "place" ? 150 : k === "note" ? 200 : k === "work" ? 200 : 96 }}>
+                    <div className={k === "note" ? "row mates-cell" : ""} style={k === "note" ? { gap: 4, flexWrap: "nowrap" } : undefined}>
+                      <input type="text" value={String(r[k])} onChange={(e) => set(i, k, e.target.value)}
+                        placeholder={k === "work" ? r.workHint : k === "place" ? r.placeHint : k === "note" ? r.noteHint.split("\n").join(" ") : ""}
+                        className={`${(k === "clock_in" || k === "clock_out") && !TIME_RE.test(String(r[k]).trim()) ? "bad" : ""}${typeClass(k, String(r[k]))}`} />
+                      {k === "note" && staff.length > 0 && (
+                        <details className="pop">
+                          <summary className="btn sm" title="같이 연장·휴일·출장 근무한 직원 고르기">+ 인원</summary>
+                          <div className="pop-body mates-pop">
+                            <b>{r.day} ({r.wd}) 같이 근무한 직원</b>
+                            <p className="caption" style={{ margin: "2px 0 8px" }}>고른 직원의 같은 날에도 근무지와 인원이 함께 저장됩니다.</p>
+                            <div className="mates-grid">
+                              {staff.filter((n) => n !== employee).map((n) => (
+                                <label key={n}><input type="checkbox" checked={splitNote(r.note).includes(n)} onChange={() => toggleMate(i, n)} />{n}</label>
+                              ))}
+                            </div>
+                          </div>
+                        </details>
+                      )}
+                    </div>
                   </td>
                 ))}
                 <td className="ro">{r.edited}</td>

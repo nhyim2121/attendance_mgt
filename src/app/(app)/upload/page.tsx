@@ -1,14 +1,31 @@
-/** 파일 업로드: 캡스 월별 파일 + 근태현황(하이웍스) 파일을 공용 저장소에 저장. */
+/** 데이터 관리: [올리기] 캡스 월별 파일 + 근태현황(하이웍스) 파일 저장, [내려받기] 직원별 시트 엑셀·ZIP. */
+import Link from "next/link";
+import type { SearchParams } from "@/lib/data";
+import DownloadView from "./DownloadView";
 import { Metric, Table } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
 import { loadBase } from "@/lib/data";
 import * as store from "@/lib/store";
 import { fullKst } from "@/lib/time";
-import { CapsForm, DeleteForms, HiworksForm } from "./forms";
+import { ApprovalForm, CapsForm, DeleteForms, HiworksForm } from "./forms";
 
-export const metadata = { title: "파일 업로드 · 근태관리통합시스템" };
+export const metadata = { title: "데이터 관리 · 근태관리통합시스템" };
 
-export default async function UploadPage() {
+export default async function UploadPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const sp = await searchParams;
+  const down = sp.tab === "download";
+  const keep = new URLSearchParams();
+  for (const k of ["month", "from", "to", "dept", "all", "emps"]) if (typeof sp[k] === "string") keep.set(k, sp[k] as string);
+  const tabs = (
+    <>
+      <h1>데이터 관리</h1>
+      <div className="tabs noprint">
+        <Link href={`/upload${keep.size ? `?${keep}` : ""}`} className={down ? "" : "on"} scroll={false}>⬆ 올리기</Link>
+        <Link href={`/upload?tab=download${keep.size ? `&${keep}` : ""}`} className={down ? "on" : ""} scroll={false}>⬇ 내려받기 (엑셀·ZIP)</Link>
+      </div>
+    </>
+  );
+  if (down) return <DownloadView sp={sp} head={tabs} />;
   const [user, base, uploads, spans] = await Promise.all([
     currentUser(), loadBase(), store.loadUploads(), store.recordNameSpan(),
   ]);
@@ -20,7 +37,7 @@ export default async function UploadPage() {
 
   return (
     <>
-      <h1>파일 업로드</h1>
+      {tabs}
       <p className="caption">올린 파일은 서버의 공용 저장소에 저장되어 관리팀 모두가 같은 데이터를 봅니다. 같은 기록을 다시 올려도 중복으로 쌓이지 않습니다.</p>
       <div className="metrics">
         <Metric label="캡스 기록" value={`${total.toLocaleString()}건`} />
@@ -40,6 +57,14 @@ export default async function UploadPage() {
           <p className="caption">예: <code>근태현황(2026년~).xlsx</code>. 1월부터 누적된 파일이라 올릴 때마다 명단·근태를 새 파일로 교체합니다.</p>
           <HiworksForm />
         </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="card-title">3. 하이웍스 결재 내역 (근무계획 수립이력 · 여러 개 가능)</div>
+        <p className="caption">하이웍스 전자결재에서 내려받은 <code>…_근무계획수립이력.xls</code> 파일(휴가 신청·취소, 연장근무, 휴(무)일근무)을 올리세요.
+          <b>결재완료</b>만 근태로 넣고, 반려·관리자 기안 취소는 넣지 않습니다. 결재완료된 <b>휴가 취소</b>는 그날의 휴가를 지웁니다.
+          같은 파일을 여러 번 올려도 한 번만 들어가고, 근태현황 파일·일일 근태 보고서와 같은 날이 겹쳐도 한 번만 셉니다.</p>
+        <ApprovalForm />
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>

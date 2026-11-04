@@ -4,10 +4,10 @@ import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import {
   attention, buildDays, type DayRow, daySnapshot, employeeSummary, hourlyByWeekday, leaveStatus, missingRows,
-  workHoursReport, workTypeIn, workTypeOut,
+  orderByDept, workHoursReport, workTypeIn, workTypeOut,
 } from "@/lib/analytics";
 import { HOLIDAYS_2026 } from "@/lib/config";
-import { buildWorkbook, buildZip, employeeRows, safeSheetName, SHEET_COLUMNS } from "@/lib/splitter";
+import { buildWorkbook, buildZip, employeeRows, exceptionRows, rowKind, safeSheetName, SHEET_COLUMNS } from "@/lib/splitter";
 import { ts } from "@/lib/time";
 import { leave, mini, RULE } from "./helpers";
 
@@ -63,6 +63,8 @@ describe("근태 판정", () => {
 
   it("근무형태 표기", () => {
     expect(workTypeIn(T("2026-09-01 08:20"), false, RULE)).toBe("정상(08:30)");
+    // 조출은 자동으로 붙이지 않는다 (근태 기입에서 직접 적을 때만)
+    expect(workTypeIn(T("2026-09-01 05:29"), false, RULE)).toBe("정상(08:30)");
     expect(workTypeIn(T("2026-09-05 08:10"), true, RULE)).toBe("휴일(08:30)");
     expect(workTypeOut(T("2026-09-01 18:08"), false, RULE)).toBe("정상(17:30)");
     expect(workTypeOut(T("2026-09-01 20:11"), false, RULE)).toBe("연장(20:00)");
@@ -88,12 +90,13 @@ describe("직원별 시트", () => {
   it("행 형식", () => {
     const d = days();
     let rows = employeeRows(d.filter((x) => x.emp === "라마바"), RULE);
-    expect(col(rows, "발생시각")).toEqual(["08:00:00", "16:00:00", "연차", ""]);
-    expect(col(rows, "모드")).toEqual(["출근", "퇴근", "", ""]);
-    // 출근만 있는 날(9/3)은 날짜·요일만 남기고 나머지는 빈칸
+    expect(col(rows, "모드")[0]).toBe("출근");
+    expect(col(rows, "발생시각").slice(0, 3)).toEqual(["08:00:00", "16:00:00", "연차"]);
+    // 출근만 있는 날(9/3)은 찍힌 시각과 사유를 적고 노란색
     const last = rows[rows.length - 1];
-    expect([last[0], last[1]]).toEqual(["목", "2026-09-03"]);
-    expect(last.slice(2).every((v) => v === "")).toBe(true);
+    expect([last[0], last[1], last[SHEET_COLUMNS.indexOf("모드")]]).toEqual(["목", "2026-09-03", "출근"]);
+    expect(last[SHEET_COLUMNS.indexOf("확인")]).toContain("퇴근 기록 없음");
+    expect(rowKind(last)).toBe("missing");
     expect(col(rows, "확인")[0]).toBe("조퇴");
 
     rows = employeeRows(d.filter((x) => x.emp === "가나다"), RULE);
@@ -115,12 +118,40 @@ describe("직원별 시트", () => {
     const data = await buildWorkbook({ records: recs, days: d, employees: ["가나다", "라마바"], rule: RULE, summary, label: "9월" });
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(new Uint8Array(data).buffer);
-    expect(wb.worksheets.map((w) => w.name)).toEqual(["9월 전체", "요약", "가나다", "라마바"]);
+    expect(wb.worksheets.map((w) => w.name)).toEqual(["9월 전체", "요약", "확인 필요", "가나다", "라마바"]);
     const ws = wb.getWorksheet("가나다")!;
     expect(ws.getCell("B2").value).toBe("생산팀 가나다");
     expect(ws.getCell("B4").value).toBe("요일");
     expect(ws.getCell("D5").value).toBe("08:20:00");
     expect(wb.getWorksheet("9월 전체")!.rowCount).toBe(recs.length + 1);
+    // 이름을 누르면 직원 시트로, 직원 시트에서 요약으로
+    expect(wb.getWorksheet("요약")!.getCell("A2").formula).toBe(`HYPERLINK("#'가나다'!A1","가나다")`);
+    expect(ws.getCell("B1").formula).toBe(`HYPERLINK("#'요약'!A1","← 요약")`);
+    const ex = wb.getWorksheet("확인 필요")!;
+    expect(ex.rowCount).toBe(exceptionRows(d, ["가나다", "라마바"]).length + 1);
+    expect(ex.getCell("B2").formula).toContain("#'가나다'!A1");
+  });
+
+  it("확인 필요 목록은 직원 순서·날짜순, 근태 내용 포함", () => {
+    const recs = mini([
+      ["2026-09-01", "09:00:00", "가나다", "출근"], ["2026-09-01", "17:40:00", "가나다", "퇴근"], // 지각
+      ["2026-09-02", "09:10:00", "가나다", "출근"], // 지각 + 퇴근 누락
+      ["2026-09-03", "08:10:00", "가나다", "출근"], ["2026-09-03", "17:40:00", "가나다", "퇴근"], // 정상
+      ["2026-09-04", "08:10:00", "가나다", "출근"], ["2026-09-04", "17:40:00", "가나다", "퇴근"],
+    ]);
+    const lv = [leave("2026-09-02", "가나다", "생산팀", "", "반차", "오후반차")];
+    const d = buildDays(recs, lv, RULE, HOLIDAYS_2026);
+    const rows = exceptionRows(d, ["가나다"]);
+    expect(rows.map((r) => [r[2], r[4], r[5], r[6], r[7]])).toEqual([
+      ["2026-09-01", "지각", "09:00", "17:40", ""],
+      ["2026-09-02", "퇴근 기록 없음", "09:10", "", "반차: 오후반차"], // 반차면 지각 판정 안 함
+    ]);
+    expect(exceptionRows(buildDays(recs, null, RULE, HOLIDAYS_2026), ["가나다"])[1][4]).toBe("지각, 퇴근 기록 없음");
+  });
+
+  it("부서끼리 묶기", () => {
+    const rows = [{ n: "a", d: "품질" }, { n: "b", d: "생산" }, { n: "c", d: "" }, { n: "e", d: "품질" }];
+    expect(orderByDept(rows, (r) => r.d).map((r) => r.n)).toEqual(["a", "e", "b", "c"]);
   });
 
   it("ZIP", async () => {
@@ -160,13 +191,17 @@ describe("직원별 시트", () => {
     expect(col(rows, "근무지")[0]).toBe("서산 운전학원");
     expect(col(rows, "비고")[2]).toBe("다라마");
     const r = employeeRows(d.filter((x) => x.emp === "라마바"), RULE);
-    expect(r[r.length - 1]).toEqual(["수", "2026-09-09", ...Array(8).fill("")]);
+    const last = r[r.length - 1];
+    expect([last[1], last[2], last[SHEET_COLUMNS.indexOf("확인")]])
+      .toEqual(["2026-09-09", "08:00:00", "퇴근 기록 없음(마지막 태그 17:41)"]);
   });
 
-  it("기록 없는 날은 날짜만", () => {
+  it("기록 없는 날은 날짜와 사유만", () => {
     const rows = employeeRows(days().filter((x) => x.emp === "가나다"), RULE).filter((r) => r[1] === "2026-09-03");
     expect(rows).toHaveLength(1);
-    expect(rows[0].slice(2).every((v) => v === "")).toBe(true);
+    expect(rows[0].slice(2, -1).every((v) => v === "")).toBe(true);
+    expect(rows[0][SHEET_COLUMNS.indexOf("확인")]).toBe("기록 없음");
+    expect(rowKind(rows[0])).toBe("blank");
   });
 });
 

@@ -10,7 +10,8 @@ export async function saveEmployeesAction(list: Employee[]): Promise<{ ok?: stri
   const user = await requireUser();
   const clean = list.map((e, i) => ({
     name: String(e.name ?? ""), capsName: String(e.capsName ?? ""), empId: String(e.empId ?? ""),
-    dept: String(e.dept ?? ""), rank: String(e.rank ?? ""), note: String(e.note ?? ""), ord: i + 1,
+    dept: String(e.dept ?? ""), rank: String(e.rank ?? ""), position: String(e.position ?? ""),
+    phone: String(e.phone ?? ""), ext: String(e.ext ?? ""), email: String(e.email ?? ""), note: String(e.note ?? ""), ord: i + 1,
     joinDate: isDateStr(e.joinDate) ? e.joinDate : null, leaveDate: isDateStr(e.leaveDate) ? e.leaveDate : null,
   }));
   const bad = clean.filter((e) => e.joinDate && e.leaveDate && e.leaveDate < e.joinDate).map((e) => e.name);
@@ -29,7 +30,8 @@ export async function addFromCaps(names: string[], firstSeen: Record<string, str
   const user = await requireUser();
   const emps = await store.loadEmployees();
   const add = names.filter((n) => !emps.some((e) => e.name === n)).map((n, i): Employee => ({
-    name: n, capsName: "", empId: "", dept: "", rank: "", joinDate: firstSeen[n] ?? null, leaveDate: null,
+    name: n, capsName: "", empId: "", dept: "", rank: "", position: "", phone: "", ext: "", email: "",
+    joinDate: firstSeen[n] ?? null, leaveDate: null,
     note: "캡스에서 추가", ord: emps.length + i + 1,
   }));
   await store.saveEmployees([...emps, ...add], user.loginId);

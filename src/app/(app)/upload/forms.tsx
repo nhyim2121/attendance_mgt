@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { deleteMonthAction, deleteUploadAction, type Result, uploadCaps, uploadHiworks } from "./actions";
+import { deleteMonthAction, deleteUploadAction, type Result, uploadApprovals, uploadCaps, uploadHiworks } from "./actions";
 
 export function ResultMsg({ r }: { r: Result | null }) {
   if (!r) return null;
@@ -34,6 +34,18 @@ export function HiworksForm() {
           {pending ? "근태현황 파일을 읽는 중... (시트가 많으면 1분 정도 걸립니다)" : "근태현황 저장"}
         </button>
       </div>
+      <ResultMsg r={r} />
+    </form>
+  );
+}
+
+/** 하이웍스 '근무계획 수립이력' (휴가·연장근무·휴일근무) 여러 파일 */
+export function ApprovalForm() {
+  const [r, action, pending] = useActionState(uploadApprovals, null);
+  return (
+    <form action={action} className="stack" style={{ gap: 10 }}>
+      <input type="file" name="files" accept=".xls,.xlsx,.html,.htm" multiple required />
+      <div><button className="btn primary" disabled={pending}>{pending ? "읽는 중..." : "결재 내역 저장"}</button></div>
       <ResultMsg r={r} />
     </form>
   );

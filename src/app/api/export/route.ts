@@ -11,7 +11,16 @@ export async function GET(req: NextRequest) {
   if (d.empty) return new Response("선택한 조건에 맞는 기록이 없습니다.", { status: 404 });
 
   let body: Buffer, name: string, type: string;
-  if (sp.kind === "zip") {
+  const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  if (sp.kind === "one") {
+    // 근태 기입 화면: 직원 한 명의 그 달 시트 하나
+    const emp = String(sp.emp ?? "");
+    if (!d.emps.includes(emp)) return new Response("그 직원의 기록이 없습니다.", { status: 404 });
+    body = await buildWorkbook({
+      records: d.f!.records.filter((r) => r.emp === emp), days: d.days, employees: [emp], rule: d.rule, label: d.label, includeRaw: false,
+    });
+    [name, type] = [`${d.label} ${emp} 근태.xlsx`, XLSX];
+  } else if (sp.kind === "zip") {
     body = await buildZip(d.f!.records, d.days, d.emps, d.rule, d.label);
     [name, type] = [`${d.label} 직원별 근태.zip`, "application/zip"];
   } else {

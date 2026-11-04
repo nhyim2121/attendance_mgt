@@ -17,7 +17,8 @@ export interface Override {
   clockOut: string | null;
   outType: string | null;
   place: string | null;
-  note: string | null;
+  note: string | null; // 인원
+  work?: string | null; // 업무내용
   editedBy: string;
   editedAt: string;
 }
@@ -73,7 +74,7 @@ export function fmtG(x: number): string {
 }
 
 // ---------------------------------------------------------------- 시각 표기
-/** 출근 근무형태: 평일은 항상 '정상(기준)'(지각은 '확인' 열에 표시),
+/** 출근 근무형태: 평일은 항상 '정상(기준)'(지각은 '확인' 열에 표시). 조출은 근태 기입에서 직접 적는다.
  * 휴일은 기준 전 출근이면 기준 시각, 늦으면 단위 올림. */
 export function workTypeIn(t: Ts, holiday: boolean, rule: WorkRule): string {
   if (!holiday) return `정상(${hhmm(rule.start)})`;
@@ -351,6 +352,13 @@ export function orderByRoster<T>(rows: T[], rosterNames: string[] | null, key: (
   return [...rows].sort((a, b) => pos(a) - pos(b) || cmp(key(a), key(b)));
 }
 
+/** 같은 부서끼리 묶는다 (부서는 처음 나온 순서, 부서 없는 사람은 뒤로. 부서 안 순서는 유지). */
+export function orderByDept<T>(rows: T[], dept: (r: T) => string): T[] {
+  const depts = unique(rows.map(dept).filter(Boolean));
+  const pos = (r: T) => (dept(r) ? depts.indexOf(dept(r)) : depts.length);
+  return [...rows].sort((a, b) => pos(a) - pos(b));
+}
+
 /** 요일(행) x 시간대(열) 태그 건수 (경비 설정/해제 제외). */
 export function hourlyByWeekday(records: CapsRecord[]): number[][] {
   const table = Array.from({ length: 7 }, () => Array(24).fill(0) as number[]);
@@ -496,7 +504,7 @@ export function attention(days: DayRow[], report: HoursReport[], outsiders: stri
 }
 
 // ---------------------------------------------------------------- 일일 현황
-const LEAVE_LIKE = new Set(["연차", "반차", "반반차", "공가", "외출"]);
+const LEAVE_LIKE = new Set(["연차", "월차", "반차", "반반차", "공가", "경조휴가", "병가", "외출"]);
 const TRIP_LIKE = new Set(["출장", "교육", "외근"]);
 
 export interface BoardRow {
@@ -547,7 +555,7 @@ export function dailyBoard(
       else if (has(LEAVE_LIKE) || has(TRIP_LIKE)) group = has(LEAVE_LIKE) ? "휴가" : "출장·교육";
       else group = "휴무";
     } else if (has(TRIP_LIKE)) group = "출장·교육";
-    else if (types.some((t) => t === "연차" || t === "공가") && !present) group = "휴가";
+    else if (types.some((t) => FULL_DAY_TYPES.has(t)) && !present) group = "휴가";
     else if (present && tOut === null) {
       group = now !== null && now < endAt + 4 * HOUR ? "근무 중" : "퇴근 기록 없음";
     } else if (present) group = "퇴근";

@@ -29,25 +29,34 @@ function portInUse() {
   });
 }
 
-const run = (cmd, args) => spawnSync(cmd, args, { cwd: ROOT, windowsHide: true, shell: true, encoding: "utf8" });
+// shell: true에는 명령을 문자열 하나로 넘긴다 (인자 배열을 같이 넘기면 Node가 DEP0190 경고를 띄움)
+const run = (cmd) => spawnSync(cmd, { cwd: ROOT, windowsHide: true, shell: true, encoding: "utf8" });
 
 async function main() {
   if (await portInUse()) {
     log(`${PORT} 포트에서 이미 사이트가 실행 중이라 감시기를 끝냅니다.`);
     return;
   }
+  // Docker Desktop이 꺼져 있으면 직접 켠다 (로그아웃·절전 뒤 자동 시작이 안 되는 경우 대비)
+  if (run("docker info").status !== 0) {
+    const exe = "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe";
+    if (existsSync(exe)) {
+      log("Docker Desktop이 꺼져 있어 켭니다.");
+      spawn(exe, [], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+    }
+  }
   // Docker Desktop이 막 켜지는 중일 수 있어 최대 5분 기다린다
   for (let i = 0; ; i++) {
-    const r = run("npx", ["supabase", "start"]);
+    const r = run("npx supabase start");
     if (r.status === 0) break;
     if (i >= 30) throw new Error(`Supabase를 켜지 못했습니다: ${(r.stderr || r.stdout).slice(-300)}`);
     if (i === 0) log("Supabase(Docker)를 기다리는 중...");
     await sleep(10_000);
   }
-  run("node", ["scripts/backup-db.mjs"]);
+  run("node scripts/backup-db.mjs");
   if (!existsSync(join(ROOT, ".next", "BUILD_ID"))) {
     log("빌드가 없어 npm run build를 실행합니다.");
-    run("npm", ["run", "build"]);
+    run("npm run build");
   }
 
   let quickFails = 0;
@@ -55,7 +64,7 @@ async function main() {
     const started = Date.now();
     const day = stamp().slice(0, 10).replaceAll("-", "");
     const out = openSync(join(LOGS, `server-${day}.log`), "a");
-    const proc = spawn("npm", ["run", "start"], {
+    const proc = spawn("npm run start", {
       cwd: ROOT, windowsHide: true, shell: true, stdio: ["ignore", out, out],
       env: { ...process.env, NODE_ENV: "production" },
     });

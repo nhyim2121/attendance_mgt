@@ -12,16 +12,32 @@ const HEADER_FILL = "FFDDEBF7";
 const WARN_FILL = "FFFCE4D6";
 const LEAVE_FILL = "FFE2EFDA";
 const BLANK_FILL = "FFEDEDED";
+const MISSING_FILL = "FFFFF2CC";
+const LINK_COLOR = "FF0563C1";
+const TAB_COLORS = ["FF5B9BD5", "FF70AD47", "FFFFC000", "FFED7D31", "FFA5A5A5", "FF7030A0", "FF00B0A0", "FFC00000"];
 
 export const SHEET_COLUMNS = ["요일", "발생일자", "발생시각", "이름", "근무형태", "모드", "인증", "근무지", "비고", "확인"];
 export const RAW_COLUMNS = ["요일", "발생일자", "발생시각", "이름", "근무형태", "모드", "인증", "근무지", "비고"];
 export const SUMMARY_COLUMNS = ["직원", "부서", "출근일수", "평균출근", "평균퇴근", "평균체류(h)", "지각", "조퇴",
   "기록 없음", "태그 누락", "휴일근무", "휴가사용(일)", "출장·교육"];
+export const EXCEPTION_COLUMNS = ["부서", "직원", "일자", "요일", "구분", "출근", "퇴근", "근태"];
 const PLACE_TYPES = new Set(["출장", "외근", "교육"]);
-// 날짜·요일만 남기고 비워 두는 예외 상태
-const BLANK_STATUSES = new Set(["기록 없음", "출근 기록 없음", "퇴근 기록 없음", "휴일근무(기록 없음)"]);
+// 관리팀이 확인해야 하는 상태
+const EXCEPTION_STATUSES = new Set(["지각", "조퇴", "지각·조퇴", "기록 없음", "출근 기록 없음", "퇴근 기록 없음"]);
 
 export type SheetRow = string[]; // SHEET_COLUMNS 순서
+export type RowKind = "blank" | "leave" | "missing" | "warn" | "";
+
+/** 행 색 구분 (화면·엑셀 공통): 기록 없음 회색, 연차·공가 등 초록, 태그 누락 노랑, 지각·조퇴 주황 */
+export function rowKind(r: SheetRow): RowKind {
+  const time = r[SHEET_COLUMNS.indexOf("발생시각")];
+  const check = r[SHEET_COLUMNS.indexOf("확인")];
+  if (!time) return "blank";
+  if (!/^\d/.test(time)) return "leave";
+  if (check.includes("기록 없음")) return "missing";
+  if (check.includes("지각") || check.includes("조퇴")) return "warn";
+  return "";
+}
 
 /** 엑셀 시트 이름 규칙(31자, 특수문자 금지, 중복 불가)에 맞게 바꾼다. */
 export function safeSheetName(name: string, used: Set<string>): string {
@@ -45,6 +61,25 @@ export function workTypeLabel(kind: "출근" | "퇴근", t: Ts, holiday: boolean
   return label.startsWith("연장") || rule.labelAll ? label : "";
 }
 
+/** '구분': 그날의 판정 (태그 누락이면 찍힌 쪽의 지각·조퇴와 마지막 태그도 적는다). */
+function verdict(d: DayRow): string[] {
+  if (d.status === "정상" || d.status === "휴일근무") return [];
+  if (d.status === "퇴근 기록 없음") {
+    const last = d.lastTag !== null && d.in !== null && d.lastTag > d.in;
+    return [...(d.late ? ["지각"] : []), last ? `퇴근 기록 없음(마지막 태그 ${tsHM(d.lastTag!)})` : d.status];
+  }
+  if (d.status === "출근 기록 없음" && d.early) return ["조퇴", d.status];
+  return [d.status];
+}
+
+/** 확인이 필요한 날을 직원 순서·날짜순으로 모은 목록 (EXCEPTION_COLUMNS 순서). */
+export function exceptionRows(days: DayRow[], employees: string[]): string[][] {
+  return employees.flatMap((emp) => days.filter((d) => d.emp === emp && EXCEPTION_STATUSES.has(d.status))
+    .sort((a, b) => (a.day < b.day ? -1 : 1))
+    .map((d) => [d.dept, emp, d.day, d.wd, verdict(d).join(", "), d.in === null ? "" : tsHM(d.in),
+      d.out === null ? "" : tsHM(d.out), [d.leave, oneLine(d.leaveContent)].filter(Boolean).join(": ")]));
+}
+
 /** 한 직원의 일별 근태표 -> 날짜별 출근 1줄 + 퇴근 1줄 (기록 없는 날은 1줄). */
 export function employeeRows(days: DayRow[], rule: WorkRule): SheetRow[] {
   const out: SheetRow[] = [];
@@ -58,17 +93,13 @@ export function employeeRows(days: DayRow[], rule: WorkRule): SheetRow[] {
       ? content ? `${otherTypes.join(", ")}: ${oneLine(content)}` : otherTypes.join(", ")
       : "";
     const note = mates || leaveNote;
-    let check = d.status === "정상" || d.status === "휴일근무" ? [] : [d.status];
-    if (d.status === "퇴근 기록 없음" && d.lastTag !== null && d.in !== null && d.lastTag > d.in) {
-      check = [`퇴근 기록 없음(마지막 태그 ${tsHM(d.lastTag)})`];
-    }
+    const check = verdict(d);
     check.push(...types.filter((t) => !check.includes(t) && t !== "휴일근무"));
     const checkText = check.join(", ");
     const ovPlace = d.ovPlace, ovNote = d.ovNote;
 
-    if (BLANK_STATUSES.has(d.status)) {
-      // 기록 없음·출근만·퇴근만 있는 날: 대개 휴가 또는 미연동이라 날짜·요일만 적고 나머지는 비운다
-      out.push([d.wd, d.day, "", "", "", "", "", ovPlace ?? "", ovNote ?? "", ""]);
+    if (d.status === "기록 없음") { // 기록이 전혀 없는 날: 날짜·요일과 사유만 적는다
+      out.push([d.wd, d.day, "", "", "", "", "", ovPlace ?? "", ovNote ?? "", checkText]);
       continue;
     }
     if (d.in === null && d.out === null) {
@@ -110,7 +141,7 @@ function autofit(ws: ExcelJS.Worksheet, minRow = 1): void {
     if (r < minRow) return;
     row.eachCell((cell, c) => {
       if (cell.value === null || cell.value === undefined) return;
-      const len = Math.max(...String(cell.value).split("\n").map((l) => l.length));
+      const len = Math.max(...cell.text.split("\n").map((l) => l.length));
       widths.set(c, Math.max(widths.get(c) ?? 2, len));
     });
   });
@@ -134,6 +165,13 @@ function writeTable(ws: ExcelJS.Worksheet, header: string[], rows: Value[][], st
   });
 }
 
+/** 시트로 이동하는 링크 (값은 그대로 보이고 누르면 이동). */
+function setLink(cell: ExcelJS.Cell, text: string, sheet: string): void {
+  const q = (s: string) => s.replaceAll('"', '""');
+  cell.value = { formula: `HYPERLINK("#'${q(sheet.replaceAll("'", "''"))}'!A1","${q(text)}")`, result: text };
+  cell.font = { color: { argb: LINK_COLOR }, underline: true };
+}
+
 function writeEmployeeSheet(ws: ExcelJS.Worksheet, title: string, rows: SheetRow[]): void {
   // 수작업 양식: B2 제목, B4 헤더, B5부터 데이터
   writeTable(ws, SHEET_COLUMNS, rows, 4, 2);
@@ -141,15 +179,11 @@ function writeEmployeeSheet(ws: ExcelJS.Worksheet, title: string, rows: SheetRow
   t.value = title;
   t.font = { bold: true, size: 13 };
   styleHeader(ws, 4);
-  const checkCol = SHEET_COLUMNS.indexOf("확인");
-  const timeCol = SHEET_COLUMNS.indexOf("발생시각");
+  const fills = { blank: BLANK_FILL, leave: LEAVE_FILL, missing: MISSING_FILL, warn: WARN_FILL };
   rows.forEach((r, i) => {
-    const check = r[checkCol], timeVal = r[timeCol];
-    let fill: string;
-    if (!timeVal) fill = BLANK_FILL; // 날짜·요일만 있는 예외 행: 연한 회색으로 표시만
-    else if (!/^\d/.test(timeVal)) fill = LEAVE_FILL; // 연차·공가 등
-    else if (check && (check.includes("지각") || check.includes("조퇴"))) fill = WARN_FILL;
-    else return;
+    const kind = rowKind(r);
+    if (!kind) return;
+    const fill = fills[kind];
     for (let c = 2; c < 2 + SHEET_COLUMNS.length; c++) {
       ws.getCell(5 + i, c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill } };
     }
@@ -168,31 +202,50 @@ export interface WorkbookInput {
   includeRaw?: boolean;
 }
 
-/** [N월 전체] + [요약] + 직원별 시트 엑셀. */
+/** [N월 전체] + [요약] + [확인 필요] + 직원별 시트 엑셀. 요약·확인 필요의 직원 이름을 누르면 그 시트로 간다. */
 export async function buildWorkbook(
   { records, days, employees, rule, summary = null, label = "", includeRaw = true }: WorkbookInput,
 ): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const used = new Set<string>();
+  // 링크를 걸 수 있게 시트 이름을 먼저 정한다
+  const rawName = includeRaw ? safeSheetName(`${label} 전체`.trim(), used) : "";
+  const summaryName = summary?.length ? safeSheetName("요약", used) : "";
+  const exceptions = summaryName ? exceptionRows(days, employees) : [];
+  const exceptionName = exceptions.length ? safeSheetName("확인 필요", used) : "";
+  const staff = employees.filter((emp) => days.some((x) => x.emp === emp));
+  const sheetOf = new Map(staff.map((emp) => [emp, safeSheetName(emp, used)]));
+  const linkNames = (ws: ExcelJS.Worksheet, col: number, names: string[]) => names.forEach((n, i) => {
+    const sheet = sheetOf.get(n);
+    if (sheet) setLink(ws.getCell(i + 2, col), n, sheet);
+  });
+  const listSheet = (ws: ExcelJS.Worksheet, header: string[], rows: Value[][], freezeCols: number, nameCol: number) => {
+    writeTable(ws, header, rows);
+    ws.views = [{ state: "frozen", xSplit: freezeCols, ySplit: 1 }];
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: header.length } };
+    styleHeader(ws, 1);
+    linkNames(ws, nameCol, rows.map((r) => String(r[nameCol - 1])));
+    autofit(ws);
+  };
+
   if (includeRaw) {
-    const ws = wb.addWorksheet(safeSheetName(`${label} 전체`.trim(), used));
+    const ws = wb.addWorksheet(rawName);
     writeTable(ws, RAW_COLUMNS, rawRows(records));
     ws.views = [{ state: "frozen", ySplit: 1 }];
     styleHeader(ws, 1);
     autofit(ws);
   }
-  if (summary?.length) {
-    const ws = wb.addWorksheet(safeSheetName("요약", used));
-    writeTable(ws, SUMMARY_COLUMNS, summary);
-    ws.views = [{ state: "frozen", xSplit: 1, ySplit: 1 }];
-    styleHeader(ws, 1);
-    autofit(ws);
-  }
-  for (const emp of employees) {
+  if (summary?.length) listSheet(wb.addWorksheet(summaryName), SUMMARY_COLUMNS, summary, 1, 1);
+  if (exceptions.length) listSheet(wb.addWorksheet(exceptionName), EXCEPTION_COLUMNS, exceptions, 2, 2);
+  const depts = [...new Set(days.map((x) => x.dept))];
+  for (const emp of staff) {
     const d = days.filter((x) => x.emp === emp);
-    if (!d.length) continue;
     const title = `${d[0].dept} ${emp}`.trim();
-    writeEmployeeSheet(wb.addWorksheet(safeSheetName(emp, used)), title, employeeRows(d, rule));
+    const ws = wb.addWorksheet(sheetOf.get(emp)!, {
+      properties: { tabColor: { argb: TAB_COLORS[depts.indexOf(d[0].dept) % TAB_COLORS.length] } },
+    });
+    writeEmployeeSheet(ws, title, employeeRows(d, rule));
+    if (summaryName) setLink(ws.getCell(1, 2), "← 요약", summaryName);
   }
   if (!used.size) { // 빈 통합문서 방지
     writeTable(wb.addWorksheet("안내"), ["안내"], [["선택한 조건에 맞는 기록이 없습니다."]]);

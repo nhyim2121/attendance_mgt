@@ -1,5 +1,5 @@
 import "server-only";
-import { employeeSummary, type EmployeeSummary } from "@/lib/analytics";
+import { employeeSummary, type EmployeeSummary, orderByDept } from "@/lib/analytics";
 import { computeDays, filteredRecords, getRule, loadBase, periodLabel, type SearchParams } from "@/lib/data";
 
 /** 직원별 시트 화면과 내려받기가 같이 쓰는 계산 */
@@ -8,7 +8,7 @@ export async function sheetData(sp: SearchParams) {
   if (!f || !f.records.length) return { f, empty: true as const };
   const [rule, base] = await Promise.all([getRule(), loadBase()]);
   const days = await computeDays(f.records, rule);
-  const summary = employeeSummary(days, base.roster.map((r) => r.name));
+  const summary = orderByDept(employeeSummary(days, base.roster.map((r) => r.name)), (s) => s.dept);
   const allEmps = summary.map((s) => s.emp);
   const picked = String(sp.emps ?? "").split(",").filter((e) => allEmps.includes(e));
   const emps = picked.length ? allEmps.filter((e) => picked.includes(e)) : allEmps;

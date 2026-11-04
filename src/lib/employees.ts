@@ -9,6 +9,10 @@ export interface Employee {
   empId: string;
   dept: string;
   rank: string;
+  position: string; // 직책 (팀장 등)
+  phone: string;
+  ext: string; // 내선
+  email: string;
   joinDate: DateStr | null;
   leaveDate: DateStr | null; // 마지막 근무일
   note: string;
@@ -18,7 +22,8 @@ export interface Employee {
 /** 처음 한 번: 근태현황 '명단'으로 직원 명부를 만든다 (입사일·퇴사일은 비워 둠). */
 export function seedFrom(roster: RosterRow[], ranks: Record<string, string>): Employee[] {
   return roster.map((r, i) => ({
-    name: r.name, capsName: "", empId: "", dept: r.dept, rank: ranks[r.name] ?? "", joinDate: null, leaveDate: null,
+    name: r.name, capsName: "", empId: "", dept: r.dept, rank: ranks[r.name] ?? "", position: "", phone: "", ext: "",
+    email: "", joinDate: null, leaveDate: null,
     note: "", ord: i + 1,
   }));
 }

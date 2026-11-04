@@ -27,13 +27,32 @@ const blank = (section: string): ReportRow => ({
 });
 const KEYS = ["section", "dept", "rank", "name", "types", "title", "detail", "value", "note"] as const;
 const norm = (rows: ReportRow[]) => rows.filter((r) => r.name.trim())
-  .map((r) => KEYS.map((k) => String(r[k] ?? "")).join("\u0000")).join("\n");
+  .map((r) => KEYS.map((k) => String(r[k] ?? "")).join("\u0000")).sort().join("\n"); // 순서는 비교하지 않음
+
+/** 근태현황 탭은 '근태 건' 단위로 편집한다: 근태·근무지·내용·비고가 같은 사람들을 한 줄(인원)로. 저장은 사람별 행. */
+interface Group { id: number; types: string; title: string; detail: string; note: string; names: string[] }
+let gid = 0;
+const newGroup = (g: Partial<Group> = {}): Group => ({ id: ++gid, types: "", title: "", detail: "", note: "", names: [], ...g });
+function toGroups(rows: ReportRow[]): Group[] {
+  const m = new Map<string, Group>();
+  for (const r of rows.filter((x) => x.section === "근태")) {
+    const types = splitReportTypes(r.types).join(",");
+    const k = [splitReportTypes(r.types).sort().join(","), r.title.trim(), r.detail.trim(), r.note.trim()].join("\u0000");
+    const g = m.get(k) ?? newGroup({ types, title: r.title, detail: r.detail, note: r.note });
+    if (r.name && !g.names.includes(r.name)) g.names.push(r.name);
+    m.set(k, g);
+  }
+  return [...m.values()];
+}
 
 const TABS: [string, string][] = [["근태", "근태현황"], ["도제", "일학습병행(도제)"], ["휴가일정", "휴가일정"], ["휴일근무", "휴일 근태"]];
 
 export default function ReportEditor(p: Props) {
   const router = useRouter();
-  const [rows, setRows] = useState<ReportRow[]>(p.saved);
+  const [rows, setRows] = useState<ReportRow[]>(p.saved.filter((r) => r.section !== "근태")); // 근태현황 밖의 탭
+  const [groups, setGroups] = useState<Group[]>(() => toGroups(p.saved));
+  // 저장돼 있던 사람별 부서·직급 (직접 고친 값 유지)
+  const info = useMemo(() => new Map(p.saved.filter((r) => r.section === "근태").map((r) => [r.name, r])), [p.saved]);
   const [tab, setTab] = useState("근태");
   const [msg, setMsg] = useState<Res>(null);
   const [pending, start] = useTransition();
@@ -44,13 +63,24 @@ export default function ReportEditor(p: Props) {
   // 부서·직급을 비우면 명단의 부서, 최근 직급으로 채운다
   const final = useMemo(() => {
     const ord: Record<string, number> = {};
-    return rows.filter((r) => r.name.trim()).map((r) => ({
+    const att: ReportRow[] = groups.flatMap((g) => g.names.map((n) => ({
+      ...blank("근태"), name: n, dept: info.get(n)?.dept ?? "", rank: info.get(n)?.rank ?? "",
+      types: g.types, title: g.title, detail: g.detail, note: g.note,
+    })));
+    return [...att, ...rows].filter((r) => r.name.trim()).map((r) => ({
       ...r, dept: r.dept || p.deptOf[r.name] || "", rank: r.rank || p.ranks[r.name] || "",
       ord: (ord[r.section] = (ord[r.section] ?? 0) + 1),
     }));
-  }, [rows, p.deptOf, p.ranks]);
+  }, [rows, groups, info, p.deptOf, p.ranks]);
   const dirty = norm(final) !== norm(p.saved);
-  const noType = final.filter((r) => r.section === "근태" && !r.types).map((r) => r.name);
+  const noType = groups.filter((g) => g.names.length && !g.types).flatMap((g) => g.names);
+  const setG = (id: number, patch: Partial<Group>) => setGroups((gs) => gs.map((g) => (g.id === id ? { ...g, ...patch } : g)));
+  const toggleGType = (g: Group, t: string) => {
+    const cur = splitReportTypes(g.types);
+    setG(g.id, { types: (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]).join(",") });
+  };
+  const toggleName = (g: Group, n: string) =>
+    setG(g.id, { names: g.names.includes(n) ? g.names.filter((x) => x !== n) : [...g.names, n] });
   const html = useMemo(() => renderReportHtml(p.day, final), [p.day, final]);
 
   const hol = useMemo(() => {
@@ -112,7 +142,7 @@ export default function ReportEditor(p: Props) {
           onClick={() => start(async () => {
             const pre = await prefillAction(p.day);
             if (!pre.length) setMsg({ error: "근태현황 파일에 이 날짜 기록이 없습니다." });
-            else setRows((rs) => [...pre, ...rs.filter((r) => r.section !== "근태")]);
+            else setGroups(toGroups(pre));
           })}>근태현황 파일 내용 불러오기</button>
         <button className="btn" disabled={pending || !p.hasPrev} title="계속 이어지는 일학습병행(도제)·휴가일정 표를 가장 최근 보고서에서 복사합니다."
           onClick={() => start(async () => {
@@ -125,15 +155,60 @@ export default function ReportEditor(p: Props) {
         <div className="tabs">
           {TABS.map(([k, l]) => (
             <button key={k} className={k === tab ? "on" : ""} onClick={() => setTab(k)}>
-              {l} ({rows.filter((r) => r.section === k && r.name).length})
+              {l} ({k === "근태" ? groups.reduce((t, g) => t + g.names.length, 0) : rows.filter((r) => r.section === k && r.name).length})
             </button>
           ))}
         </div>
-        <div className="tbl-wrap">
+        {tab === "근태" && (
+          <div className="tbl-wrap">
+            <table className="tbl edit">
+              <thead><tr><th>근태 (여러 개 가능)</th><th>근무지·사유</th><th>내용</th><th>비고</th><th>인원</th><th /></tr></thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.id}>
+                    <td style={{ whiteSpace: "normal", minWidth: 250 }}>
+                      {TYPES.map((t) => (
+                        <label key={t} style={{ display: "inline-flex", gap: 3, marginRight: 8, fontSize: ".82rem" }}>
+                          <input type="checkbox" checked={splitReportTypes(g.types).includes(t)} onChange={() => toggleGType(g, t)} />{t}
+                        </label>
+                      ))}
+                    </td>
+                    <td><input type="text" value={g.title} placeholder="예: SKL에너지(하남), 개인사유" style={{ minWidth: 160 }}
+                      onChange={(e) => setG(g.id, { title: e.target.value })} /></td>
+                    <td><input type="text" value={g.detail} placeholder="예: MCOP 취외 작업, 08:30~13:30" style={{ minWidth: 160 }}
+                      onChange={(e) => setG(g.id, { detail: e.target.value })} /></td>
+                    <td><input type="text" value={g.note} style={{ minWidth: 100 }} onChange={(e) => setG(g.id, { note: e.target.value })} /></td>
+                    <td style={{ minWidth: 220, whiteSpace: "normal" }}>
+                      <div className="row" style={{ gap: 4 }}>
+                        {g.names.map((n) => (
+                          <span key={n} className="name-chip">{n}
+                            <button type="button" title="빼기" onClick={() => toggleName(g, n)}>×</button></span>
+                        ))}
+                        <details className="pop">
+                          <summary className="btn sm">+ 인원</summary>
+                          <div className="pop-body mates-pop">
+                            <b>같이 해당되는 직원</b>
+                            <p className="caption" style={{ margin: "2px 0 8px" }}>고른 사람마다 같은 근태·근무지·내용으로 저장됩니다.</p>
+                            <div className="mates-grid">
+                              {p.names.map((n) => (
+                                <label key={n}><input type="checkbox" checked={g.names.includes(n)} onChange={() => toggleName(g, n)} />{n}</label>
+                              ))}
+                            </div>
+                          </div>
+                        </details>
+                      </div>
+                    </td>
+                    <td><button className="btn sm danger" onClick={() => setGroups((gs) => gs.filter((x) => x.id !== g.id))} title="이 줄 삭제">삭제</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {tab !== "근태" && <div className="tbl-wrap">
           <table className="tbl edit">
             <thead><tr>
               <th>성명</th><th>부서</th><th>직급</th>
-              {tab === "근태" && <><th>근태 (여러 개 가능)</th><th>근무지·사유</th><th>시간·내용</th><th>비고</th></>}
               {tab === "도제" && <><th>출근 완료</th><th>비고란</th></>}
               {tab === "휴가일정" && <><th>출근예정</th><th>휴가 일정</th></>}
               {tab === "휴일근무" && <>{hol.map((d) => <th key={d}>{dayLabel(d)}</th>)}<th>작업내용·근무지</th><th>비고</th></>}
@@ -145,18 +220,6 @@ export default function ReportEditor(p: Props) {
                   <td>{nameSelect(i, r)}</td>
                   <td>{text(i, "dept", p.deptOf[r.name] ?? "", 80)}</td>
                   <td>{text(i, "rank", p.ranks[r.name] ?? "", 60)}</td>
-                  {tab === "근태" && <>
-                    <td style={{ whiteSpace: "normal", minWidth: 260 }}>
-                      {TYPES.map((t) => (
-                        <label key={t} style={{ display: "inline-flex", gap: 3, marginRight: 8, fontSize: ".82rem" }}>
-                          <input type="checkbox" checked={splitReportTypes(r.types).includes(t)} onChange={() => toggleType(i, t)} />{t}
-                        </label>
-                      ))}
-                    </td>
-                    <td>{text(i, "title", "예: 김포발전소, 개인사유", 160)}</td>
-                    <td>{text(i, "detail", "예: 08:30~13:30", 140)}</td>
-                    <td>{text(i, "note")}</td>
-                  </>}
                   {tab === "도제" && <><td>{text(i, "value", "예: 10/23(금) 또는 -")}</td><td>{text(i, "note", "", 280)}</td></>}
                   {tab === "휴가일정" && <><td>{text(i, "value", "예: 10/30(금)")}</td><td>{text(i, "note", "예: 10/29(목) 1일 연차", 280)}</td></>}
                   {tab === "휴일근무" && <>
@@ -170,16 +233,18 @@ export default function ReportEditor(p: Props) {
                     ))}
                     <td>{text(i, "title", "예: 에쓰엔 / 신공장 페인트 작업", 200)}</td><td>{text(i, "note")}</td>
                   </>}
-                  <td><button className="btn sm danger" onClick={() => remove(i)} title="행 삭제">삭제</button></td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <button className="btn sm danger" onClick={() => remove(i)} title="행 삭제">삭제</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </div>}
         <div className="row" style={{ marginTop: 8 }}>
-          <button className="btn sm" onClick={() => setRows((rs) => [...rs, blank(tab)])}>+ 행 추가</button>
+          <button className="btn sm" onClick={() => (tab === "근태" ? setGroups((gs) => [...gs, newGroup()]) : setRows((rs) => [...rs, blank(tab)]))}>+ 행 추가</button>
           <span className="caption" style={{ margin: 0 }}>
-            {tab === "근태" && "같은 출장지·사유가 이어지는 사람은 같은 내용을 적어 주세요."}
+            {tab === "근태" && "근태 한 건마다 한 줄입니다. 같은 출장·휴가에 해당하는 사람은 [+ 인원]으로 고르세요. 부서·직급은 직원 명부에서 자동으로 채웁니다."}
             {tab === "휴일근무" && "근무한 휴일 날짜에 체크하세요. 기본으로 직전 주말과 최근 공휴일이 표시됩니다."}
           </span>
         </div>
@@ -189,7 +254,7 @@ export default function ReportEditor(p: Props) {
       <div className="row" style={{ margin: "12px 0" }}>
         <button className="btn primary" disabled={pending || (!dirty && p.isSaved)}
           onClick={() => run(() => saveReportAction(p.day, final))}>저장</button>
-        <button className="btn" disabled={pending || !dirty} onClick={() => setRows(p.saved)}>편집 취소</button>
+        <button className="btn" disabled={pending || !dirty} onClick={() => { setRows(p.saved.filter((r) => r.section !== "근태")); setGroups(toGroups(p.saved)); }}>편집 취소</button>
         <details className="pop left">
           <summary className="btn" aria-disabled={!p.isSaved}>보고서 삭제</summary>
           {p.isSaved && (

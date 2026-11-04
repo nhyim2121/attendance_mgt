@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { boardCounts, buildDays, dailyBoard, type Override } from "@/lib/analytics";
 import { HOLIDAYS_2026 } from "@/lib/config";
 import {
-  mergeLeaves, prefillFromLeaves, renderReportHtml, reportCounts, reportToLeaves, type ReportRow, summaryText,
+  groupAttendance, mergeLeaves, prefillFromLeaves, renderReportHtml, reportCounts, reportToLeaves, type ReportRow, summaryText,
   weekendBefore,
 } from "@/lib/daily";
 import { activeNames, applyEmployees, type Employee, employment, isEmployed } from "@/lib/employees";
@@ -63,10 +63,23 @@ describe("일일 근태현황 보고서", () => {
     const html = renderReportHtml(DAY, rows());
     for (const text of ["2026년 10월 26일(월) 근태현황", "근태 현황", "휴가 일정", "휴일·연장", "일학습병행(도제)",
       "10/24(토)", "김포발전소", "신품 전동기 납품", "10/30(금)"]) expect(html).toContain(text);
-    expect(html.split("김포발전소").length - 1).toBe(2); // 칸 합치기 없이 사람마다 표시
+    expect(html.split("김포발전소").length - 1).toBe(1); // 같은 출장은 한 줄로 묶음
+    expect(html).toContain("생산팀</div><div"); // 묶인 줄에 부서 둘 (생산팀·영업팀)
+    expect(html.indexOf("사아자")).toBeLessThan(html.indexOf("차카타"));
     expect(html).toContain("border-top:4px solid"); // 요약 카드
     expect(html).not.toContain("display:grid"); // 메일에서 깨지는 CSS 안 씀
     expect(summaryText(rows())).toBe("연차 1, 반차 1, 출장 2");
+  });
+
+  it("같은 근태끼리 묶기", () => {
+    const g = groupAttendance([
+      row({ name: "a", types: "출장", title: "X", detail: "d" }),
+      row({ name: "b", types: "연차" }),
+      row({ name: "c", types: "연차" }),
+      row({ name: "d", types: "출장", title: "X", detail: "d" }),
+      row({ name: "e", types: "출장", title: "X", detail: "다른 내용" }),
+    ]);
+    expect(g.map((x) => x.map((r) => r.name).join(""))).toEqual(["ad", "b", "c", "e"]);
   });
 
   it("이스케이프와 빈 보고서", () => {
@@ -152,7 +165,7 @@ describe("기입값·직원 명부", () => {
 
   it("재직 기간과 캡스 이름", () => {
     const emp = (e: Partial<Employee>): Employee => ({
-      name: "", capsName: "", empId: "", dept: "", rank: "", joinDate: null, leaveDate: null, note: "", ord: 0, ...e,
+      name: "", capsName: "", empId: "", dept: "", rank: "", position: "", phone: "", ext: "", email: "", joinDate: null, leaveDate: null, note: "", ord: 0, ...e,
     });
     const emps = [
       emp({ name: "재직자", dept: "생산팀", rank: "대리" }),

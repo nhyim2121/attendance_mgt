@@ -55,9 +55,10 @@ export default function EmployeeEditor({ emps, depts, today, seen }: {
       <div className="tbl-wrap tall">
         <table className="tbl edit">
           <thead><tr>
-            <th>이름</th><th>상태</th><th>부서</th><th>직급</th><th title="비우면 처음부터 재직으로 봅니다.">입사일</th>
+            <th>이름</th><th>상태</th><th>부서</th><th>직급</th><th title="조직도에 표시 (팀장, 공장장 등)">직책</th>
+            <th title="비우면 처음부터 재직으로 봅니다.">입사일</th>
             <th title="마지막 근무일. 비우면 재직 중.">퇴사일</th><th title="캡스에 이름이 다르게 찍힐 때만 (예: 홍길동A)">캡스 이름</th>
-            <th>사번</th><th>비고</th><th>첫 출입(참고)</th><th>마지막 출입(참고)</th><th />
+            <th>사번</th><th title="조직도(사내용)에 표시">휴대전화</th><th>내선</th><th>이메일</th><th>비고</th><th>첫 출입(참고)</th><th>마지막 출입(참고)</th><th />
           </tr></thead>
           <tbody>
             {shown.map(([e, i]) => (
@@ -66,10 +67,14 @@ export default function EmployeeEditor({ emps, depts, today, seen }: {
                 <td className="ro">{statusOf(e, today)}</td>
                 <td><input type="text" list="depts" value={e.dept} style={{ minWidth: 80 }} onChange={(ev) => set(i, { dept: ev.target.value })} /></td>
                 <td>{input(i, "rank", 60)}</td>
+                <td>{input(i, "position", 70)}</td>
                 <td>{input(i, "joinDate", 130, "date")}</td>
                 <td>{input(i, "leaveDate", 130, "date")}</td>
                 <td>{input(i, "capsName")}</td>
                 <td>{input(i, "empId", 60)}</td>
+                <td>{input(i, "phone", 120)}</td>
+                <td>{input(i, "ext", 50)}</td>
+                <td>{input(i, "email", 160)}</td>
                 <td>{input(i, "note", 140)}</td>
                 <td className="ro">{span(e)?.[0] ?? ""}</td>
                 <td className="ro">{span(e)?.[1] ?? ""}</td>
@@ -83,7 +88,8 @@ export default function EmployeeEditor({ emps, depts, today, seen }: {
       {bad.length > 0 && <div className="msg err">퇴사일이 입사일보다 빠른 직원: {bad.join(", ")}</div>}
       <div className="row">
         <button className="btn" onClick={() => setRows((rs) => [...rs, {
-          name: "", capsName: "", empId: "", dept: "", rank: "", joinDate: null, leaveDate: null, note: "", ord: rs.length + 1,
+          name: "", capsName: "", empId: "", dept: "", rank: "", position: "", phone: "", ext: "", email: "", joinDate: null,
+          leaveDate: null, note: "", ord: rs.length + 1,
         }])}>+ 직원 추가</button>
         <button className="btn primary" disabled={pending || !dirty || bad.length > 0} onClick={save}>저장</button>
         <button className="btn" disabled={pending || !dirty} onClick={() => setRows(emps)}>편집 취소</button>

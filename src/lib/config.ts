@@ -26,9 +26,11 @@ export const WEEKDAYS_KR = ["월", "화", "수", "목", "금", "토", "일"];
 export const ALARM_MODES = new Set(["해제", "세트"]);
 
 // 하이웍스 근태 유형
-export const LEAVE_DAY_VALUE: Record<string, number> = { 연차: 1, 반차: 0.5, 반반차: 0.25 }; // 휴가 사용일수
-export const FULL_DAY_TYPES = new Set(["연차", "공가"]); // 하루 종일 부재
-export const EXCUSED_TYPES = new Set(["연차", "반차", "반반차", "외출", "공가", "출장", "교육", "외근"]); // 지각/조퇴 판정 제외
+export const LEAVE_DAY_VALUE: Record<string, number> = { 연차: 1, 월차: 1, 반차: 0.5, 반반차: 0.25 }; // 휴가 사용일수
+export const FULL_DAY_TYPES = new Set(["연차", "월차", "공가", "경조휴가", "병가"]); // 하루 종일 부재
+export const EXCUSED_TYPES = new Set([
+  "연차", "월차", "반차", "반반차", "외출", "공가", "경조휴가", "병가", "출장", "교육", "외근",
+]); // 지각/조퇴 판정 제외
 export const TRAVEL_TYPES = new Set(["출장", "교육", "외근"]); // 출퇴근 시각을 기준 시각으로 채우는 유형
 
 // 2026년 공휴일·대체공휴일 (근태현황 일일보고가 없는 날과 대조해 확인)

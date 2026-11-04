@@ -1,10 +1,17 @@
-/** 일일 현황: 그날 캡스 출퇴근 내역을 올리면 출근·퇴근·지각·휴가·출장·휴일·연장 인원을 자동 집계. */
+/** 일일 현황: [출퇴근 현황] 그날 캡스 출퇴근 내역으로 출근·퇴근·지각·휴가·출장·휴일·연장 인원을 자동 집계,
+ * [근태 보고서] 연차·출장 등을 입력해 하루치 근태현황 보고서를 만들고 이미지·메일로 보낸다. */
+import Link from "next/link";
 import { Suspense } from "react";
+import { hrefWith } from "@/components/Filters";
 import { ParamDate } from "@/components/ParamControls";
 import { COLORS, Kpi, Msg, Table } from "@/components/ui";
 import { boardCounts, type BoardRow, dailyBoard, isHoliday } from "@/lib/analytics";
+import FileLink from "@/components/FileLink";
 import { computeDays, getHolidays, getRecords, getRule, loadBase, type SearchParams, staffOn } from "@/lib/data";
+import { attachmentsFor } from "@/lib/evidence";
+import * as store from "@/lib/store";
 import { addDays, dayLabelLong, hhmm, isDateStr, nowKst, parseTs, todayKst, tsHM, tsTime } from "@/lib/time";
+import ReportView from "../report/ReportView";
 import DailyUpload from "./DailyUpload";
 
 export const metadata = { title: "일일 현황 · 근태관리통합시스템" };
@@ -26,6 +33,14 @@ function Board({ groups }: { groups: [string, string, [string, string][]][] }) {
 
 export default async function DailyPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
+  const isReport = sp.tab === "report";
+  const tabs = (
+    <div className="tabs">
+      <Link href={hrefWith(sp, "/daily", { tab: null })} className={isReport ? "" : "on"} scroll={false}>출퇴근 현황</Link>
+      <Link href={hrefWith(sp, "/daily", { tab: "report" })} className={isReport ? "on" : ""} scroll={false}>근태 보고서</Link>
+    </div>
+  );
+  if (isReport) return <><h1>일일 현황</h1>{tabs}<ReportView sp={sp} /></>;
   const [rule, holidays, base] = await Promise.all([getRule(), getHolidays(), loadBase()]);
   const has = base.months.length > 0;
   const today = todayKst();
@@ -36,6 +51,7 @@ export default async function DailyPage({ searchParams }: { searchParams: Promis
   const head = (
     <>
       <h1>일일 현황</h1>
+      {tabs}
       <Suspense><DailyUpload open={!has} /></Suspense>
     </>
   );
@@ -62,6 +78,7 @@ export default async function DailyPage({ searchParams }: { searchParams: Promis
   const board = dailyBoard(days, base.leaves, staff, day, rule, now, holiday);
   const cnt = boardCounts(board);
   const hasDay = records.some((r) => r.day === day);
+  const atts = await store.loadAttachments(day, day);
 
   const by = (g: string) => board.filter((b) => b.group === g);
   const sorted = (xs: BoardRow[], k: "in" | "out") => [...xs].sort((a, b) => a[k]! - b[k]!);
@@ -102,8 +119,9 @@ export default async function DailyPage({ searchParams }: { searchParams: Promis
       <div className="card" style={{ marginTop: 16 }}>
         <div className="card-title">직원별 출퇴근</div>
         {holiday && <p className="caption">휴일이라 출근하지 않은 {by("휴무").length}명은 표에서 뺐습니다.</p>}
-        <Table head={["부서", "직원", "출근", "퇴근", "상태", "근태", "근무지·사유"]} tall
-          rows={shown.map((b) => [b.dept, b.emp, tsHM(b.in), tsHM(b.out), b.status, b.leave, b.leaveContent])} />
+        <Table head={["부서", "직원", "출근", "퇴근", "상태", "근태", "근무지·사유", "증빙"]} tall
+          rows={shown.map((b) => [b.dept, b.emp, tsHM(b.in), tsHM(b.out), b.status, b.leave, b.leaveContent,
+            attachmentsFor(atts, b.emp, day, day).map((a) => <FileLink key={a.id} a={a} />)])} />
       </div>
     </>
   );

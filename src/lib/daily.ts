@@ -11,7 +11,9 @@ import { addDays, type DateStr, dayLabel, isDateStr, weekday } from "./time";
 
 export const SECTIONS = ["근태", "도제", "휴가일정", "휴일근무"] as const;
 export type Section = (typeof SECTIONS)[number];
-export const LEAVE_TYPES = ["연차", "반차", "반반차", "외출", "공가", "출장", "교육", "휴일근무", "연장근무"];
+export const LEAVE_TYPES = [
+  "연차", "월차", "반차", "반반차", "외출", "공가", "경조휴가", "병가", "출장", "교육", "휴일근무", "연장근무",
+];
 const FONT = "'Paperlogy','Malgun Gothic','맑은 고딕',sans-serif";
 
 export interface ReportRow {
@@ -117,7 +119,8 @@ const CARD = "background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;";
 
 // 근태 종류별 배지 색 (글자색, 배경색)
 const BADGE: Record<string, [string, string]> = {
-  연차: ["#1f8a3b", "#e3f4e8"], 반차: ["#0f766e", "#dcf3f0"], 반반차: ["#0f766e", "#dcf3f0"],
+  연차: ["#1f8a3b", "#e3f4e8"], 월차: ["#1f8a3b", "#e3f4e8"], 경조휴가: ["#1f8a3b", "#e3f4e8"],
+  병가: ["#1f8a3b", "#e3f4e8"], 반차: ["#0f766e", "#dcf3f0"], 반반차: ["#0f766e", "#dcf3f0"],
   외출: ["#c2410c", "#fdebdc"], 공가: ["#2563c9", "#e3ecfb"], 출장: ["#6d28d9", "#ede5fb"],
   교육: ["#4338ca", "#e6e7fb"], 외근: ["#6d28d9", "#ede5fb"], 휴일근무: ["#b45309", "#fdf0d5"], 연장근무: ["#be123c", "#fde4ea"],
 };
@@ -126,7 +129,7 @@ const SECTION_TITLES: Record<Section, string> = {
 };
 // 요약 카드: (라벨, 색, 포함 유형)
 const SUMMARY_CARDS: [string, string, Set<string>][] = [
-  ["휴가", "#1f8a3b", new Set(["연차", "반차", "반반차", "공가"])],
+  ["휴가", "#1f8a3b", new Set(["연차", "월차", "반차", "반반차", "공가", "경조휴가", "병가"])],
   ["외출", "#e07b00", new Set(["외출"])],
   ["출장·교육", "#6d28d9", new Set(["출장", "교육", "외근"])],
   ["휴일·연장", "#b45309", new Set(["휴일근무", "연장근무"])],
@@ -176,6 +179,19 @@ export function reportCounts(rows: ReportRow[]): Record<string, number> {
   return out;
 }
 
+/** 근태가 같은 사람끼리 묶는다 (같은 근태 종류·근무지·내용 → 한 줄). 처음 나온 순서를 지킨다.
+ * 근무지·사유가 비어 있으면 (예: 연차만) 묶지 않는다. */
+export function groupAttendance(rows: ReportRow[]): ReportRow[][] {
+  const groups = new Map<string, ReportRow[]>();
+  rows.forEach((r, i) => {
+    const types = [...splitReportTypes(r.types)].sort().join(",");
+    const key = r.title.trim() ? `${types}\u0000${r.title.trim()}\u0000${r.detail.trim()}` : `#${i}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(r);
+  });
+  return [...groups.values()];
+}
+
 function clean(rows: ReportRow[]): ReportRow[] {
   return rows.map((r) => ({
     section: r.section ?? "", ord: r.ord ?? 0, dept: String(r.dept ?? ""), rank: String(r.rank ?? ""),
@@ -207,10 +223,13 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
 
   // 근태 현황 (항상 표시)
   const att = rows.filter((r) => r.section === "근태");
+  const lines = (xs: string[]) => xs.map((x) => `<div style="${TXT}line-height:1.6">${x}</div>`).join("");
   const inner = att.length
     ? table([["부서", "80px"], ["성명", "110px"], ["근태", "130px"], ["근무지·사유", ""], ["비고", "110px"]],
-      att.map((r) => [esc(r.dept), person(r), splitReportTypes(r.types).map(badge).join(""), twoLine(r.title, r.detail),
-        esc(r.note)]))
+      groupAttendance(att).map((g) => [
+        lines([...new Set(g.map((r) => r.dept))].map(esc)), lines(g.map(person)),
+        splitReportTypes(g[0].types).map(badge).join(""), twoLine(g[0].title, g[0].detail),
+        lines([...new Set(g.map((r) => r.note).filter(Boolean))].map(esc))]))
     : `<div style="${TXT}color:${SUB};padding:6px 0">오늘 근태 특이사항이 없습니다.</div>`;
   parts.push(section(SECTION_TITLES.근태, att.length, inner));
 

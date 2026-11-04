@@ -1,14 +1,16 @@
 /** 여러 화면이 함께 쓰는 데이터(공용 저장소)와 기간·부서 필터. 서버 전용. */
 import "server-only";
+import { approvalsToLeaves } from "./approvals";
 import { cache } from "react";
-import { buildDays, type DayRow } from "./analytics";
+import { buildDays, type DayRow, isHoliday } from "./analytics";
 import { DEFAULT_RULE, HOLIDAYS_2026, type Holidays, type WorkRule } from "./config";
 import { mergeLeaves, rankMap } from "./daily";
 import { activeNames, applyEmployees, applyRoster, type Employee, employment, isEmployed, seedFrom } from "./employees";
-import type { Leave, RosterRow } from "./hiworks";
+import { dedupeLeaves, type Leave, type RosterRow, sortLeaves } from "./hiworks";
 import type { CapsRecord } from "./loader";
 import * as store from "./store";
 import { addDays, type DateStr, daysInMonth } from "./time";
+import { DEFAULT_POLICY, expandVacations, type LeavePolicy, type Vacation } from "./vacation";
 
 // ---------------------------------------------------------------- 공용 설정
 interface RuleSetting {
@@ -38,20 +40,24 @@ export const getRule = cache(async (): Promise<WorkRule> => {
 export const getHolidays = cache(async (): Promise<Holidays> =>
   store.getSetting<Holidays>("holidays", HOLIDAYS_2026));
 
+export const getLeavePolicy = cache(async (): Promise<LeavePolicy> =>
+  ({ ...DEFAULT_POLICY, ...(await store.getSetting<Partial<LeavePolicy>>("leave_policy", {})) }));
+
 // ---------------------------------------------------------------- 기본 데이터
 export interface Base {
   fileRoster: RosterRow[];
   employees: Employee[];
   roster: RosterRow[]; // 직원 명부가 있으면 그것, 없으면 근태현황 파일의 '명단'
-  leaves: Leave[]; // 근태현황 파일 + 사이트 일일 보고서 (보고서가 있는 날은 보고서 우선)
+  leaves: Leave[]; // 근태현황 파일 + 사이트 일일 보고서 (보고서가 있는 날은 보고서 우선) + 휴가 관리에서 등록한 휴가
+  vacations: Vacation[];
   overrides: Awaited<ReturnType<typeof store.loadOverrides>>;
   months: store.MonthInfo[];
 }
 
 export const loadBase = cache(async (): Promise<Base> => {
-  const [fileRoster, fileLeaves, reportRows, reportDays, overrides, months] = await Promise.all([
+  const [fileRoster, fileLeaves, reportRows, reportDays, overrides, months, vacations, rule, holidays, approvals] = await Promise.all([
     store.loadRoster(), store.loadLeaves(), store.loadReportRows(), store.reportDays(), store.loadOverrides(),
-    store.recordMonths(),
+    store.recordMonths(), store.loadVacations(), getRule(), getHolidays(), store.loadApprovals(),
   ]);
   let employees = await store.loadEmployees();
   if (!employees.length && fileRoster.length) {
@@ -60,9 +66,13 @@ export const loadBase = cache(async (): Promise<Base> => {
     employees = await store.loadEmployees();
   }
   const roster = employees.length ? employees.map((e) => ({ ord: e.ord, dept: e.dept, name: e.name })) : fileRoster;
-  return {
-    fileRoster, employees, roster, leaves: mergeLeaves(fileLeaves, reportRows, reportDays), overrides, months,
-  };
+  const registered = expandVacations(vacations, (d) => !isHoliday(d, rule, holidays));
+  // 하이웍스 결재(결재완료만)는 먼저 두어, 같은 날·사람·종류가 근태현황 파일·보고서에도 있으면 그쪽 내용을 쓴다.
+  // 결재완료된 '휴가 취소'는 어느 자료에서 왔든 같은 날·사람·종류의 휴가를 뺀다.
+  const appr = approvalsToLeaves(approvals, (d) => !isHoliday(d, rule, holidays));
+  const leaves = sortLeaves(dedupeLeaves([...appr.leaves, ...mergeLeaves(fileLeaves, reportRows, reportDays), ...registered], "last"))
+    .filter((l) => !appr.cancels.has(`${l.day}|${l.name}|${l.type}`));
+  return { fileRoster, employees, roster, leaves, vacations, overrides, months };
 });
 
 /** 기간의 캡스 기록에 명단 부서·명부 이름을 반영한다. */
@@ -76,6 +86,17 @@ export function onlyEmployed(records: CapsRecord[], emps: Employee[]): CapsRecor
   const spans = employment(emps);
   if (!spans.size) return records;
   return records.filter((r) => isEmployed(spans.get(r.name), r.day));
+}
+
+/** 직원 명부에 있는 사람의 재직 기간 기록과 일별 근태 (명부가 없으면 전체). */
+export async function rosterDays(from: DateStr, to: DateStr): Promise<{ records: CapsRecord[]; days: DayRow[] }> {
+  const base = await loadBase();
+  let records = await getRecords(from, to);
+  if (base.roster.length) {
+    const names = new Set(base.roster.map((r) => r.name));
+    records = onlyEmployed(records.filter((r) => names.has(r.name)), base.employees);
+  }
+  return { records, days: records.length ? await computeDays(records, await getRule()) : [] };
 }
 
 /** 필터된 기간 안의 하이웍스 근태만. */

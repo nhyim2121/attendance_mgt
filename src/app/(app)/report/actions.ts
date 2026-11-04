@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { escapeHtml, prefillFromLeaves, renderReportHtml, type ReportRow } from "@/lib/daily";
+import { loadBase } from "@/lib/data";
 import { friendlyError, loadMailConfig, parseAddresses, sendMail } from "@/lib/mailer";
 import * as store from "@/lib/store";
 import { dayLabel, isDateStr } from "@/lib/time";
@@ -37,7 +38,9 @@ export async function deleteReportAction(day: string): Promise<Res> {
 /** 업로드된 근태현황(하이웍스) 파일에 이 날짜로 적힌 근태 */
 export async function prefillAction(day: string): Promise<ReportRow[]> {
   await requireUser();
-  return prefillFromLeaves(await store.loadLeaves(), day);
+  // 근태현황 파일 + 휴가 관리에서 등록한 휴가
+  const base = await loadBase();
+  return prefillFromLeaves([...await store.loadLeaves(), ...base.leaves.filter((l) => l.sheet === "휴가관리")], day);
 }
 
 /** 가장 최근 보고서의 도제·휴가일정 표 */
@@ -76,6 +79,6 @@ export async function sendReportMail(day: string, toText: string, ccText: string
   await store.logMail(day, subject, to.join(", "), cc.join(", "), "성공", user.loginId);
   await store.setSetting("mail_to", to.join(", "));
   await store.setSetting("mail_cc", cc.join(", "));
-  revalidatePath("/report");
+  revalidatePath("/daily");
   return { ok: `메일을 보냈습니다: ${to.join(", ")}` };
 }
