@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>에쓰엔 주간업무 현황</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+/* Layout: a Notion workspace. Sidebar page tree with the logo on top; every page has a cover, an emoji icon,
+   a title and properties, and its content is built from Notion blocks (callouts, toggles, to-dos, database views).
+   Navy from the logo is the only accent; the cover's red slash echoes the bolt in the SN mark. */
+:root {
+  color-scheme: light;
+  --navy: #0c3994;
+  --red: #e84340;
+  --bg: #fff;
+  --side: #f7f6f3;
+  --ink: #37352f;
+  --muted: #787774;
+  --faint: #a5a29c;
+  --line: #e9e9e7;
+  --hover: rgba(55, 53, 47, .06);
+  --block: #f1f1ef;
+  --done: #4f9d74;
+  --progress: #4a86c5;
+  --late: #e0524f;
+  --tag-done-bg: #dbeddb;
+  --tag-done-fg: #1f5236;
+  --tag-progress-bg: #d3e5ef;
+  --tag-progress-fg: #1b4463;
+  --tag-late-bg: #ffe2dd;
+  --tag-late-fg: #7c211b;
+  --tag-none-bg: #e3e2e0;
+  --warn-bg: #fdebec;
+  --font: "Pretendard Variable", Pretendard, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --emoji: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--bg); }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: var(--bg); font: 400 15px/1.6 var(--font); }
+button, select, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--navy); outline-offset: 1px; border-radius: 4px; }
+
+.shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 18px;
+  padding: 18px 8px 12px; background: var(--side); border-right: 1px solid var(--line);
+}
+.side-brand { padding: 0 10px; }
+.side-brand img { display: block; width: 100%; max-width: 190px; height: auto; }
+.side-brand p { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+.nav-label { margin: 0 0 2px; padding: 0 10px; color: var(--faint); font-size: 12px; font-weight: 600; }
+.nav { display: grid; gap: 1px; }
+.nav button {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 10px; border: 0; border-radius: 6px;
+  background: none; color: var(--muted); font-size: 14px; font-weight: 500; text-align: left; cursor: pointer;
+}
+.nav button:hover { background: var(--hover); }
+.nav button[aria-current="page"] { background: rgba(55, 53, 47, .08); color: var(--ink); font-weight: 600; }
+.emoji { font-family: var(--emoji); font-style: normal; line-height: 1; }
+.nav .emoji { width: 20px; text-align: center; font-size: 15px; }
+.session { margin-top: auto; padding: 10px 10px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.session strong { display: block; font-size: 14px; font-weight: 600; }
+.session div { display: flex; gap: 12px; margin-top: 2px; }
+.link { padding: 0; border: 0; background: none; color: var(--muted); font-size: 13px; cursor: pointer; }
+.link:hover { color: var(--ink); text-decoration: underline; }
+
+/* Page frame: top bar, cover, icon, title */
+.main { min-width: 0; padding-bottom: 80px; }
+.topbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 16px; background: rgba(255, 255, 255, .92); backdrop-filter: blur(6px); font-size: 14px; }
+.crumbs { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crumbs strong { color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.cover {
+  height: 150px;
+  background:
+    linear-gradient(115deg, transparent 0 61%, rgba(232, 67, 64, .92) 61% 63.5%, transparent 63.5%),
+    radial-gradient(rgba(255, 255, 255, .14) 1px, transparent 1.5px) 0 0 / 18px 18px,
+    linear-gradient(115deg, #0a2f7c, #1a4cb4 70%, #2c63d1);
+}
+.page-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; width: 100%; max-width: 1000px; margin-inline: auto; padding: 0 max(16px, 5vw); }
+.page-head { display: grid; gap: 12px; }
+.page-icon { width: 78px; height: 78px; margin-top: -42px; font-size: 64px; line-height: 78px; }
+.page-head h1 { margin: 0; font-size: 38px; font-weight: 700; line-height: 1.2; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.filter { display: inline-flex; align-items: center; gap: 2px; padding-left: 8px; border-radius: 6px; color: var(--muted); font-size: 14px; }
+.filter:hover { background: var(--hover); }
+.filter select, .dept-locked { margin: 0; padding: 3px 6px; border: 0; border-radius: 4px; background: none; color: var(--ink); font-weight: 500; cursor: pointer; }
+.dept-locked { cursor: default; }
+.page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 30px; }
+
+/* Buttons and chips */
+.btn, .btn-ghost, .chip { border-radius: 6px; font-weight: 500; white-space: nowrap; cursor: pointer; }
+.btn, .btn-ghost { padding: 6px 12px; font-size: 14px; }
+.btn { border: 1px solid var(--navy); background: var(--navy); color: #fff; }
+.btn:hover { background: #0a2f7c; }
+.btn-ghost { border: 1px solid var(--line); background: var(--bg); }
+.btn-ghost:hover, .chip:hover { background: var(--hover); }
+.chip { padding: 1px 8px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); font-size: 13px; }
+.filters .btn-ghost { margin-left: auto; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+
+.notice { margin: 0; padding: 10px 14px; border-radius: 6px; background: var(--block); font-size: 14px; }
+.notice.error { background: var(--warn-bg); color: var(--tag-late-fg); }
+
+/* Notion blocks */
+h2 { margin: 0 0 8px; font-size: 22px; font-weight: 600; line-height: 1.3; }
+h3 { margin: 18px 0 4px; font-size: 17px; font-weight: 600; }
+.props { display: grid; gap: 2px; margin: 0; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.prop { display: grid; grid-template-columns: 116px minmax(0, 1fr); align-items: center; min-height: 32px; font-size: 14px; }
+.prop dt { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.prop dd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 3px 6px; }
+.prop input { margin-left: -6px; padding: 3px 6px; border: 0; border-radius: 4px; background: none; cursor: pointer; }
+.prop input:hover { background: var(--hover); }
+.callout { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; padding: 14px 16px; border-radius: 6px; background: var(--block); }
+.callout > .emoji { font-size: 20px; line-height: 1.4; }
+.callout.is-warn { background: var(--warn-bg); }
+.callout.is-blue { background: #e7f0fb; }
+.callout p { margin: 0; }
+.callout strong { font-weight: 600; }
+.quote { margin: 0; padding: 2px 0 2px 14px; border-left: 3px solid var(--ink); }
+.toggle > summary { display: flex; align-items: center; gap: 6px; padding: 3px 4px; margin-left: -4px; border-radius: 4px; list-style: none; cursor: pointer; }
+.toggle > summary::-webkit-details-marker { display: none; }
+.toggle > summary::before { content: "▸"; display: inline-block; width: 1em; color: var(--muted); font-size: 13px; transition: transform .15s; }
+.toggle[open] > summary::before { transform: rotate(90deg); }
+.toggle > summary:hover { background: var(--hover); }
+.toggle-body { padding: 4px 0 4px 22px; }
+.bullets { margin: 2px 0; padding-left: 22px; }
+.bullets li { padding: 1px 0; }
+.todo { display: grid; gap: 2px; margin: 2px 0; padding: 0; list-style: none; }
+.todo li { display: flex; gap: 8px; align-items: baseline; }
+.todo li::before { content: ""; flex: none; width: 14px; height: 14px; border: 1.5px solid var(--ink); border-radius: 2px; transform: translateY(2px); }
+.views { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; border-bottom: 1px solid var(--line); }
+.view-tab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; color: var(--muted); font-size: 14px; font-weight: 500; cursor: pointer; }
+.view-tab:hover { color: var(--ink); }
+.view-tab[aria-selected="true"] { border-bottom-color: var(--ink); color: var(--ink); }
+.views-side { display: flex; align-items: center; gap: 8px; margin-left: auto; padding-bottom: 4px; color: var(--faint); font-size: 13px; }
+.views-side .btn-ghost { color: var(--ink); }
+
+/* Tags */
+.pill, .tag-select { border-radius: 4px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+.pill { display: inline-block; padding: 0 7px; line-height: 1.6; background: var(--tag-late-bg); color: var(--tag-late-fg); }
+.pill.is-done { background: var(--tag-done-bg); color: var(--tag-done-fg); }
+.pill.is-progress { background: var(--tag-progress-bg); color: var(--tag-progress-fg); }
+.pill.is-none { background: var(--tag-none-bg); color: var(--ink); }
+.tag-select { padding: 1px 4px; border: 0; cursor: pointer; }
+.tag-select.is-late { background: var(--tag-late-bg); color: var(--tag-late-fg); }
+.tag-select.is-done { background: var(--tag-done-bg); color: var(--tag-done-fg); }
+.tag-select.is-progress { background: var(--tag-progress-bg); color: var(--tag-progress-fg); }
+.tag-gray { display: inline-block; padding: 0 7px; border-radius: 4px; background: var(--tag-none-bg); font-size: 13px; line-height: 1.6; white-space: nowrap; }
+
+/* Home */
+.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.stat { min-width: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; }
+.stat span { display: block; color: var(--muted); font-size: 13px; font-weight: 500; }
+.stat b { display: block; margin: 4px 0 0; font-size: 30px; font-weight: 700; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.stat small { display: block; min-height: 1.5em; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.stat.done b { color: var(--done); }
+.stat.progress b { color: var(--progress); }
+.stat.late b { color: var(--late); }
+.overview-top { display: grid; gap: 14px; }
+.gauge { display: grid; gap: 8px; }
+.split { display: flex; gap: 2px; height: 8px; overflow: hidden; border-radius: 4px; background: var(--line); }
+.split i { display: block; height: 100%; transition: width .25s; }
+.split .s-done { background: var(--done); }
+.split .s-progress { background: var(--progress); }
+.split .s-late { background: var(--late); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: 13px; }
+.legend li::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 2px; background: var(--c); }
+.shortcuts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.shortcut { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); text-align: left; cursor: pointer; }
+.shortcut:hover { background: var(--hover); }
+.shortcut strong { font-weight: 600; }
+.shortcut span:last-child { color: var(--muted); font-size: 13px; }
+
+/* Tables */
+.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.head p { margin: 0; color: var(--faint); font-size: 14px; }
+.table-box { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; }
+th { border-top: 1px solid var(--line); color: var(--muted); font-weight: 500; white-space: nowrap; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.dept { font-weight: 600; white-space: nowrap; }
+td.has-late { color: var(--late); font-weight: 600; }
+.rate { display: flex; align-items: center; gap: 10px; min-width: 170px; font-variant-numeric: tabular-nums; }
+.rate div { flex: 1; height: 6px; overflow: hidden; border-radius: 3px; background: var(--line); }
+.rate i { display: block; height: 100%; background: var(--done); }
+.rate span { width: 3.2em; text-align: right; }
+#delayed-table td { min-width: 96px; }
+#delayed-table td.task { min-width: 240px; }
+.empty { margin: 0; padding: 14px 0; color: var(--faint); font-size: 14px; }
+
+/* Database: board and list views */
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+.board-col { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 8px; border-radius: 8px; background: #f7f7f5; }
+.board-col header { display: flex; align-items: center; gap: 6px; padding: 2px 4px; color: var(--muted); font-size: 13px; }
+.card { display: grid; gap: 6px; padding: 10px 12px; border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px rgba(15, 15, 15, .06), 0 2px 4px rgba(15, 15, 15, .06); }
+.card-task { margin: 0; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.card .tag-select { justify-self: start; }
+.card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--muted); font-size: 12px; }
+.day-group { display: grid; gap: 0; }
+.day-group > h3 { margin: 0 0 4px; }
+.logs { display: grid; gap: 22px; }
+.log { display: grid; gap: 8px; min-width: 0; padding: 12px 0; border-top: 1px solid var(--line); }
+.log-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.log-meta { color: var(--muted); font-size: 13px; }
+.log-tools { display: flex; align-items: center; gap: 10px; }
+.log-task { margin: 0; font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
+.comments { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.comments:empty { display: none; }
+.comment { padding: 6px 12px; border-radius: 6px; background: var(--block); font-size: 14px; }
+.comment-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 0; color: var(--muted); font-size: 13px; }
+.comment-meta strong { color: var(--ink); font-weight: 600; }
+.comment-text { margin: 2px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.comment-form { display: flex; gap: 8px; }
+.comment-form input { flex: 1; min-width: 0; }
+
+.comment-form input, .form-field input, .form-field select { width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+input::placeholder, textarea::placeholder { color: var(--faint); }
+
+/* Writing page: properties, memo callout, inline database */
+.block-input { display: block; width: 100%; margin: 0; padding: 0; border: 0; outline: 0; background: none; resize: none; field-sizing: content; }
+#write-form .block-input { min-height: 3.2em; margin-top: 4px; }
+#write-form label { display: block; font-size: 14px; font-weight: 600; }
+.write-actions { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 6px; }
+.write-status { color: var(--muted); font-size: 14px; }
+.draft-table { table-layout: fixed; min-width: 640px; }
+.draft-table th:nth-child(1) { width: 104px; }
+.draft-table th:nth-child(3) { width: 92px; }
+.draft-table th:nth-child(4) { width: 92px; }
+.draft-table th:nth-child(5) { width: 176px; }
+.draft-table th:nth-child(6) { width: 32px; }
+.draft-table th, .draft-table td { border-right: 1px solid var(--line); }
+.draft-table th:last-child, .draft-table td:last-child { border-right: 0; }
+.draft-table td { padding: 0; }
+.draft-table td:hover { background: rgba(55, 53, 47, .03); }
+.draft-table .block-input { padding: 7px 10px; font-size: 14px; }
+.draft-table .block-input:focus { box-shadow: inset 0 0 0 2px rgba(12, 57, 148, .5); border-radius: 2px; }
+.draft-table td.status-cell { padding: 6px 8px; }
+.draft-remove { width: 100%; height: 34px; border: 0; background: none; color: var(--faint); font-size: 16px; cursor: pointer; opacity: 0; }
+tr:hover .draft-remove, .draft-remove:focus-visible { opacity: 1; }
+.draft-remove:hover { color: var(--late); }
+.add-row { width: 100%; padding: 6px 10px; border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--muted); font-size: 14px; text-align: left; cursor: pointer; }
+.add-row:hover { background: var(--hover); }
+.draft-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; }
+
+/* Weekly report, document view */
+.week-nav button { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--muted); font-size: 16px; cursor: pointer; }
+.week-nav button:hover { background: var(--hover); }
+#wr-range { font-weight: 500; font-variant-numeric: tabular-nums; }
+.wr-source { color: var(--muted); }
+.wr-loading { display: grid; gap: 10px; }
+.wr-loading p { margin: 0; color: var(--muted); font-size: 14px; }
+.wr-loading i { display: block; height: 12px; border-radius: 4px; background: linear-gradient(90deg, var(--block), #e6e6e3, var(--block)) 0 0 / 200% 100%; animation: shimmer 1.4s infinite linear; }
+.wr-loading i:nth-child(3) { width: 80%; }
+.wr-loading i:nth-child(4) { width: 60%; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.wr-doc { display: grid; gap: 40px; }
+.wr-dept { display: grid; gap: 12px; }
+.wr-dept-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.wr-dept-head h2 { margin: 0; }
+.wr-person > summary { font-size: 17px; font-weight: 600; }
+.wr-person .toggle-body { display: grid; gap: 10px; }
+.wr-section-title { margin: 6px 0 0; color: var(--muted); font-size: 13px; font-weight: 600; }
+.wr-cat-name { margin: 6px 0 0; font-weight: 600; }
+.wr-items li .pill { margin-left: 6px; vertical-align: 1px; font-size: 12px; }
+.wr-prev > summary { color: var(--muted); font-size: 14px; }
+
+/* Weekly report, submission form view: the company's paper 주간업무보고, kept to thin rules and even spacing */
+.wr-sheets { display: grid; gap: 44px; }
+.wr-sheet { min-width: 0; }
+.wr-band { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 12px; border-bottom: 2px solid var(--navy); }
+.wr-band h2 { margin: 0; padding: 6px 16px 5px; border-radius: 4px 4px 0 0; background: var(--navy); color: #fff; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+.wr-band img { display: block; height: 26px; width: auto; margin-bottom: 6px; }
+.wr-table { table-layout: fixed; min-width: 760px; border: 1px solid #c5d0e0; }
+.wr-col-who { width: 84px; }
+.wr-col-note { width: 160px; }
+.wr-table th, .wr-table td { padding: 10px 12px; border: 1px solid #c5d0e0; font-size: 13px; line-height: 1.65; }
+.wr-table th { padding-block: 7px; background: #eef2f8; color: #1f2d44; font-weight: 600; text-align: center; vertical-align: middle; }
+.wr-dates th { padding-block: 5px; background: #f6f8fb; color: var(--muted); font-weight: 500; font-size: 12px; font-variant-numeric: tabular-nums; }
+.wr-who { text-align: center; vertical-align: middle !important; word-break: keep-all; }
+.wr-who-dept { display: block; color: var(--muted); font-size: 12px; }
+.wr-who strong { font-weight: 600; }
+.wr-table ul { margin: 0; padding: 0; list-style: none; }
+.wr-table li { padding-left: .9em; text-indent: -.9em; overflow-wrap: anywhere; }
+.wr-table li::before { content: "- "; color: var(--faint); }
+.wr-cat + .wr-cat { margin-top: 12px; }
+.wr-cat-title, .wr-group { margin: 0; }
+.wr-cat-title { font-weight: 600; }
+.wr-group { margin-top: 2px; color: var(--muted); font-size: 12px; }
+.wr-late { display: inline-block; padding: 0 4px; border-radius: 3px; background: var(--tag-late-bg); color: var(--tag-late-fg); font-size: 11px; font-weight: 600; line-height: 1.5; text-indent: 0; }
+.wr-notes { color: #c9372c; }
+.wr-none { margin: 0; color: var(--faint); }
+
+/* Stats */
+.charts { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; }
+.chart { display: grid; gap: 10px; align-content: start; min-width: 0; margin: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; }
+.chart figcaption { font-size: 14px; font-weight: 600; }
+.chart-empty { margin: 0; color: var(--faint); font-size: 14px; }
+.daily-box { position: relative; min-width: 0; }
+.daily-box svg { display: block; }
+.grid { stroke: var(--line); stroke-width: 1; }
+.tick { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.m-done { fill: var(--done); }
+.m-progress { fill: var(--progress); }
+.m-late { fill: var(--late); }
+.m-other { fill: var(--faint); }
+.hit { fill: transparent; }
+.hit:hover { fill: var(--hover); }
+.chart-tip { position: absolute; top: 0; z-index: 2; display: grid; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); box-shadow: 0 4px 12px rgba(15, 15, 15, .1); font-size: 13px; white-space: nowrap; pointer-events: none; }
+.chart-tip strong { font-weight: 600; }
+.cat-chart { display: grid; gap: 8px; }
+.cat-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) 2em; align-items: center; gap: 10px; font-size: 14px; }
+.cat-name { overflow-wrap: anywhere; }
+.cat-track { height: 8px; }
+.cat-track i { display: block; height: 100%; min-width: 4px; border-radius: 2px; background: var(--progress); }
+.cat-value { text-align: right; font-variant-numeric: tabular-nums; }
+.dept-select { padding: 1px 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); font-size: 14px; }
+
+/* Accounts and sign-in */
+.user-form { display: grid; grid-template-columns: repeat(3, 1fr) auto; align-items: end; gap: 10px; }
+.user-result { min-height: 1.5em; margin: 0; color: var(--navy); font-size: 14px; overflow-wrap: anywhere; }
+.auth { display: grid; gap: 22px; width: min(380px, calc(100% - 32px)); margin-inline: auto; padding-block: 12vh 40px; }
+.auth img { display: block; width: 220px; height: auto; margin-inline: auto; }
+.auth h1 { margin: 0; font-size: 24px; font-weight: 700; text-align: center; }
+.auth > p { margin: -12px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
+.auth-form { display: grid; gap: 14px; }
+.auth-form .btn { padding-block: 8px; }
+.form-field { display: grid; gap: 4px; min-width: 0; color: var(--muted); font-size: 13px; font-weight: 500; }
+.form-field input, .form-field select { color: var(--ink); font-size: 15px; }
+.form-error { min-height: 1.5em; margin: 0; color: var(--late); font-size: 14px; }
+
+@media (max-width: 820px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { position: static; height: auto; gap: 10px; padding: 12px 16px 8px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .side-brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0; }
+  .side-brand img { width: 150px; }
+  .side-brand p { margin: 0; font-size: 12px; text-align: right; }
+  .nav-label { display: none; }
+  .nav { display: flex; gap: 2px; margin-inline: -6px; overflow-x: auto; }
+  .nav button { width: auto; flex: none; padding: 5px 8px; }
+  .session { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 0; padding: 6px 0 0; }
+  .session div { margin-top: 0; }
+  .topbar { position: static; }
+  .cover { height: 96px; }
+  .page-icon { width: 60px; height: 60px; margin-top: -30px; font-size: 48px; line-height: 60px; }
+  .page-head h1 { font-size: 28px; }
+  .prop { grid-template-columns: 96px minmax(0, 1fr); }
+  .summary { grid-template-columns: repeat(2, 1fr); }
+  .user-form, .charts { grid-template-columns: minmax(0, 1fr); }
+  .draft-remove { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .split i, .toggle > summary::before { transition: none; }
+  .wr-loading i { animation: none; }
+}
+@media print {
+  @page { size: A4; margin: 10mm; }
+  html, body { background: #fff; }
+  .sidebar, .topbar, .cover, .page-icon, .filters, .views, .notice, .week-nav button, #wr-refresh, #wr-this-week { display: none !important; }
+  .shell { display: block; }
+  .main { padding: 0; }
+  .page-body { max-width: none; padding: 0; gap: 16px; }
+  body[data-wrview="form"] .page-head, body[data-wrview="form"] .props { display: none !important; }
+  .wr-dept { break-inside: avoid-page; }
+  .wr-sheets { gap: 0; }
+  .wr-sheet { break-after: page; }
+  .wr-sheet:last-child { break-after: auto; }
+  .table-box { overflow: visible; }
+  .wr-table { min-width: 0; }
+  .wr-table tr { break-inside: avoid; }
+  .wr-band h2, .wr-table th, .wr-late, .pill, .tag-gray, .callout { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<section class="auth" id="login" hidden>
+  <img src="assets/logo.png" alt="주식회사 에쓰엔 SN Heavy Industry Co.,Ltd." width="858" height="159">
+  <h1>주간업무 현황</h1>
+  <form class="auth-form" id="login-form">
+    <label class="form-field" for="login-id">아이디
+      <input id="login-id" autocomplete="username" required>
+    </label>
+    <label class="form-field" for="login-password">비밀번호
+      <input id="login-password" type="password" autocomplete="current-password" required>
+    </label>
+    <button class="btn">로그인</button>
+    <p class="form-error" id="login-error" role="alert"></p>
+  </form>
+</section>
+
+<section class="auth" id="password" hidden>
+  <img src="assets/logo.png" alt="주식회사 에쓰엔 SN Heavy Industry Co.,Ltd." width="858" height="159">
+  <h1>비밀번호 변경</h1>
+  <p id="password-intro"></p>
+  <form class="auth-form" id="password-form">
+    <label class="form-field" for="password-current">현재 비밀번호
+      <input id="password-current" type="password" autocomplete="current-password" required>
+    </label>
+    <label class="form-field" for="password-next">새 비밀번호 (8자 이상)
+      <input id="password-next" type="password" autocomplete="new-password" minlength="8" required>
+    </label>
+    <label class="form-field" for="password-confirm">새 비밀번호 확인
+      <input id="password-confirm" type="password" autocomplete="new-password" minlength="8" required>
+    </label>
+    <button class="btn">변경</button>
+    <button class="btn-ghost" id="password-cancel" type="button">돌아가기</button>
+    <p class="form-error" id="password-error" role="alert"></p>
+  </form>
+</section>
+
+<div class="shell" id="shell" hidden>
+  <aside class="sidebar">
+    <div class="side-brand">
+      <img src="assets/logo.png" alt="주식회사 에쓰엔 SN Heavy Industry Co.,Ltd." width="858" height="159">
+      <p id="today"></p>
+    </div>
+    <div>
+      <p class="nav-label">주간업무</p>
+      <nav class="nav" aria-label="메뉴">
+        <button type="button" data-page="overview"><i class="emoji" aria-hidden="true">🏠</i>홈</button>
+        <button type="button" data-page="write" id="nav-write"><i class="emoji" aria-hidden="true">✏️</i>업무일지 쓰기</button>
+        <button type="button" data-page="logs"><i class="emoji" aria-hidden="true">🗂️</i>업무 데이터베이스</button>
+        <button type="button" data-page="weekly"><i class="emoji" aria-hidden="true">📋</i>주간업무보고</button>
+        <button type="button" data-page="stats"><i class="emoji" aria-hidden="true">📈</i>업무 통계</button>
+        <button type="button" data-page="users" id="nav-users"><i class="emoji" aria-hidden="true">👥</i>직원 계정</button>
+      </nav>
+    </div>
+    <div class="session" id="session">
+      <strong id="user-label"></strong>
+      <div>
+        <button class="link" id="change-password" type="button">비밀번호 변경</button>
+        <button class="link" id="logout" type="button">로그아웃</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main" id="app">
+    <div class="topbar">
+      <div class="crumbs"><span>에쓰엔 주간업무</span><span aria-hidden="true">/</span><strong id="crumb-page"></strong></div>
+    </div>
+    <div class="cover" aria-hidden="true"></div>
+
+    <div class="page-body">
+      <header class="page-head" id="page-head">
+        <div class="page-icon emoji" id="page-icon" aria-hidden="true"></div>
+        <h1 id="page-title"></h1>
+        <div class="filters" id="filters">
+          <label class="filter" id="week-field" for="week">주차
+            <select id="week"></select>
+          </label>
+          <label class="filter" id="dept-field" for="dept">부서
+            <select id="dept"></select>
+          </label>
+          <div class="filter" id="dept-locked-field">부서
+            <span class="dept-locked" id="dept-locked"></span>
+          </div>
+          <button class="btn-ghost" id="load" type="button" hidden>CSV 올리기</button>
+          <input id="file" type="file" accept=".csv,text/csv" hidden>
+        </div>
+      </header>
+
+      <p class="notice" id="notice" hidden></p>
+
+      <div class="page" data-page="overview">
+        <div class="shortcuts">
+          <button class="shortcut" type="button" data-goto="write" id="go-write"><span class="emoji" aria-hidden="true">✏️</span><strong>업무일지 쓰기</strong><span>오늘 한 일을 표로 정리합니다</span></button>
+          <button class="shortcut" type="button" data-goto="weekly"><span class="emoji" aria-hidden="true">📋</span><strong>주간업무보고</strong><span>이번 주 일지를 정리한 보고서</span></button>
+          <button class="shortcut" type="button" data-goto="logs"><span class="emoji" aria-hidden="true">🗂️</span><strong>업무 데이터베이스</strong><span>상태별 보드와 댓글</span></button>
+        </div>
+        <div class="overview-top">
+          <div class="summary" aria-label="업무 요약">
+            <div class="stat all"><span>전체 업무</span><b id="n-all">0</b><small id="n-other">&nbsp;</small></div>
+            <div class="stat done"><span>완료</span><b id="n-done">0</b><small id="p-done">&nbsp;</small></div>
+            <div class="stat progress"><span>진행중</span><b id="n-progress">0</b><small id="p-progress">&nbsp;</small></div>
+            <div class="stat late"><span>지연</span><b id="n-late">0</b><small id="p-late">&nbsp;</small></div>
+          </div>
+          <div class="gauge">
+            <div class="split" aria-hidden="true"><i class="s-done" id="b-done"></i><i class="s-progress" id="b-progress"></i><i class="s-late" id="b-late"></i></div>
+            <ul class="legend">
+              <li style="--c: var(--done)">완료</li>
+              <li style="--c: var(--progress)">진행중</li>
+              <li style="--c: var(--late)">지연</li>
+            </ul>
+          </div>
+        </div>
+
+        <section id="dept-section" hidden>
+          <h2>부서별 현황</h2>
+          <div class="table-box">
+            <table>
+              <thead><tr><th>부서</th><th class="num">전체</th><th class="num">완료</th><th class="num">진행중</th><th class="num">지연</th><th>완료율</th></tr></thead>
+              <tbody id="dept-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section>
+          <div class="head">
+            <h2>지연 업무</h2>
+            <p id="delayed-count"></p>
+          </div>
+          <div class="table-box" id="delayed-box">
+            <table id="delayed-table">
+              <thead><tr id="delayed-head"></tr></thead>
+              <tbody id="delayed-rows"></tbody>
+            </table>
+          </div>
+          <p class="empty" id="delayed-empty" hidden>선택한 조건에 해당하는 지연 업무가 없습니다.</p>
+        </section>
+      </div>
+
+      <div class="page" data-page="write">
+        <dl class="props">
+          <div class="prop"><dt><span class="emoji" aria-hidden="true">📅</span><label for="write-date">날짜</label></dt><dd><input id="write-date" type="date" required></dd></div>
+          <div class="prop"><dt><span class="emoji" aria-hidden="true">👤</span>작성자</dt><dd id="write-author"></dd></div>
+          <div class="prop"><dt><span class="emoji" aria-hidden="true">🏢</span>부서</dt><dd id="write-dept"></dd></div>
+        </dl>
+
+        <form class="callout" id="write-form">
+          <span class="emoji" aria-hidden="true">💡</span>
+          <div>
+            <label for="write-note">오늘 한 일 (편하게 적어도 됩니다)</label>
+            <textarea class="block-input" id="write-note" maxlength="2000" placeholder="예: 오전 탱크 수압시험 입회함. 노즐 용접은 용접봉 안와서 못함 금요일까지 해야됨"></textarea>
+          </div>
+          <div class="write-actions">
+            <button class="btn-ghost" id="ai-draft">✦ AI로 정리</button>
+          </div>
+        </form>
+
+        <form id="draft-form">
+          <h2>업무 목록</h2>
+          <div class="table-box">
+            <table class="draft-table">
+              <thead><tr><th>구분</th><th>업무 내용</th><th>상태</th><th>마감일</th><th>비고</th><th><span hidden>빼기</span></th></tr></thead>
+              <tbody id="draft-list"></tbody>
+            </table>
+          </div>
+          <button class="add-row" id="add-manual" type="button">+ 새 항목</button>
+          <div class="draft-actions">
+            <span class="write-status" id="write-status" role="status"></span>
+            <button class="btn">저장</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="page" data-page="logs">
+        <div class="views" role="tablist" aria-label="보기">
+          <button class="view-tab" type="button" role="tab" data-logview="board"><span class="emoji" aria-hidden="true">🗂️</span>보드</button>
+          <button class="view-tab" type="button" role="tab" data-logview="list"><span class="emoji" aria-hidden="true">📄</span>날짜별 목록</button>
+          <span class="views-side" id="log-count"></span>
+        </div>
+        <div class="board" id="board"></div>
+        <div class="logs" id="logs"></div>
+        <p class="empty" id="logs-empty" hidden>선택한 조건에 해당하는 업무가 없습니다.</p>
+      </div>
+
+      <div class="page" data-page="weekly">
+        <dl class="props">
+          <div class="prop"><dt><span class="emoji" aria-hidden="true">📅</span>기간</dt>
+            <dd class="week-nav">
+              <button id="wr-prev" type="button" aria-label="이전 주">‹</button>
+              <span id="wr-range"></span>
+              <button id="wr-next" type="button" aria-label="다음 주">›</button>
+              <button class="chip" id="wr-this-week" type="button">이번 주</button>
+            </dd>
+          </div>
+          <div class="prop"><dt><span class="emoji" aria-hidden="true">📊</span>업무</dt><dd id="wr-counts"></dd></div>
+          <div class="prop"><dt><span class="emoji" aria-hidden="true">✦</span>정리</dt>
+            <dd><span class="wr-source" id="wr-source"></span><button class="chip" id="wr-refresh" type="button">다시 정리</button></dd>
+          </div>
+        </dl>
+        <div class="views" role="tablist" aria-label="보기">
+          <button class="view-tab" type="button" role="tab" data-wrview="doc"><span class="emoji" aria-hidden="true">📄</span>보고서</button>
+          <button class="view-tab" type="button" role="tab" data-wrview="form"><span class="emoji" aria-hidden="true">🧾</span>제출 양식</button>
+          <span class="views-side"><button class="btn-ghost" id="wr-print" type="button">인쇄 · PDF</button></span>
+        </div>
+        <div class="wr-loading" id="wr-loading" hidden>
+          <p>✦ 업무일지를 읽고 보고서로 정리하고 있습니다…</p>
+          <i></i><i></i><i></i>
+        </div>
+        <div class="wr-doc" id="wr-doc"></div>
+        <div class="wr-sheets" id="wr-sheets"></div>
+        <p class="empty" id="wr-empty" hidden>이번 주와 전주에 작성된 업무일지가 없습니다.</p>
+      </div>
+
+      <div class="page" data-page="stats" id="stats-section">
+        <div class="charts">
+          <figure class="chart">
+            <figcaption>일별 업무 건수 (최근 14일)</figcaption>
+            <ul class="legend">
+              <li style="--c: var(--done)">완료</li>
+              <li style="--c: var(--progress)">진행중</li>
+              <li style="--c: var(--late)">지연</li>
+            </ul>
+            <div class="daily-box" id="daily-box">
+              <div class="chart-tip" id="chart-tip" hidden></div>
+            </div>
+            <p class="chart-empty" id="daily-empty" hidden>일지를 저장하면 여기에 표시됩니다. CSV로 올린 업무는 날짜가 없어 나오지 않습니다.</p>
+          </figure>
+          <figure class="chart">
+            <figcaption>구분별 업무 건수</figcaption>
+            <div class="cat-chart" id="category-chart"></div>
+          </figure>
+        </div>
+        <div class="table-box" id="daily-table-box">
+          <table>
+            <thead><tr><th>날짜</th><th class="num">전체</th><th class="num">완료</th><th class="num">진행중</th><th class="num">지연</th></tr></thead>
+            <tbody id="daily-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="page" data-page="users">
+        <div>
+          <form class="user-form" id="user-form">
+            <label class="form-field" for="user-id">아이디
+              <input id="user-id" required>
+            </label>
+            <label class="form-field" for="user-name">이름
+              <input id="user-name" required>
+            </label>
+            <label class="form-field" for="user-dept">부서
+              <select id="user-dept" required></select>
+            </label>
+            <button class="btn">계정 추가</button>
+          </form>
+          <p class="user-result" id="user-result" role="status"></p>
+        </div>
+        <div class="table-box">
+          <table>
+            <thead><tr><th>아이디</th><th>이름</th><th>부서</th><th>상태</th></tr></thead>
+            <tbody id="user-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="charts.js"></script>
+<script src="app.js"></script>
+<script src="weekly.js"></script>
+</body>
+</html>
