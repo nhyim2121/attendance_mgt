@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { parseApprovalFile, summarize } from "@/lib/approvals";
 import { loadHiworksFile } from "@/lib/hiworks";
+import { readRaw } from "@/lib/excel";
+import { hwDeducted, parseLeaveStatus } from "@/lib/leaveStatus";
+import { nowKst } from "@/lib/time";
 import { loadCapsFile } from "@/lib/loader";
 import * as store from "@/lib/store";
 
@@ -59,6 +62,27 @@ export async function uploadApprovals(_prev: Result | null, form: FormData): Pro
   if (!msgs.length && !errors.length) errors.push("파일을 골라 주세요.");
   revalidatePath("/", "layout");
   return { ok: msgs.join("\n") || undefined, errors };
+}
+
+/** 하이웍스 '휴가현황(종류별)' 파일 저장: 그 연도의 직원별 생성·사용·잔여를 통째로 바꾼다 */
+export async function uploadLeaveStatus(_prev: Result | null, form: FormData): Promise<Result> {
+  const user = await requireUser();
+  const f = files(form)[0];
+  if (!f) return { errors: ["파일을 골라 주세요."] };
+  try {
+    const sheets = readRaw(new Uint8Array(await f.arrayBuffer()), f.name);
+    const { fy, rows } = parseLeaveStatus(sheets, f.name, nowKst().slice(0, 16));
+    await store.saveLeaveStatus(fy, rows, f.name, user.loginId);
+    revalidatePath("/", "layout");
+    const granted = rows.reduce((t, s) => t + s.granted, 0), used = rows.reduce((t, s) => t + hwDeducted(s), 0);
+    const months = new Set(rows.flatMap((s) => Object.keys(s.months))).size;
+    return {
+      ok: `${f.name}: ${fy}년 ${rows.length}명 저장 (${rows[0].exportedAt} 기준) · 생성 ${Math.round(granted * 100) / 100}일, `
+        + `사용 ${Math.round(used * 100) / 100}일${months ? ` · 월별 ${months}개월` : ""}. 연차 현황이 이 숫자로 바뀝니다.`,
+    };
+  } catch (exc) {
+    return { errors: [`${f.name}: ${(exc as Error).message}`] };
+  }
 }
 
 /** 근태현황(하이웍스 정리) 파일 저장: 명단·근태를 통째로 교체 */

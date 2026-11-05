@@ -19,6 +19,7 @@ import type { Leave, RosterRow } from "./hiworks";
 import { type CapsRecord, finalizeRecords, type LoadInfo, type RawRecord } from "./loader";
 import type { ReportRow } from "./daily";
 import type { Approval } from "./approvals";
+import type { HwStatus } from "./leaveStatus";
 import type { Adjust, Vacation } from "./vacation";
 import { createClient } from "./supabase/server";
 import { addDays, type DateStr, parseTs, tsString } from "./time";
@@ -358,6 +359,40 @@ export async function deleteMarkedVacations(note: string, name: string, fromDay:
 export async function deleteVacation(id: number): Promise<void> {
   const sb = await createClient();
   check(await sb.from("vacations").delete().eq("id", id), "휴가 삭제");
+}
+
+// ---------------------------------------------------------------- 하이웍스 휴가현황(종류별)
+type LeaveStatusRow = {
+  fy: number; name: string; login_id: string; emp_no: string; join_date: string | null; state: string; granted: number | string;
+  grant_detail: HwStatus["grant"]; used: Record<string, number>; remain: number | string; months: HwStatus["months"]; exported_at: string;
+};
+export async function loadLeaveStatus(fy: number): Promise<HwStatus[]> {
+  const sb = await createClient();
+  const rows = (check(await sb.from("leave_status").select("*").eq("fy", fy), "하이웍스 휴가현황 읽기") ?? []) as LeaveStatusRow[];
+  return rows.map((r) => ({
+    fy: r.fy, name: r.name, loginId: r.login_id, empNo: r.emp_no, joinDate: r.join_date, state: r.state, granted: Number(r.granted),
+    grant: { 정기: Number(r.grant_detail?.정기 ?? 0), 포상: Number(r.grant_detail?.포상 ?? 0), 기타: Number(r.grant_detail?.기타 ?? 0) },
+    used: r.used ?? {}, remain: Number(r.remain), months: r.months ?? {}, exportedAt: r.exported_at,
+  }));
+}
+
+/** 한 연도의 하이웍스 휴가현황을 통째로 바꾼다 */
+export async function saveLeaveStatus(fy: number, list: HwStatus[], file: string, user: string): Promise<void> {
+  const sb = await createClient();
+  check(await sb.from("leave_status").delete().eq("fy", fy), "하이웍스 휴가현황 지우기");
+  check(await sb.from("leave_status").insert(list.map((s) => ({
+    fy, name: s.name, login_id: s.loginId, emp_no: s.empNo, join_date: s.joinDate, state: s.state, granted: s.granted,
+    grant_detail: s.grant, used: s.used, remain: s.remain, months: s.months, exported_at: s.exportedAt, file, uploaded_by: user,
+  }))), "하이웍스 휴가현황 저장");
+  check(await sb.from("uploads").insert({
+    kind: "하이웍스 휴가현황", file, sheet: `휴가현황(종류별)_${fy}`, count: list.length, added: list.length,
+    period: `${fy}년 (${list[0]?.exportedAt ?? ""} 기준)`, user_id: user,
+  }), "업로드 이력 저장");
+}
+
+export async function deleteLeaveStatus(fy: number): Promise<void> {
+  const sb = await createClient();
+  check(await sb.from("leave_status").delete().eq("fy", fy), "하이웍스 휴가현황 지우기");
 }
 
 export async function loadAdjusts(): Promise<Adjust[]> {

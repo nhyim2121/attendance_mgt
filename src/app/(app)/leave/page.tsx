@@ -10,6 +10,7 @@ import * as store from "@/lib/store";
 import { addDays, dayLabel, todayKst, weekday, weekdayKr } from "@/lib/time";
 import { fyLabel, fyOf, fyRange, leaveBalances, VACATION_TYPES } from "@/lib/vacation";
 import { LEAVE_COLORS } from "@/lib/leaveColors";
+import { applyHwStatus } from "@/lib/leaveStatus";
 import { TABS } from "./LeaveView";
 
 export const metadata = { title: "휴가 홈 · 근태관리통합시스템" };
@@ -31,10 +32,13 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
   const [fs, fe] = fyRange(fy, policy);
   const excl = new Set(policy.exclude ?? []);
   const empOf = new Map(base.employees.map((e) => [e.name, e]));
-  const bal = leaveBalances(base.employees, base.leaves, adjusts, fy, today, policy).filter((b) => {
+  const siteBal = leaveBalances(base.employees, base.leaves, adjusts, fy, today, policy).filter((b) => {
     const e = empOf.get(b.name);
     return !excl.has(b.name) && (!e?.leaveDate || e.leaveDate >= today) && (!e?.joinDate || e.joinDate <= today);
   });
+  // 하이웍스 휴가현황(종류별)을 올렸으면 부여·사용·잔여는 그 숫자
+  const hwRows = await store.loadLeaveStatus(fy);
+  const bal = hwRows.length && today >= hwRows[0].exportedAt.slice(0, 10) ? applyHwStatus(siteBal, hwRows, policy) : siteBal;
   const deptOf = new Map(base.employees.map((e) => [e.name, e.dept]));
   const vac = base.leaves.filter((l) => VAC.has(l.type));
 

@@ -8,6 +8,7 @@ export const LEAVE_COLORS: Record<string, [string, string]> = {
   공가: ["#475569", "#e8edf3"],
   경조휴가: ["#be185d", "#fce7f3"],
   병가: ["#b91c1c", "#fee2e2"],
+  포상: ["#7c3aed", "#efe7fd"], // 하이웍스 포상휴가 사용
 };
 export const leaveFg = (t: string) => LEAVE_COLORS[t]?.[0] ?? "#0c3994";
 export const leaveBg = (t: string) => LEAVE_COLORS[t]?.[1] ?? "#eef0f4";
