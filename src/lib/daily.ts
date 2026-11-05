@@ -256,13 +256,35 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
     : `<div style="${TXT}color:${SUB};padding:6px 0">오늘 근태 특이사항이 없습니다.</div>`;
   parts.push(section(SECTION_TITLES.근태, att.length, inner));
 
-  // 휴가 일정
+  // 휴가 일정: 종류·시간은 한 번만, 이어지는 휴가 묶음마다 한 줄씩 '휴가일 → 출근일'
   let sub = rows.filter((r) => r.section === "휴가일정");
   if (sub.length) {
+    const red = (s: string) => `<span style="${TXT}font-weight:800;color:#d42a2a">${esc(s)}</span>`;
+    const kind = (r: ReportRow) => {
+      if (!r.types) return `<span style="color:${SUB}">-</span>`;
+      const time = r.detail.trim() ? timeLabel(r.detail) || r.detail.trim() : "";
+      return (r.title ? badge(r.title) : "")
+        + (time ? `<div style="${TXT}font-size:13px;color:${SUB};margin-top:3px">${esc(time)}</div>` : "")
+        + (r.note.trim() ? `<div style="${TXT}font-size:13px;color:${SUB};margin-top:2px">${esc(r.note.trim())}</div>` : "");
+    };
+    const runsCell = (r: ReportRow) => {
+      const runs = r.types ? scheduleRuns(r) : null;
+      if (!runs) {
+        // 예전 형식이나 출근일을 묶음에 못 맞춘 줄은 그대로
+        const text = esc(r.types ? splitReportTypes(r.types).filter(isDateStr).sort().map((d) => dayLabel(d)).join("·") : r.note);
+        return text + (r.value ? `<div style="margin-top:3px">출근 ${red(r.value)}</div>` : "");
+      }
+      const td = `${TXT}font-size:14px;padding:3px 0;vertical-align:top;`;
+      return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse">`
+        + runs.map(([ds, back], i) => `<tr${i ? ` style="border-top:1px dashed ${LINE}"` : ""}>`
+          + `<td style="${td}padding-right:14px">${esc(ds.map((d) => dayLabel(d)).join(" · "))}</td>`
+          + `<td style="${td}color:${SUB};padding-right:8px;white-space:nowrap">→ 출근</td>`
+          + `<td style="${td}white-space:nowrap">${red(back)}</td></tr>`).join("")
+        + `</table>`;
+    };
     parts.push(section(SECTION_TITLES.휴가일정, sub.length,
-      table([["부서", "80px"], ["성명", "110px"], ["출근 예정", "130px"], ["휴가 일정", ""]],
-        sub.map((r) => [esc(r.dept), person(r), `<span style="${TXT}font-weight:800;color:#d42a2a">${esc(r.value)}</span>`,
-          esc(r.types ? scheduleText(r) : r.note)]))));
+      table([["부서", "80px"], ["성명", "110px"], ["종류", "130px"], ["휴가일 → 출근 예정", ""]],
+        sub.map((r) => [esc(r.dept), person(r), kind(r), runsCell(r)]))));
   }
 
   // 휴일 근무
@@ -336,6 +358,30 @@ const LEGACY_SCHEDULE = /^\s*(\d{1,2})\/(\d{1,2})\([^)]*\)\s*(연차|월차|반�
 export function scheduleText(r: Pick<ReportRow, "types" | "title" | "detail" | "note">): string {
   const ds = splitReportTypes(r.types).filter(isDateStr).sort();
   return [ds.map((d) => dayLabel(d)).join("·"), r.title, r.detail.trim(), r.note.trim() ? `(${r.note.trim()})` : ""].filter(Boolean).join(" ");
+}
+
+/** 휴가일정 줄을 이어지는 묶음별로 나눈다: [[휴가일들, 출근 예정 글자], ...].
+ * 출근 예정(value, 'M/D(요일), M/D(요일)')은 묶음마다 하나씩 순서대로 저장돼 있으므로
+ * 각 출근일보다 앞선 휴가일을 그 묶음으로 본다. 개수가 안 맞으면 null. */
+export function scheduleRuns(r: Pick<ReportRow, "types" | "value">): [DateStr[], string][] | null {
+  const ds = [...new Set(splitReportTypes(r.types).filter(isDateStr))].sort();
+  const backs = r.value.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!ds.length || !backs.length) return null;
+  const out: [DateStr[], string][] = [];
+  let i = 0;
+  for (const label of backs) {
+    const m = /^(\d{1,2})\/(\d{1,2})/.exec(label);
+    if (!m || i >= ds.length) return null;
+    const y = +ds[i].slice(0, 4);
+    let back = makeDate(y, +m[1], +m[2]);
+    if (back && back <= ds[i]) back = makeDate(y + 1, +m[1], +m[2]); // 연말 넘김
+    if (!back) return null;
+    const run: DateStr[] = [];
+    while (i < ds.length && ds[i] < back) run.push(ds[i++]);
+    if (!run.length) return null;
+    out.push([run, label]);
+  }
+  return i === ds.length ? out : null;
 }
 
 /** 출근 예정: 이어지는 휴가 묶음마다 그다음 근무일 */
