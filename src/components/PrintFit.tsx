@@ -3,6 +3,7 @@
 /** 인쇄할 때 화면 내용을 A4 한 장에 꽉 차게 줄이거나 키운다 (모든 페이지 공용, 레이아웃에 한 번).
  * - 인쇄 버튼에서 고른 방향(<html data-print>), 없으면 문서형(.doc-page)은 A4 세로, 그 밖에는 A4 가로
  * - 여러 장이 맞는 문서(직원별 내역서 여러 명, 첨부 이미지)는 그대로 둔다
+ * - 근태 기입 여러 명은 한 사람에 한 장: 가장 긴 장이 A4 한 장에 들어가게
  * - 인쇄 직전에 인쇄 모양(.measuring)으로 바꿔 높이를 재고, 넘치면 너비를 넓혀 가며 한 장에 맞춘다 (키우지는 않음) */
 import { useEffect } from "react";
 
@@ -32,7 +33,9 @@ export default function PrintFit() {
       let z = 1;
       for (let i = 0; i < 5; i++) {
         main.style.width = `${W / z}px`;
-        const h = main.scrollHeight;
+        // 근태 기입 여러 명: 한 사람이 한 장이므로 가장 긴 한 장을 기준으로 맞춘다
+        const pages = main.querySelectorAll<HTMLElement>(".edit-print");
+        const h = pages.length > 1 ? Math.max(...[...pages].map((p) => p.offsetHeight)) : main.scrollHeight;
         if (!h) break;
         const nz = Math.max(0.35, Math.min(1, H / h)); // 키우지 않는다
         if (Math.abs(nz - z) < 0.005) { z = nz; break; }

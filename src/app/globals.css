@@ -748,3 +748,10 @@ details.fold { border: 1px solid #e1e6f0; border-radius: 10px; }
 .edit-print .ep-tbl tr.tone-trip td:nth-child(n+8) { color: #6d28d9; }
 .edit-print .ep-tbl tr[class*="tone-"] td:nth-child(n+8) { font-weight: 600; }
 .edit-print .ep-tbl .ep-vac { color: inherit; }
+
+/* 근태 기입 인쇄 세로: 종이가 좁아 고정 칸 너비면 시각(초)·근무형태가 옆 칸을 덮는다 → 내용 폭만큼은 칸을 넓힘 */
+html[data-print="port"] .edit-print .ep-tbl { table-layout: auto; }
+html[data-print="port"] .edit-print .ep-tbl td:nth-child(-n+7) { padding-left: 3px; padding-right: 3px; }
+/* 근태 기입 여러 명 인쇄: 한 사람에 한 장 */
+@media print { .edit-print + .edit-print { break-before: page; } }
+.measuring .edit-print + .edit-print { break-before: page; }

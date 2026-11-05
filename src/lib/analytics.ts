@@ -253,6 +253,11 @@ export function buildDays(
       if (o.place !== null) r.ovPlace = o.place;
       if (o.note !== null) r.ovNote = o.note;
       r.editedBy = o.editedBy || "";
+      // 출근·퇴근을 둘 다 지운 날: 하이웍스에 휴일근무·연장근무로 적혀 있어도 일하지 않은 날로 본다
+      if (o.clockIn === "" && o.clockOut === "" && r.leave) {
+        r.leave = splitTypes(r.leave).filter((t) => t !== "휴일근무" && t !== "연장근무").join(", ");
+        r.leaveDays = splitTypes(r.leave).reduce((s, t) => s + (LEAVE_DAY_VALUE[t] ?? 0), 0);
+      }
     }
 
     r.stayH = r.in !== null && r.out !== null ? Math.round(((r.out - r.in) / HOUR) * 100) / 100 : null;
