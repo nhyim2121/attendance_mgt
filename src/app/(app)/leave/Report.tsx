@@ -11,7 +11,8 @@ import type { LeaveBalance } from "@/lib/vacation";
 import { leaveFg } from "@/lib/leaveColors";
 import { AttachInline, DeleteEvidence } from "../evidence/forms";
 
-const n2 = (x: number) => String(Math.round(x * 100) / 100);
+// 일수는 반올림하지 않고 그대로 (0.0625처럼 반반차·외출 단위까지). 소수 계산 오차만 넷째 자리에서 정리.
+const n2 = (x: number) => String(Math.round(x * 10000) / 10000);
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
 const pct1 = (a: number, b: number) => (b ? (Math.round((a / b) * 1000) / 10).toFixed(1) : "0.0");
 const isImage = (a: Attachment) => /^image\//.test(a.mime);
@@ -191,7 +192,7 @@ export function SummaryReport({ bal, atts, fyText, range, asOf, today, deptOrder
         <th>부서</th><th>성명</th><th>직급</th><th>입사일</th><th className="num" title="전년 초과사용·이월, 포상 등 연차 조정">이월·조정</th>
         <th className="num">총 부여</th><th className="num">사용</th>
         <th className="num">예정</th><th className="num">잔여</th><th style={{ width: "16%" }}>사용률</th>
-        {types.map((t) => <th key={t} className="num">{t}{t === "외출" ? "(h)" : "(일)"}</th>)}
+        {types.map((t) => <th key={t} className="num">{t}(일)</th>)}
       </tr></thead><tbody>
         {sorted.map((b) => {
           return (
@@ -201,13 +202,13 @@ export function SummaryReport({ bal, atts, fyText, range, asOf, today, deptOrder
               <td className="num">{n2(b.total)}</td><td className="num">{n2(b.used)}</td><td className="num">{b.planned ? n2(b.planned) : ""}</td>
               <td className={`num${b.remain < 0 ? " red" : ""}`}><b>{n2(b.remain)}</b></td>
               <td><Meter v={pct(b.used, b.total)} /></td>
-              {types.map((t) => <td key={t} className="num">{b.counts[t] ? (t === "외출" ? `${n2(b.outingHours)}h` : n2(b.typeDays[t])) : ""}</td>)}
+              {types.map((t) => <td key={t} className="num" title={t === "외출" && b.outingHours ? `${n2(b.outingHours)}시간` : undefined}>{b.counts[t] && b.typeDays[t] ? n2(b.typeDays[t]) : ""}</td>)}
             </tr>
           );
         })}
       </tbody></table>
 
-      <p className="caption doc-foot">연차·월차 1일, 반차 0.5일, 반반차 0.25일 차감. 입사 1년이 되기 전에 쓴 휴가는 월차, 그 뒤는 연차로 셉니다. 직원별 현황은 입사일 순.
+      <p className="caption doc-foot">연차·월차 1일, 반차 0.5일, 반반차 0.25일 차감, 외출은 시간을 일수로 바꿔 적음. 유형 칸은 모두 일수. 입사 1년이 되기 전에 쓴 휴가는 월차, 그 뒤는 연차로 셉니다. 직원별 현황은 입사일 순.
         근태관리통합시스템 · 주식회사 에쓰엔</p>
     </div>
   );

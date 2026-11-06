@@ -14,7 +14,6 @@ import { addDays, dayLabel, daysInMonth, isDateStr, makeDate, shortKst, todayKst
 import {
   fyLabel, fyOf, fyRange, leaveBalances, RANGE_TYPES, VACATION_TYPES, vacationDays,
 } from "@/lib/vacation";
-import { StatusBars } from "@/components/Charts";
 import { Ico, Stat } from "@/components/HomeKit";
 import MonthCalendar from "@/components/MonthCalendar";
 import { leaveBg, leaveFg } from "@/lib/leaveColors";
@@ -23,7 +22,7 @@ import { ApprovalForm, LeaveStatusForm } from "../upload/forms";
 import { AdjustForm, DeleteButton, PolicyForm, VacationForm } from "./forms";
 import { GrantEdit, HwEdit, LeaveItems } from "./StatusTools";
 import { leaveKey } from "@/lib/leave";
-import { EvidenceTab, PersonReport, PromoteReport, SummaryReport } from "./Report";
+import { DocHead, EvidenceTab, PersonReport, PromoteReport, SummaryReport } from "./Report";
 
 export const TABS = {
   status: "연차 현황", evidence: "신청서 증빙", report: "현황 보고서", register: "휴가 등록·설정", calendar: "휴가 캘린더",
@@ -298,12 +297,6 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
   const remainSum = sbal.reduce((t, b) => t + b.remain, 0);
   const rateOf = (b: (typeof sbal)[number]) => (b.total ? (b.used / b.total) * 100 : 0);
   const rateColor = (r: number) => (r >= 80 ? "#0c3994" : r >= 50 ? "#3a5db0" : r >= 20 ? "#e9a23b" : "#e84340");
-  const buckets = [
-    { label: "80% 이상", n: sbal.filter((b) => rateOf(b) >= 80).length, color: "#0c3994" },
-    { label: "50~80%", n: sbal.filter((b) => rateOf(b) >= 50 && rateOf(b) < 80).length, color: "#3a5db0" },
-    { label: "20~50%", n: sbal.filter((b) => rateOf(b) >= 20 && rateOf(b) < 50).length, color: "#e9a23b" },
-    { label: "20% 미만", n: sbal.filter((b) => rateOf(b) < 20).length, color: "#e84340" },
-  ];
   // 부서별 사용률 (부서 부여 합계 대비 사용 합계, 명부 부서 순서)
   const deptOrder = [...new Set(emps.map((e) => e.dept).filter(Boolean))];
   const deptRates = [...new Set(sbal.map((b) => b.dept || "(부서 없음)"))]
@@ -323,8 +316,11 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
   const hidden = (await store.loadHiddenLeaves()).filter((h) => h.day >= fs && h.day <= fe).sort((a, b) => (a.day < b.day ? -1 : 1));
   const isNew = (b: (typeof sbal)[number]) => !!b.joinDate && `${+b.joinDate.slice(0, 4) + 1}${b.joinDate.slice(4)}` > asOf;
   return (
-    <div className="home">
+    <div className="home print-fill">
       {head}
+      <div className="print-only">
+        <DocHead title="연차 현황표" sub={<>{fyText} ({fs} ~ {fe}) · 기준일 {asOf} · 출력일 {today}{useHw ? ` · 하이웍스 ${hwAt} 기준` : ""}</>} />
+      </div>
       <div className="row noprint" style={{ justifyContent: "flex-end", marginBottom: 10 }}>
         <Link className="pill" href={hrefWith(sp, "/leave/status", { view: "summary", emp: null })}>보고서 형식으로 보기</Link>
         <PrintButton className="pill print" label="인쇄" />
@@ -336,15 +332,11 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
         <Stat icon="beach" label="잔여" value={n4(remainSum)} unit="일" sub={over.length ? `초과 사용 ${over.length}명` : "초과 사용 없음"} />
         <Stat icon="pie" label="평균 사용률" value={total ? Math.round((used / total) * 100) : 0} unit="%" />
       </section>
-      <div className="grid2 home-row">
-        <section className="card">
-          <div className="card-title"><Ico name="bars" />사용률 분포 <span className="muted" style={{ fontWeight: 400 }}>(인원)</span></div>
-          <StatusBars data={buckets} total={sbal.length} />
-        </section>
+      <div className="home-row">
         <section className="card">
           <div className="card-title"><Ico name="pie" />부서별 사용률 <span className="muted" style={{ fontWeight: 400 }}>(부여 대비 사용, 기준일까지)</span></div>
           {deptRates.length ? (
-            <div className="sbars">{deptRates.map((d) => (
+            <div className="sbars dept-rates">{deptRates.map((d) => (
               <div key={d.dept} className="sbar">
                 <span className="sbar-l" title={`${d.people}명`}>{d.dept}</span>
                 <div className="sbar-track" title={`사용 ${n4(d.used)} / 부여 ${n4(d.total)}일 · ${d.people}명`}>

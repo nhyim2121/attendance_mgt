@@ -53,6 +53,14 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
   const missing = groupTrips(vac.filter((l) => l.day >= from && l.day <= today), VAC)
     .filter((t) => !attachmentsFor(atts, t.name, t.from, t.to).length).reverse();
   const promote = bal.filter((b) => b.remain >= 5).sort((a, b) => b.remain - a.remain);
+  // 연차 사용률 분포 (연차 현황표와 같은 숫자: 사용 ÷ 총 부여)
+  const rateOf = (b: (typeof bal)[number]) => (b.total ? (b.used / b.total) * 100 : 0);
+  const buckets = [
+    { label: "80% 이상", n: bal.filter((b) => rateOf(b) >= 80).length, color: "#0c3994" },
+    { label: "50~80%", n: bal.filter((b) => rateOf(b) >= 50 && rateOf(b) < 80).length, color: "#3a5db0" },
+    { label: "20~50%", n: bal.filter((b) => rateOf(b) >= 20 && rateOf(b) < 50).length, color: "#e9a23b" },
+    { label: "20% 미만", n: bal.filter((b) => rateOf(b) < 20).length, color: "#e84340" },
+  ];
 
   // 이번 주 (월~일)
   const week = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
@@ -79,7 +87,7 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
   const todayNames = [...new Set(todayList.map((l) => l.name))];
 
   return (
-    <div className="home">
+    <div className="home print-fill">
       {/* 인쇄: 두 장 (위: 요약·이번 주·유형별 / 아래: 월별·부서별·신청서·잔여) — PrintFit이 장마다 맞춘다 */}
       <div className="print-chunk">
       <div className="topbar home-top">
@@ -152,7 +160,7 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
         </section>
       </div>
 
-      <div className="grid2 home-row">
+      <div className="grid3 home-row">
         <section className="card">
           <div className="card-title"><Ico name="clip" />신청서가 빠진 휴가
             <span className="muted" style={{ fontWeight: 400 }}>최근 60일 · {missing.length}건</span>
@@ -166,6 +174,11 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
               </Link>
             ))}{missing.length > 16 && <span className="muted" style={{ alignSelf: "center" }}>외 {missing.length - 16}건</span>}</div>
           ) : <p className="muted">모든 휴가에 신청서가 첨부되어 있습니다.</p>}
+        </section>
+        <section className="card">
+          <div className="card-title"><Ico name="bars" />연차 사용률 분포 <span className="muted" style={{ fontWeight: 400 }}>(인원 · {bal.length}명)</span>
+            <span className="spacer" /><Link className="btn sm noprint" href="/leave/status">연차 현황</Link></div>
+          <StatusBars data={buckets} total={bal.length} />
         </section>
         <section className="card">
           <div className="card-title"><Ico name="alert" />잔여 연차가 많은 직원

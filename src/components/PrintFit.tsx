@@ -30,6 +30,7 @@ export default function PrintFit() {
       const portrait = pick ? pick === "port" : !!main.querySelector(".doc-page");
       const W = ((portrait ? 210 : 297) - 2 * MARGIN) * MM, H = ((portrait ? 297 : 210) - 2 * MARGIN) * MM * SAFE;
       // 배율 z로 줄이면 배치 너비는 W/z, 인쇄 높이는 (그 너비에서의 높이) × z. 이것이 H가 되도록 몇 번 맞춘다.
+      const fill = !!main.querySelector(".print-fill");
       let z = 1;
       for (let i = 0; i < 5; i++) {
         main.style.width = `${W / z}px`;
@@ -37,7 +38,8 @@ export default function PrintFit() {
         const pages = main.querySelectorAll<HTMLElement>(".edit-print, .print-chunk");
         const h = pages.length > 1 ? Math.max(...[...pages].map((p) => p.offsetHeight)) : main.scrollHeight;
         if (!h) break;
-        const nz = Math.max(0.35, Math.min(1, H / h)); // 키우지 않는다
+        // 키우지 않는다. 단 .print-fill(연차 현황표·휴가 홈)은 종이가 남으면 키워서 꽉 채운다
+        const nz = Math.max(0.35, Math.min(fill ? 1.6 : 1, H / h));
         if (Math.abs(nz - z) < 0.005) { z = nz; break; }
         z = nz;
       }
