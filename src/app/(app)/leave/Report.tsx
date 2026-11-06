@@ -230,7 +230,7 @@ function Meter({ v }: { v: number }) {
 const weight = (it: LeaveBalance["items"][number]) => (it.days > 0 ? it.days : it.type === "외출" ? 0 : 1);
 
 /** 직원 한 명의 휴가 사용 현황 (그래프 중심, 사람마다 새 쪽). all = 같은 기준의 전체 직원 (비중·순위용) */
-export function PersonReport({ b, all, fyText, range, asOf, today }: {
+export function PersonReport({ b, all, range, asOf }: {
   b: LeaveBalance; all: LeaveBalance[]; fyText: string; range: [DateStr, DateStr]; asOf: DateStr; today: DateStr;
 }) {
   const items = b.items.filter((it) => TYPES.includes(it.type));
@@ -262,7 +262,7 @@ export function PersonReport({ b, all, fyText, range, asOf, today }: {
 
   return (
     <div className="doc-page person">
-      <DocHead title="개인별 휴가 사용 현황" sub={<>{fyText} ({range[0]} ~ {range[1]}) · 기준일 {asOf} · 출력일 {today}</>} sign={false} />
+      <DocHead title="개인별 휴가 사용 현황" sub={<>기준일 {asOf}</>} sign={false} />
       <table className="doc-tbl full info"><tbody>
         <tr><th>부서</th><td>{b.dept}</td><th>성명</th><td><b>{b.name}</b></td><th>직급</th><td>{b.rank}</td></tr>
         <tr><th>입사일</th><td>{b.joinDate ?? "-"}</td><th>근속</th><td>{b.years !== null ? `${b.years}년` : "-"}</td>
@@ -350,8 +350,6 @@ export function PersonReport({ b, all, fyText, range, asOf, today }: {
         })}
         <div className="pr-legend">{byType.map((x) => <span key={x.t}><i style={{ background: leaveFg(x.t) }} />{x.t}</span>)}</div>
       </div>
-      <p className="caption doc-foot">연차·월차 1일, 반차 0.5일, 반반차 0.25일. 공가·경조휴가·병가는 연차에서 빼지 않지만 그래프에는 1일로 셉니다.
-        비중 = 이 직원 사용 일수 ÷ 같은 기준일 전체 대상 직원 사용 일수.</p>
     </div>
   );
 }

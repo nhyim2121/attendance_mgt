@@ -379,7 +379,7 @@ html[data-print="land"] main.main, html[data-print="land"] main.main .doc-page {
   .shell { display: block; min-height: 0; }
   .main { padding: 0; max-width: none; }
   html, body { height: auto; }
-  body { background: #fff; }
+  html, body, .shell, body .main { background: #fff !important; } /* 종이 아래쪽에 회색 바탕이 남지 않게 */
   .card { box-shadow: none; }
   .org-sheet { border: 0; padding: 0; break-inside: avoid; }
   .ot-scroll { overflow: visible; }
