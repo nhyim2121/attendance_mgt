@@ -296,7 +296,8 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
   const leaveItems = (b: (typeof sbal)[number]) => b.items.filter((it) => LEAVE_ONLY.includes(it.type));
   const remainSum = sbal.reduce((t, b) => t + b.remain, 0);
   const rateOf = (b: (typeof sbal)[number]) => (b.total ? (b.used / b.total) * 100 : 0);
-  const rateColor = (r: number) => (r >= 80 ? "#0c3994" : r >= 50 ? "#3a5db0" : r >= 20 ? "#e9a23b" : "#e84340");
+  // 100% 넘으면(초과 사용) 빨강
+  const rateColor = (r: number) => (r > 100 ? "#e84340" : r >= 80 ? "#0c3994" : r >= 50 ? "#3a5db0" : r >= 20 ? "#e9a23b" : "#c9851c");
   // 부서별 사용률 (부서 부여 합계 대비 사용 합계, 명부 부서 순서)
   const deptOrder = [...new Set(emps.map((e) => e.dept).filter(Boolean))];
   const deptRates = [...new Set(sbal.map((b) => b.dept || "(부서 없음)"))]

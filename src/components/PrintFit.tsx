@@ -9,7 +9,7 @@ import { useEffect } from "react";
 
 const MM = 96 / 25.4; // 1mm = px
 const MARGIN = 5; // globals.css @page 여백(mm)과 같게
-const SAFE = 0.95; // 잰 높이와 실제 인쇄 높이의 차이(글꼴·줄바꿈)를 감안한 여유
+const SAFE = 0.92; // 잰 높이와 실제 인쇄 높이의 차이(글꼴·줄바꿈)를 감안한 여유
 
 export default function PrintFit() {
   useEffect(() => {

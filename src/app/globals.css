@@ -506,8 +506,7 @@ table.doc-tbl.full { width: 100%; }
 .doc-two .doc-tbl { font-size: .74rem; }
 .doc-two .doc-tbl th, .doc-two .doc-tbl td { padding: 3px 4px; }
 .doc-two .doc-h { margin-top: 12px; }
-html[data-print="port"] .doc-two { grid-template-columns: 1fr; }
-@media (max-width: 1000px) { .doc-two { grid-template-columns: 1fr; } }
+@media screen and (max-width: 1000px) { .doc-two { grid-template-columns: 1fr; } }
 table.doc-tbl.doc-staff { font-size: .95rem; }
 .doc-staff th, .doc-staff td { padding: 5px 6px; }
 .doc-staff th { font-size: .88rem; }
@@ -692,6 +691,9 @@ details.fold { border: 1px solid #e1e6f0; border-radius: 10px; }
 .measuring .main { padding: 0; max-width: none; }
 .measuring .home { margin: 0; padding: 0; min-height: 0; }
 .measuring .home .msg { display: none; }
+/* @media print의 문서 모양과 같게 재기 (다르면 한 장을 넘음) */
+.measuring .doc { gap: 0; }
+.measuring .doc .doc-page { border: 0; border-radius: 0; padding: 0; }
 /* 연차 현황표 인쇄: 부서별 사용률은 한 줄 높이를 줄여 빽빽하게 */
 @media print { .dept-rates { gap: 6px; } .dept-rates .sbar-track { height: 18px; } .home .hstats { margin-bottom: 10px; } }
 .measuring .dept-rates { gap: 6px; } .measuring .dept-rates .sbar-track { height: 18px; } .measuring .home .hstats { margin-bottom: 10px; }

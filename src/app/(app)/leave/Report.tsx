@@ -139,7 +139,7 @@ export function PromoteReport({ bal, fyText, range, asOf, today, min = 5 }: {
 // ---------------------------------------------------------------- 현황 보고서
 const TYPES = ["연차", "월차", "반차", "반반차", "외출", "공가", "경조휴가", "병가"];
 
-export function SummaryReport({ bal, atts, fyText, range, asOf, today, deptOrder, trend = [] }: {
+export function SummaryReport({ bal, asOf, deptOrder, trend = [] }: {
   bal: LeaveBalance[]; atts: Attachment[]; fyText: string; range: [DateStr, DateStr]; asOf: DateStr; today: DateStr;
   deptOrder: string[]; trend?: { label: string; asOf: string; total: number; used: number }[];
 }) {
@@ -151,8 +151,7 @@ export function SummaryReport({ bal, atts, fyText, range, asOf, today, deptOrder
   const sorted = [...bal].sort((a, b) => ((a.joinDate ?? "9999") < (b.joinDate ?? "9999") ? -1 : (a.joinDate ?? "9999") > (b.joinDate ?? "9999") ? 1 : 0));
   return (
     <div className="doc-page">
-      <DocHead title="연차·휴가 사용 현황 보고서"
-        sub={<>{fyText} ({range[0]} ~ {range[1]}) · 기준일 {asOf} · 작성일 {today}</>} />
+      <DocHead title="연차·휴가 사용 현황 보고서" sub={<>기준일 {asOf}</>} />
       <div className="doc-kpis">
         {([["대상 인원", `${bal.length}명`], ["총 부여", `${n2(total)}일`], ["사용", `${n2(used)}일`], ["예정", `${n2(planned)}일`],
           ["잔여", `${n2(sum((b) => b.remain))}일`], ["평균 사용률", `${pct(used, total)}%`]] as const)
@@ -213,16 +212,14 @@ export function SummaryReport({ bal, atts, fyText, range, asOf, today, deptOrder
         })}
       </tbody></table>
 
-      <p className="caption doc-foot">연차·월차 1일, 반차 0.5일, 반반차 0.25일 차감, 외출은 시간을 일수로 바꿔 적음. 유형 칸은 모두 일수. 입사 1년이 되기 전에 쓴 휴가는 월차, 그 뒤는 연차로 셉니다. 직원별 현황은 입사일 순.
-        근태관리통합시스템 · 주식회사 에쓰엔</p>
     </div>
   );
 }
 
 function Meter({ v }: { v: number }) {
   return (
-    <div className="doc-meter"><div className="bar"><div style={{ width: `${Math.min(100, v)}%`, background: v >= 80 ? "var(--blue)" : v >= 40 ? "#5c7cc4" : "var(--red)" }} /></div>
-      <span>{v}%</span></div>
+    <div className="doc-meter"><div className="bar"><div style={{ width: `${Math.min(100, v)}%`, background: v > 100 ? "var(--red)" : v >= 80 ? "var(--blue)" : v >= 40 ? "#5c7cc4" : "#e9a23b" }} /></div>
+      <span style={v > 100 ? { color: "var(--red)", fontWeight: 700 } : undefined}>{v}%</span></div>
   );
 }
 
