@@ -18,9 +18,11 @@ import { StatusBars } from "@/components/Charts";
 import { Ico, Stat } from "@/components/HomeKit";
 import MonthCalendar from "@/components/MonthCalendar";
 import { leaveBg, leaveFg } from "@/lib/leaveColors";
-import { applyHwStatus, type HwBalance } from "@/lib/leaveStatus";
+import { leaveBook } from "@/lib/leaveBook";
 import { ApprovalForm, LeaveStatusForm } from "../upload/forms";
 import { AdjustForm, DeleteButton, PolicyForm, VacationForm } from "./forms";
+import { GrantEdit, HwEdit, LeaveItems } from "./StatusTools";
+import { leaveKey } from "@/lib/leave";
 import { EvidenceTab, PersonReport, PromoteReport, SummaryReport } from "./Report";
 
 export const TABS = {
@@ -63,11 +65,10 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
     return !excl.has(name) && (!e?.leaveDate || e.leaveDate >= d) && (!e?.joinDate || e.joinDate <= d);
   };
   // 하이웍스 휴가현황(종류별)을 올렸으면 그 숫자를 쓴다 (내려받은 날 이후 기준일일 때만)
+  // 기준일이 그보다 앞이면 하이웍스 숫자에서 기준일 뒤 사용분을 되돌려 뺀다 (lib/leaveBook)
   const hwRows = await store.loadLeaveStatus(fy);
-  const hwAt = hwRows[0]?.exportedAt ?? "";
-  const useHw = hwRows.length > 0 && asOf >= hwAt.slice(0, 10);
-  const siteBal = leaveBalances(emps, base.leaves, adjusts, fy, asOf, policy).filter((b) => onAt(b.name, asOf));
-  const bal: HwBalance[] = useHw ? applyHwStatus(siteBal, hwRows, policy) : siteBal;
+  const book = leaveBook(emps, base.leaves, adjusts, fy, policy, hwRows);
+  const { bal, useHw, past, hwAt } = book(asOf, (b) => onAt(b.name, asOf));
   const active = emps.filter((e) => (!e.leaveDate || e.leaveDate >= today) && (!e.joinDate || e.joinDate <= addDays(today, 60)));
   const deptOf = new Map(emps.map((e) => [e.name, e.dept]));
 
@@ -134,7 +135,7 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
     for (let m = fs.slice(0, 7); `${m}-01` <= asOf; m = addDays(`${m}-${daysInMonth(m)}`, 1).slice(0, 7)) {
       const end = `${m}-${String(daysInMonth(m)).padStart(2, "0")}`;
       const d = end > asOf ? asOf : end;
-      const bs = leaveBalances(emps, base.leaves, adjusts, fy, d, policy).filter((b) => onAt(b.name, d));
+      const bs = book(d, (b) => onAt(b.name, d)).bal;
       trend.push({ label: `${+m.slice(5)}월`, asOf: d, total: bs.reduce((t, b) => t + b.total, 0), used: bs.reduce((t, b) => t + b.used, 0) });
     }
     return (
@@ -218,14 +219,19 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
       <>
         {head}
         <div className="card">
-          <div className="card-title">
-            <Suspense><ParamSelect name="month" value={month} options={months.map((m) => [m, `${+m.slice(0, 4)}년 ${+m.slice(5)}월`])} /></Suspense>
+          <div className="card-title" style={{ flexWrap: "wrap" }}>
+            <span className="noprint"><Suspense><ParamSelect name="month" value={month} options={months.map((m) => [m, `${+m.slice(0, 4)}년 ${+m.slice(5)}월`])} /></Suspense></span>
             <span className="spacer" />
             <span className="legend">{CAL_TYPES.map((t) => <span key={t} className={`tag t-${t}`}>{t}</span>)}</span>
+            <span className="noprint" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <span className="caption" style={{ margin: 0 }}>인쇄 창에서 대상 → <b>PDF로 저장</b>을 고르면 PDF가 됩니다.</span>
+              <PrintButton className="btn primary" />
+            </span>
           </div>
+          <h2 className="print-only" style={{ margin: "0 0 8px" }}>{+month.slice(0, 4)}년 {+month.slice(5)}월 휴가 캘린더 <span style={{ fontSize: 13, fontWeight: 400 }}>(출력일 {today})</span></h2>
           <MonthCalendar month={month} today={today} holidays={hols}
             entries={lv.map((l) => ({ day: l.day, type: l.type, text: <>{l.name} <b>{l.type}</b></>, title: `${l.name} ${l.type} ${l.content}` }))} />
-          <p className="caption" style={{ marginTop: 8 }}>하이웍스 근태현황·일일 근태 보고서·휴가 등록을 합친 휴가입니다 (연차·월차·반차·반반차·외출·공가·경조휴가). 출장·교육·외근은 근태 공간의 <b>근태 캘린더</b>에서 봅니다. 이름에 마우스를 올리면 사유가 보입니다.</p>
+          <p className="caption noprint" style={{ marginTop: 8 }}>하이웍스 근태현황·일일 근태 보고서·휴가 등록을 합친 휴가입니다 (연차·월차·반차·반반차·외출·공가·경조휴가). 출장·교육·외근은 근태 공간의 <b>근태 캘린더</b>에서 봅니다. 이름에 마우스를 올리면 사유가 보입니다.</p>
         </div>
       </>
     );
@@ -276,36 +282,46 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
   }
 
   // ---------------------------------------------------------------- 연차 현황
-  const total = bal.reduce((t, b) => t + b.total, 0), used = bal.reduce((t, b) => t + b.used, 0);
-  const noJoin = bal.filter((b) => !b.joinDate).map((b) => b.name);
+  const n4 = (x: number) => String(Math.round(x * 10000) / 10000);
+  const r4 = (x: number) => Math.round(x * 10000) / 10000;
+  // 사이트 계산일 때 잔여 = 총 부여 − 기준일까지 사용 (기준일 뒤 휴가는 빼지 않음)
+  const sbal = (useHw ? bal : bal.map((b) => ({ ...b, remain: r4(b.total - b.used) }))) as typeof bal;
+  const total = sbal.reduce((t, b) => t + b.total, 0), used = sbal.reduce((t, b) => t + b.used, 0);
+  const noJoin = sbal.filter((b) => !b.joinDate).map((b) => b.name);
   const LEAVE_ONLY = ["연차", "월차", "포상", "반차", "반반차", "외출", "공가", "경조휴가", "병가"];
   // 하이웍스 숫자와 사이트 계산 잔여가 다른 직원
-  const differ = bal.filter((b) => b.site && Math.abs(b.site.remain - b.remain) > 0.001);
-  const notInHw = useHw ? bal.filter((b) => !b.hw).map((b) => b.name) : [];
-  const types = LEAVE_ONLY.filter((t) => bal.some((b) => b.counts[t]));
-  const n4 = (x: number) => String(Math.round(x * 10000) / 10000);
+  const differ = sbal.filter((b) => b.site && Math.abs(b.site.remain - b.remain) > 0.001);
+  const notInHw = useHw ? sbal.filter((b) => !b.hw).map((b) => b.name) : [];
+  const types = LEAVE_ONLY.filter((t) => sbal.some((b) => b.counts[t]));
   // 내역 팝업은 휴가만 (출장·교육·휴일근무·연장근무 제외)
-  const leaveItems = (b: (typeof bal)[number]) => b.items.filter((it) => LEAVE_ONLY.includes(it.type));
-  const plannedSum = bal.reduce((t, b) => t + b.planned, 0), remainSum = bal.reduce((t, b) => t + b.remain, 0);
-  const rateOf = (b: (typeof bal)[number]) => (b.total ? (b.used / b.total) * 100 : 0);
+  const leaveItems = (b: (typeof sbal)[number]) => b.items.filter((it) => LEAVE_ONLY.includes(it.type));
+  const remainSum = sbal.reduce((t, b) => t + b.remain, 0);
+  const rateOf = (b: (typeof sbal)[number]) => (b.total ? (b.used / b.total) * 100 : 0);
   const rateColor = (r: number) => (r >= 80 ? "#0c3994" : r >= 50 ? "#3a5db0" : r >= 20 ? "#e9a23b" : "#e84340");
   const buckets = [
-    { label: "80% 이상", n: bal.filter((b) => rateOf(b) >= 80).length, color: "#0c3994" },
-    { label: "50~80%", n: bal.filter((b) => rateOf(b) >= 50 && rateOf(b) < 80).length, color: "#3a5db0" },
-    { label: "20~50%", n: bal.filter((b) => rateOf(b) >= 20 && rateOf(b) < 50).length, color: "#e9a23b" },
-    { label: "20% 미만", n: bal.filter((b) => rateOf(b) < 20).length, color: "#e84340" },
+    { label: "80% 이상", n: sbal.filter((b) => rateOf(b) >= 80).length, color: "#0c3994" },
+    { label: "50~80%", n: sbal.filter((b) => rateOf(b) >= 50 && rateOf(b) < 80).length, color: "#3a5db0" },
+    { label: "20~50%", n: sbal.filter((b) => rateOf(b) >= 20 && rateOf(b) < 50).length, color: "#e9a23b" },
+    { label: "20% 미만", n: sbal.filter((b) => rateOf(b) < 20).length, color: "#e84340" },
   ];
   // 부서별 사용률 (부서 부여 합계 대비 사용 합계, 명부 부서 순서)
   const deptOrder = [...new Set(emps.map((e) => e.dept).filter(Boolean))];
-  const deptRates = [...new Set(bal.map((b) => b.dept || "(부서 없음)"))]
+  const deptRates = [...new Set(sbal.map((b) => b.dept || "(부서 없음)"))]
     .sort((a, b) => (deptOrder.indexOf(a) + 1 || 99) - (deptOrder.indexOf(b) + 1 || 99))
     .map((d) => {
-      const g = bal.filter((b) => (b.dept || "(부서 없음)") === d);
+      const g = sbal.filter((b) => (b.dept || "(부서 없음)") === d);
       const t = g.reduce((x, b) => x + b.total, 0), u = g.reduce((x, b) => x + b.used, 0);
       return { dept: d, people: g.length, total: t, used: u, rate: t ? (u / t) * 100 : 0 };
     });
-  const over = bal.filter((b) => b.remain < 0);
-  const isNew = (b: (typeof bal)[number]) => !!b.joinDate && `${+b.joinDate.slice(0, 4) + 1}${b.joinDate.slice(4)}` > asOf;
+  const over = sbal.filter((b) => b.remain < 0);
+  // 휴가 추가 창의 기간 계산용 쉬는 날 (회계연도 + 다음 두 달)
+  const offDays: string[] = [];
+  for (let d = fs; d <= addDays(fe, 60); d = addDays(d, 1)) if (!isWorkday(d)) offDays.push(d);
+  // 생성 창의 '포상' 현재 일수: 사유가 포상으로 시작하는 조정
+  const rewardOf = (name: string) => adjusts.filter((a) => a.fy === fy && a.name === name && /^포상/.test(a.reason)).reduce((t, a) => t + a.days, 0);
+  // 내역에서 지운 기록 (이 회계연도)
+  const hidden = (await store.loadHiddenLeaves()).filter((h) => h.day >= fs && h.day <= fe).sort((a, b) => (a.day < b.day ? -1 : 1));
+  const isNew = (b: (typeof sbal)[number]) => !!b.joinDate && `${+b.joinDate.slice(0, 4) + 1}${b.joinDate.slice(4)}` > asOf;
   return (
     <div className="home">
       {head}
@@ -314,17 +330,16 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
         <PrintButton className="pill print" label="인쇄" />
       </div>
       <section className="card hstats">
-        <Stat icon="people" label="대상 인원" value={bal.length} unit="명" sub={`1년 미만 ${bal.filter(isNew).length}명`} />
-        <Stat icon="cal" label="총 부여" value={n2(total)} unit="일" sub="연차 + 월차 + 조정" />
-        <Stat icon="chart" label="사용" value={n2(used)} unit="일" sub={`기준일 ${asOf}`} />
-        <Stat icon="week" label="예정" value={n2(plannedSum)} unit="일" sub="기준일 이후" />
-        <Stat icon="beach" label="잔여" value={n2(remainSum)} unit="일" sub={over.length ? `초과 사용 ${over.length}명` : "초과 사용 없음"} />
+        <Stat icon="people" label="대상 인원" value={sbal.length} unit="명" sub={`1년 미만 ${sbal.filter(isNew).length}명`} />
+        <Stat icon="cal" label="총 부여" value={n4(total)} unit="일" sub="연차 + 월차 + 조정" />
+        <Stat icon="chart" label="사용" value={n4(used)} unit="일" sub={`기준일 ${asOf}`} />
+        <Stat icon="beach" label="잔여" value={n4(remainSum)} unit="일" sub={over.length ? `초과 사용 ${over.length}명` : "초과 사용 없음"} />
         <Stat icon="pie" label="평균 사용률" value={total ? Math.round((used / total) * 100) : 0} unit="%" />
       </section>
       <div className="grid2 home-row">
         <section className="card">
           <div className="card-title"><Ico name="bars" />사용률 분포 <span className="muted" style={{ fontWeight: 400 }}>(인원)</span></div>
-          <StatusBars data={buckets} total={bal.length} />
+          <StatusBars data={buckets} total={sbal.length} />
         </section>
         <section className="card">
           <div className="card-title"><Ico name="pie" />부서별 사용률 <span className="muted" style={{ fontWeight: 400 }}>(부여 대비 사용, 기준일까지)</span></div>
@@ -332,12 +347,12 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
             <div className="sbars">{deptRates.map((d) => (
               <div key={d.dept} className="sbar">
                 <span className="sbar-l" title={`${d.people}명`}>{d.dept}</span>
-                <div className="sbar-track" title={`사용 ${n2(d.used)} / 부여 ${n2(d.total)}일 · ${d.people}명`}>
+                <div className="sbar-track" title={`사용 ${n4(d.used)} / 부여 ${n4(d.total)}일 · ${d.people}명`}>
                   <div className="sbar-fill" style={{ width: `${Math.min(100, d.rate)}%`, background: rateColor(d.rate) }}>
                     {d.rate >= 12 && <b>{Math.round(d.rate)}%</b>}
                   </div>
                 </div>
-                <span className="sbar-v">{n2(d.used)}<small>/{n2(d.total)}일</small></span>
+                <span className="sbar-v">{n4(d.used)}<small>/{n4(d.total)}일</small></span>
               </div>
             ))}</div>
           ) : <p className="muted">대상이 없습니다.</p>}
@@ -345,14 +360,14 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
       </div>
       {useHw ? (
         <div className="msg ok">
-          <b>하이웍스 휴가현황 기준</b> ({hwAt} 내려받음 · {bal.length - notInHw.length}명): 부여·사용·잔여·유형별 일수는 하이웍스 숫자입니다.
+          <b>하이웍스 휴가현황 기준</b> ({hwAt} 내려받음 · {sbal.length - notInHw.length}명): 부여·사용·잔여·유형별 일수는 하이웍스 숫자입니다.
+          {past && <> 기준일({asOf})이 하이웍스 날짜보다 앞이라, 하이웍스 숫자에서 기준일 뒤 사용분(월별 시트·휴가 기록)을 빼고 그 뒤 생기는 월차를 뺀 값입니다.</>}
           사용에는 결재가 끝난 앞날 휴가도 들어 있어 &apos;예정&apos;은 따로 나누지 않습니다.
           {differ.length > 0 && <> 사이트 계산과 잔여가 다른 직원 {differ.length}명 (&apos;사이트 계산&apos; 칸 빨간 숫자).</>}
           {notInHw.length > 0 && <> 파일에 없는 직원은 사이트 계산: {notInHw.join(", ")}.</>}
+          {" "}표 오른쪽 <b>숫자 수정</b>으로 하이웍스 숫자를, <b>내역</b>에서 휴가 기록을 추가·수정·삭제할 수 있습니다{sbal.some((b) => b.hw?.edited) ? " (✎ = 직접 고친 숫자)" : ""}.
           {" "}<Link href="/leave/register">새 파일 올리기</Link>
         </div>
-      ) : hwRows.length > 0 ? (
-        <div className="msg warn">기준일({asOf})이 하이웍스 휴가현황을 내려받은 날({hwAt.slice(0, 10)})보다 앞이라 사이트 계산으로 보여 줍니다.</div>
       ) : (
         <div className="msg warn">하이웍스 휴가현황이 없어 사이트에서 계산한 숫자입니다. 하이웍스와 맞추려면 <Link href="/leave/register">휴가 등록·설정</Link>에서 <b>휴가현황(종류별)</b> 파일을 올려 주세요.</div>
       )}
@@ -360,65 +375,61 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
         <div className="msg warn">입사일이 없어 기본 {policy.baseDays}일로 계산한 직원: {noJoin.join(", ")} — <Link href="/employees">직원 관리</Link>에서 입사일을 넣어 주세요.</div>
       )}
       <div className="card">
-        <div className="card-title"><Ico name="people" />직원별 현황 <span className="muted" style={{ fontWeight: 400 }}>입사일 순 · {bal.length}명</span></div>
+        <div className="card-title"><Ico name="people" />직원별 현황 <span className="muted" style={{ fontWeight: 400 }}>입사일 순 · {sbal.length}명</span></div>
         <div className="tbl-wrap tall"><table className="tbl ls-tbl">
           <thead><tr>
             <th>부서</th><th>이름</th><th>입사일</th>{useHw ? <><th className="num" title="하이웍스 생성내역 정기 (입사 1년 미만은 월차 포함)">정기 생성</th><th className="num" title="하이웍스 생성내역 포상 + 기타">포상·기타</th></>
               : <><th className="num">연차</th><th className="num" title="기준일까지 발생 (+ 이 회계연도 안에 더 발생할 일수)">월차</th><th className="num">조정</th></>}
             <th className="num">총 부여</th><th className="num" title={useHw ? "하이웍스: 연차·포상·월차·반차·반반차·외출 합 (결재된 앞날 포함)" : undefined}>사용</th>
-            {!useHw && <th className="num">예정</th>}<th className="num">잔여</th>
+<th className="num">잔여</th>
             {useHw && <th className="num" title="사이트에서 근태 기록으로 계산한 잔여 (하이웍스와 다르면 빨간색)">사이트 계산</th>}
-            <th>사용률</th>{types.map((t) => <th key={t} className="num" title={t === "외출" ? "시간 (일수)" : "일수"}><span className={`tag t-${t}`}>{t}</span></th>)}<th className="noprint" />
+            <th>사용률</th>{types.map((t) => <th key={t} className="num" title="일수"><span className={`tag t-${t}`}>{t}</span></th>)}<th className="noprint" />
           </tr></thead>
           <tbody>
-            {byJoin(bal).map((b) => (
+            {byJoin(sbal).map((b) => (
               <tr key={b.name}>
                 <td>{b.dept}</td><td><b>{b.name}</b> <span className="muted">{b.rank}</span>{isNew(b) && <span className="new" title="입사 1년 미만: 쓴 휴가는 월차로 셉니다">1년 미만</span>}</td>
                 <td>{b.joinDate ?? <span className="muted">-</span>}</td>
                 {useHw ? <>
-                  <td className="num" title={b.hw ? b.annualNote : `사이트 계산: 연차 ${n2(b.annual)} + 월차 ${n2(b.monthly)}`}>{n2(b.hw ? b.annual : b.annual + b.monthly)}</td>
-                  <td className="num">{b.adjust ? n2(b.adjust) : ""}</td>
+                  <td className="num" title={b.hw ? b.annualNote : `사이트 계산: 연차 ${n4(b.annual)} + 월차 ${n4(b.monthly)}`}>{n4(b.hw ? b.annual : b.annual + b.monthly)}</td>
+                  <td className="num">{b.adjust ? n4(b.adjust) : ""}</td>
                 </> : <>
-                  <td className="num" title={b.annualNote}>{n2(b.annual)}</td>
+                  <td className="num" title={b.annualNote}>{n4(b.annual)}</td>
                   <td className="num" title={b.monthlyItems.map(([d, n, why]) => `${d} +${n} (${why})`).join("\n")}>
-                    {n2(b.monthly)}{b.monthlyLater ? <span className="muted"> (+{n2(b.monthlyLater)})</span> : ""}</td>
-                  <td className="num" title={b.expired ? `월차 소멸 -${n2(b.expired)} (${b.expireDay}) 포함` : b.expireLater ? `${b.expireDay} 월차 소멸 예정 ${n2(b.expireLater)}일` : undefined}>
-                    {b.adjust ? n2(b.adjust) : ""}</td>
+                    {n4(b.monthly)}{b.monthlyLater ? <span className="muted"> (+{n4(b.monthlyLater)})</span> : ""}</td>
+                  <td className="num" title={b.expired ? `월차 소멸 -${n4(b.expired)} (${b.expireDay}) 포함` : b.expireLater ? `${b.expireDay} 월차 소멸 예정 ${n4(b.expireLater)}일` : undefined}>
+                    {b.adjust ? n4(b.adjust) : ""}</td>
                 </>}
-                <td className="num"><b>{n2(b.total)}</b></td>
-                <td className="num">{n2(useHw && !b.hw ? b.used + b.planned : b.used)}</td>
-                {!useHw && <td className="num">{b.planned ? n2(b.planned) : ""}</td>}
-                <td className="num"><span className={`remain${b.remain < 0 ? " neg" : b.remain <= 2 ? " low" : ""}`}>{n2(b.remain)}</span>
+                <td className="num"><b>{n4(b.total)}</b></td>
+                <td className="num">{n4(useHw && !b.hw ? b.used + b.planned : b.used)}</td>
+                <td className="num"><span className={`remain${b.remain < 0 ? " neg" : b.remain <= 2 ? " low" : ""}`}>{n4(b.remain)}</span>
                   {b.hw && Math.abs(b.total - b.used - b.remain) > 0.001 && (
-                    <span className="red" title={`하이웍스 파일에서 생성 ${n2(b.total)} − 사용 ${n2(b.used)} = ${n2(b.total - b.used)}인데 잔여는 ${n2(b.remain)}으로 적혀 있습니다. 하이웍스에서 확인해 주세요.`}> *</span>)}</td>
+                    <span className="red" title={`하이웍스 파일에서 생성 ${n4(b.total)} − 사용 ${n4(b.used)} = ${n4(b.total - b.used)}인데 잔여는 ${n4(b.remain)}으로 적혀 있습니다. 하이웍스에서 확인해 주세요.`}> *</span>)}
+                  {b.hw?.edited && <span className="muted" title={`연차 현황에서 직접 고친 숫자 (${b.hw.edited})`}> ✎</span>}</td>
                 {useHw &&<td className="num">{b.site ? (Math.abs(b.site.remain - b.remain) > 0.001
-                  ? <span className="red" style={{ fontWeight: 700 }} title={`사이트 계산: 부여 ${n2(b.site.total)} · 사용 ${n2(b.site.used)} · 예정 ${n2(b.site.planned)} · 잔여 ${n2(b.site.remain)} (하이웍스와 ${n2(b.site.remain - b.remain)}일 차이)`}>{n2(b.site.remain)}</span>
-                  : <span className="muted" title="하이웍스와 같음">{n2(b.site.remain)}</span>) : <span className="muted" title="하이웍스 파일에 없음">-</span>}</td>}
+                  ? <span className="red" style={{ fontWeight: 700 }} title={`사이트 계산: 부여 ${n4(b.site.total)} · 사용 ${n4(b.site.used)} · 예정 ${n4(b.site.planned)} · 잔여 ${n4(b.site.remain)} (하이웍스와 ${n4(b.site.remain - b.remain)}일 차이)`}>{n4(b.site.remain)}</span>
+                  : <span className="muted" title="하이웍스와 같음">{n4(b.site.remain)}</span>) : <span className="muted" title="하이웍스 파일에 없음">-</span>}</td>}
                 <td><div className="rate"><div className="bar"><div style={{ width: `${Math.min(100, rateOf(b))}%`, background: rateColor(rateOf(b)) }} /></div>
                   <span style={{ color: rateColor(rateOf(b)) }}>{Math.round(rateOf(b))}%</span></div></td>
                 {types.map((t) => (
-                  <td key={t} className="num" title={b.counts[t] ? `${b.counts[t]}건` : undefined}>{b.counts[t] ? (
+                  <td key={t} className="num" title={b.counts[t] ? `${b.counts[t]}건${t === "외출" ? ` · ${n4(b.outingHours)}시간` : ""}` : undefined}>{b.counts[t] ? (
                     <span className="pill" style={{ color: leaveFg(t), background: leaveBg(t) }}>
-                      {t === "외출" ? `${n2(b.outingHours)}h` : `${n4(b.typeDays[t])}일`}</span>) : ""}
-                    {t === "외출" && b.outingHours > 0 && <div className="muted" style={{ fontSize: 11 }}>{n4(b.typeDays[t])}일</div>}</td>
+                      {`${n4(b.typeDays[t])}일`}</span>) : ""}
+</td>
                 ))}
-                <td className="noprint">
-                  {leaveItems(b).length > 0 && (
-                    <details className="pop">
-                      <summary className="btn sm">내역</summary>
-                      <div className="pop-body">
-                        <b>{b.name} · {fyLabel(fy, policy)}</b>
-                        <p className="caption" style={{ margin: "4px 0 8px" }}>연차 {n2(b.annual)}일 ({b.annualNote}){b.monthlyItems.length ? ` · 월차 ${b.monthlyItems.map(([d, n]) => `${+d.slice(5, 7)}/${+d.slice(8)} +${n}`).join(", ")}` : ""}{b.expired ? ` · 월차 소멸 -${n2(b.expired)} (${b.expireDay})` : ""}</p>
-                        <table className="tbl"><thead><tr><th>일자</th><th>유형</th><th className="num">차감</th><th>내용</th><th>출처</th></tr></thead>
-                          <tbody>{leaveItems(b).map((it, i) => (
-                            <tr key={i} className={it.planned ? "planned" : ""}><td>{dayLabel(it.day)}</td><td>{it.type}{it.applied && it.applied !== it.type && <span className="muted"> ({it.applied} 신청)</span>}</td>
-                              <td className="num">{it.days ? n4(it.days) : ""}</td>
-                              <td>{it.content.split("\n")[0]}{it.type === "외출" && it.hours ? ` (${it.hours}h)` : ""}</td>
-                              <td className="muted">{it.src === "사이트" ? "일일 근태 보고서" : it.src === "휴가관리" ? "휴가 등록" : "근태현황 파일"}</td></tr>
-                          ))}</tbody></table>
-                      </div>
-                    </details>
-                  )}
+                <td className="noprint" style={{ whiteSpace: "nowrap" }}>
+                  <GrantEdit fy={fy} name={b.name} range={`${fs} ~ ${fe}`} current={b.hw
+                    ? { 연차: isNew(b) ? 0 : b.hw.grant.정기, 포상: b.hw.grant.포상 + b.hw.grant.기타, 월차: isNew(b) ? b.hw.grant.정기 : 0 }
+                    : { 연차: b.annual, 포상: rewardOf(b.name), 월차: b.monthly }} />{" "}
+                  <LeaveItems name={b.name} title={`${b.name} · ${fyLabel(fy, policy)}`} today={today} types={VACATION_TYPES} ranges={[...RANGE_TYPES]}
+                    offDays={offDays} hoursPerDay={policy.outingHoursPerDay}
+                    note={`연차 ${n4(b.annual)}일 (${b.annualNote})${b.monthlyItems.length ? ` · 월차 ${b.monthlyItems.map(([d, n]) => `${+d.slice(5, 7)}/${+d.slice(8)} +${n}`).join(", ")}` : ""}${b.expired ? ` · 월차 소멸 -${n4(b.expired)} (${b.expireDay})` : ""}`}
+                    items={leaveItems(b).map((it) => ({ day: it.day, type: it.type, applied: it.applied, days: it.days, hours: it.hours, content: it.content, src: it.src, planned: it.planned }))}
+                    hidden={hidden.filter((h) => h.name === b.name).map((h) => ({ key: leaveKey(h), day: h.day, type: h.type, content: h.content, src: h.src, by: h.by }))} />
+                  {useHw && <>{" "}<HwEdit fy={fy} name={b.name} isNew={!b.hw} joinDate={b.joinDate} exportedAt={hwAt} edited={b.hw?.edited ?? ""}
+                    hoursPerDay={policy.outingHoursPerDay}
+                    init={b.hw ? { grant: b.hw.grant, used: b.hw.used, remain: b.hw.remain }
+                      : { grant: { 정기: b.total, 포상: 0, 기타: 0 }, used: b.typeDays, remain: b.remain }} /></>}
                 </td>
               </tr>
             ))}
@@ -426,7 +437,7 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
         </table></div>
         <p className="caption" style={{ marginTop: 8 }}>
           연차·월차는 1일, 반차 0.5일, 반반차 0.25일 차감{policy.outingDeduct ? `, 외출은 30분 단위(점심 12~13시 제외)로 ${policy.outingHoursPerDay}시간 = 1일로 차감` : " (외출·공가·경조휴가·병가는 차감 안 함)"}.
-          외출+반차를 한 번에 낸 경우(예: 13:00~17:30)는 반차 + 나머지 시간 외출로, 외출만 4시간 이상이면 반차 + 나머지 외출로 셉니다. 유형 칸은 일수(외출은 시간)입니다.
+          외출+반차를 한 번에 낸 경우(예: 13:00~17:30)는 반차 + 나머지 시간 외출로, 외출만 4시간 이상이면 반차 + 나머지 외출로 셉니다. 유형 칸은 모두 일수입니다 (외출은 마우스를 올리면 시간). 잔여는 기준일까지 쓴 휴가만 뺍니다.
           월차 칸의 괄호는 이 회계연도 안에 앞으로 더 생길 월차입니다. 숫자에 마우스를 올리면 계산 근거가 보입니다.
           입사 1년이 되기 전에 쓴 휴가는 연차로 신청했어도 월차로 셉니다. 잔여: <span className="remain low" style={{ padding: "0 6px" }}>2일 이하</span> <span className="remain neg" style={{ padding: "0 6px" }}>초과 사용</span>
         </p>

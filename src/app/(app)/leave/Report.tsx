@@ -154,7 +154,7 @@ export function SummaryReport({ bal, atts, fyText, range, asOf, today, deptOrder
         sub={<>{fyText} ({range[0]} ~ {range[1]}) · 기준일 {asOf} · 작성일 {today}</>} />
       <div className="doc-kpis">
         {([["대상 인원", `${bal.length}명`], ["총 부여", `${n2(total)}일`], ["사용", `${n2(used)}일`], ["예정", `${n2(planned)}일`],
-          ["잔여", `${n2(total - used - planned)}일`], ["평균 사용률", `${pct(used, total)}%`]] as const)
+          ["잔여", `${n2(sum((b) => b.remain))}일`], ["평균 사용률", `${pct(used, total)}%`]] as const)
           .map(([l, v]) => <div key={l}><span>{l}</span><b>{v}</b></div>)}
       </div>
 

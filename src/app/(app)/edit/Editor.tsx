@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { revertEdits, saveEdits } from "./actions";
 import { Kinds, rowTone } from "./kinds";
 
@@ -76,10 +76,21 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
     const next = has ? names.filter((n) => n !== name) : [...names, name];
     set(i, "note", [...staff.filter((s) => next.includes(s)), ...rest].join(" "));
   };
+  // 저장·되돌리기 버튼은 서버 값으로 다시 채운다. 자동 저장은 화면을 그대로 둔다 (입력 중 커서가 튕기지 않게)
+  const reload = useRef(false);
+  useEffect(() => {
+    if (!reload.current) return;
+    reload.current = false;
+    setDraft(rows);
+    setBase(rows);
+    setRevert([]);
+  }, [rows]);
   const run = (fn: () => Promise<{ ok?: string; error?: string }>) => start(async () => {
+    reload.current = true;
     const r = await fn();
     setMsg(r);
     if (r.ok) router.refresh();
+    else reload.current = false;
   });
 
   // 자동 저장: 입력을 멈추고 1.5초 뒤 바뀐 날만 저장 (화면은 그대로)

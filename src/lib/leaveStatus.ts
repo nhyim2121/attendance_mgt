@@ -30,6 +30,7 @@ export interface HwStatus {
   remain: number;
   months: Record<string, Record<string, number>>; // 'YYYY-MM' -> 유형별 사용 일수
   exportedAt: string; // 'YYYY-MM-DD HH:MM' (파일 이름의 내려받은 시각, 없으면 올린 시각)
+  edited?: string; // 연차 현황에서 직접 고친 사람·시각 (고친 적 없으면 빈 값)
 }
 
 const text = (v: unknown) => (v === null || v === undefined ? "" : String(v).replace(/\s+/g, "").trim());

@@ -307,7 +307,7 @@ export function leaveBalances(emps: Employee[], leaves: Leave[], adjust: Adjust[
       const d = it.type === "외출" ? it.hours / p.outingHoursPerDay : LEAVE_DAY_VALUE[it.type] ?? 1;
       typeDays[it.type] = Math.round(((typeDays[it.type] ?? 0) + d) * 10000) / 10000;
     }
-    const sum = (xs: UseItem[]) => Math.round(xs.reduce((t, it) => t + it.days, 0) * 100) / 100;
+    const sum = (xs: UseItem[]) => Math.round(xs.reduce((t, it) => t + it.days, 0) * 10000) / 10000;
     const used = sum(items.filter((it) => !it.planned)), planned = sum(items.filter((it) => it.planned));
     // 월차 소멸: 입사 1년이 되는 날 남은 월차는 사라진다. 그날이 이 회계연도에 있으면
     // (이 해에 생긴 월차 + 전년도 이월·초과 조정) - (그날 전에 쓴 휴가) 를 뺀다. 그 전에 쓴 휴가는 모두 월차로 센다.
@@ -316,15 +316,15 @@ export function leaveBalances(emps: Employee[], leaves: Leave[], adjust: Adjust[
     if (expireDay) {
       const carry = adjust.filter((j) => j.name === x.name && j.fy === fy && CARRY_RE.test(j.reason)).reduce((t, j) => t + j.days, 0);
       const pool = mg.filter(([d]) => d < expireDay).reduce((t, [, n]) => t + n, 0) + carry;
-      const left = Math.max(0, Math.round((pool - sum(items.filter((it) => it.day < expireDay))) * 100) / 100);
+      const left = Math.max(0, Math.round((pool - sum(items.filter((it) => it.day < expireDay))) * 10000) / 10000);
       if (expireDay <= asOf) expired = left; else expireLater = left;
     }
-    const adjAll = Math.round((adj - expired) * 100) / 100;
+    const adjAll = Math.round((adj - expired) * 10000) / 10000;
     const total = a.days + monthly + adjAll;
     return {
       name: x.name, dept: x.dept, rank: x.rank, joinDate: x.joinDate, years: a.years, annual: a.days,
       annualNote: a.note, monthly, monthlyLater, monthlyItems: mg, adjust: adjAll, expired, expireDay, expireLater, total, used, planned,
-      remain: Math.round((total - used - planned) * 100) / 100, counts, typeDays,
+      remain: Math.round((total - used - planned) * 10000) / 10000, counts, typeDays,
       outingHours: items.filter((it) => it.type === "외출").reduce((t, it) => t + it.hours, 0),
       items: items.sort((m, n) => (m.day < n.day ? -1 : m.day > n.day ? 1 : 0)),
     };

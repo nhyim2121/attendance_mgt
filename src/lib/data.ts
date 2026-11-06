@@ -7,6 +7,7 @@ import { DEFAULT_RULE, HOLIDAYS_2026, type Holidays, type WorkRule } from "./con
 import { mergeLeaves, rankMap } from "./daily";
 import { activeNames, applyEmployees, applyRoster, type Employee, employment, isEmployed, seedFrom } from "./employees";
 import { dedupeLeaves, type Leave, type RosterRow, sortLeaves } from "./hiworks";
+import { leaveKey } from "./leave";
 import type { CapsRecord } from "./loader";
 import * as store from "./store";
 import { addDays, type DateStr, daysInMonth } from "./time";
@@ -55,9 +56,9 @@ export interface Base {
 }
 
 export const loadBase = cache(async (): Promise<Base> => {
-  const [fileRoster, fileLeaves, reportRows, reportDays, overrides, months, vacations, rule, holidays, approvals] = await Promise.all([
+  const [fileRoster, fileLeaves, reportRows, reportDays, overrides, months, vacations, rule, holidays, approvals, hidden] = await Promise.all([
     store.loadRoster(), store.loadLeaves(), store.loadReportRows(), store.reportDays(), store.loadOverrides(),
-    store.recordMonths(), store.loadVacations(), getRule(), getHolidays(), store.loadApprovals(),
+    store.recordMonths(), store.loadVacations(), getRule(), getHolidays(), store.loadApprovals(), store.loadHiddenLeaves(),
   ]);
   let employees = await store.loadEmployees();
   if (!employees.length && fileRoster.length) {
@@ -70,7 +71,10 @@ export const loadBase = cache(async (): Promise<Base> => {
   // 하이웍스 결재(결재완료만)는 먼저 두어, 같은 날·사람·종류가 근태현황 파일·보고서에도 있으면 그쪽 내용을 쓴다.
   // 결재완료된 '휴가 취소'는 어느 자료에서 왔든 같은 날·사람·종류의 휴가를 뺀다.
   const appr = approvalsToLeaves(approvals, (d) => !isHoliday(d, rule, holidays));
-  const leaves = sortLeaves(dedupeLeaves([...appr.leaves, ...mergeLeaves(fileLeaves, reportRows, reportDays), ...registered], "last"))
+  // 연차 현황 '내역'에서 지운 기록은 뺀다 (휴가 등록으로 넣은 것은 등록 자체를 고치므로 해당 없음)
+  const hide = new Set(hidden.map(leaveKey));
+  const outside = [...appr.leaves, ...mergeLeaves(fileLeaves, reportRows, reportDays)].filter((l) => !hide.has(leaveKey(l)));
+  const leaves = sortLeaves(dedupeLeaves([...outside, ...registered], "last"))
     .filter((l) => !appr.cancels.has(`${l.day}|${l.name}|${l.type}`));
   return { fileRoster, employees, roster, leaves, vacations, overrides, months };
 });

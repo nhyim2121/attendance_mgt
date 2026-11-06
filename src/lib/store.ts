@@ -16,13 +16,14 @@ import "server-only";
 import type { Override } from "./analytics";
 import type { Employee } from "./employees";
 import type { Leave, RosterRow } from "./hiworks";
+import type { HiddenLeave } from "./leave";
 import { type CapsRecord, finalizeRecords, type LoadInfo, type RawRecord } from "./loader";
 import type { ReportRow } from "./daily";
 import type { Approval } from "./approvals";
 import type { HwStatus } from "./leaveStatus";
 import type { Adjust, Vacation } from "./vacation";
 import { createClient } from "./supabase/server";
-import { addDays, type DateStr, parseTs, tsString } from "./time";
+import { addDays, type DateStr, parseTs, shortKst, tsString } from "./time";
 
 const PAGE = 10_000;
 type Db = Awaited<ReturnType<typeof createClient>>;
@@ -235,6 +236,10 @@ export async function setSetting(key: string, value: unknown): Promise<void> {
   check(await sb.from("settings").upsert({ key, value }), "설정 저장");
 }
 
+/** 연차 현황 '내역'에서 지운 휴가 기록 */
+export const loadHiddenLeaves = (): Promise<HiddenLeave[]> => getSetting<HiddenLeave[]>("leave_hidden", []);
+export const saveHiddenLeaves = (list: HiddenLeave[]): Promise<void> => setSetting("leave_hidden", list);
+
 // ---------------------------------------------------------------- 일일 근태현황 보고서
 const REPORT_SELECT = "day, section, ord, dept, rank, name, types, title, detail, value, note";
 const SECTION_ORDER = ["근태", "도제", "휴가일정", "휴일근무"];
@@ -365,7 +370,10 @@ export async function deleteVacation(id: number): Promise<void> {
 type LeaveStatusRow = {
   fy: number; name: string; login_id: string; emp_no: string; join_date: string | null; state: string; granted: number | string;
   grant_detail: HwStatus["grant"]; used: Record<string, number>; remain: number | string; months: HwStatus["months"]; exported_at: string;
+  file: string; uploaded_by: string; uploaded_at: string;
 };
+/** 연차 현황에서 직접 고친 줄 표시 (file 칸) */
+export const HW_MANUAL = "직접 수정";
 export async function loadLeaveStatus(fy: number): Promise<HwStatus[]> {
   const sb = await createClient();
   const rows = (check(await sb.from("leave_status").select("*").eq("fy", fy), "하이웍스 휴가현황 읽기") ?? []) as LeaveStatusRow[];
@@ -373,7 +381,23 @@ export async function loadLeaveStatus(fy: number): Promise<HwStatus[]> {
     fy: r.fy, name: r.name, loginId: r.login_id, empNo: r.emp_no, joinDate: r.join_date, state: r.state, granted: Number(r.granted),
     grant: { 정기: Number(r.grant_detail?.정기 ?? 0), 포상: Number(r.grant_detail?.포상 ?? 0), 기타: Number(r.grant_detail?.기타 ?? 0) },
     used: r.used ?? {}, remain: Number(r.remain), months: r.months ?? {}, exportedAt: r.exported_at,
+    edited: r.file === HW_MANUAL ? `${r.uploaded_by} ${shortKst(r.uploaded_at)}` : "",
   }));
+}
+
+/** 한 사람의 하이웍스 숫자를 직접 고치거나 넣는다 (월별 시트·아이디 등은 그대로 둔다) */
+export async function saveLeaveStatusRow(fy: number, name: string,
+  v: Pick<HwStatus, "granted" | "grant" | "used" | "remain" | "exportedAt" | "joinDate">, user: string): Promise<void> {
+  const sb = await createClient();
+  const set = { granted: v.granted, grant_detail: v.grant, used: v.used, remain: v.remain, file: HW_MANUAL, uploaded_by: user, uploaded_at: new Date().toISOString() };
+  const had = check(await sb.from("leave_status").select("name").eq("fy", fy).eq("name", name).maybeSingle(), "하이웍스 휴가현황 읽기");
+  if (had) check(await sb.from("leave_status").update(set).eq("fy", fy).eq("name", name), "하이웍스 휴가현황 수정");
+  else check(await sb.from("leave_status").insert({ fy, name, join_date: v.joinDate, exported_at: v.exportedAt, ...set }), "하이웍스 휴가현황 추가");
+}
+
+export async function deleteLeaveStatusRow(fy: number, name: string): Promise<void> {
+  const sb = await createClient();
+  check(await sb.from("leave_status").delete().eq("fy", fy).eq("name", name), "하이웍스 휴가현황 지우기");
 }
 
 /** 한 연도의 하이웍스 휴가현황을 통째로 바꾼다 */

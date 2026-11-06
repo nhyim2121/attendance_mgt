@@ -42,7 +42,7 @@ export default async function ReportView({ sp }: { sp: SearchParams }) {
         {written.length > 0 && <span className="caption" style={{ margin: 0, paddingBottom: 8 }}>최근 작성: {written.slice(0, 7).map((d) => dayLabel(d)).join(", ")}</span>}
       </div>
 
-      <ReportEditor key={`${day}|${info?.updated_at ?? ""}`} day={day} saved={saved.map(({ day: _d, ...r }) => r)}
+      <ReportEditor key={day} day={day} saved={saved.map(({ day: _d, ...r }) => r)}
         isSaved={!!info} canDelete={user?.role === "관리자" || info?.author === user?.loginId}
         hasPrev={written.some((d) => d < day)} names={names}
         deptOf={Object.fromEntries(base.roster.map((r) => [r.name, r.dept]))} ranks={rankMap(fileLeaves, allRows)}

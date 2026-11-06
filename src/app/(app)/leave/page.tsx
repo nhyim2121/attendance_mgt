@@ -8,9 +8,9 @@ import { getLeavePolicy, loadBase, type SearchParams } from "@/lib/data";
 import { attachmentsFor, groupTrips } from "@/lib/evidence";
 import * as store from "@/lib/store";
 import { addDays, dayLabel, todayKst, weekday, weekdayKr } from "@/lib/time";
-import { fyLabel, fyOf, fyRange, leaveBalances, VACATION_TYPES } from "@/lib/vacation";
+import { fyLabel, fyOf, fyRange, VACATION_TYPES } from "@/lib/vacation";
 import { LEAVE_COLORS } from "@/lib/leaveColors";
-import { applyHwStatus } from "@/lib/leaveStatus";
+import { leaveBook } from "@/lib/leaveBook";
 import { TABS } from "./LeaveView";
 
 export const metadata = { title: "휴가 홈 · 근태관리통합시스템" };
@@ -32,13 +32,12 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
   const [fs, fe] = fyRange(fy, policy);
   const excl = new Set(policy.exclude ?? []);
   const empOf = new Map(base.employees.map((e) => [e.name, e]));
-  const siteBal = leaveBalances(base.employees, base.leaves, adjusts, fy, today, policy).filter((b) => {
+  // 연차 현황(현황표)과 같은 계산: 휴가 기록 + 하이웍스 숫자(파일·직접 수정)
+  const hwRows = await store.loadLeaveStatus(fy);
+  const { bal } = leaveBook(base.employees, base.leaves, adjusts, fy, policy, hwRows)(today, (b) => {
     const e = empOf.get(b.name);
     return !excl.has(b.name) && (!e?.leaveDate || e.leaveDate >= today) && (!e?.joinDate || e.joinDate <= today);
   });
-  // 하이웍스 휴가현황(종류별)을 올렸으면 부여·사용·잔여는 그 숫자
-  const hwRows = await store.loadLeaveStatus(fy);
-  const bal = hwRows.length && today >= hwRows[0].exportedAt.slice(0, 10) ? applyHwStatus(siteBal, hwRows, policy) : siteBal;
   const deptOf = new Map(base.employees.map((e) => [e.name, e.dept]));
   const vac = base.leaves.filter((l) => VAC.has(l.type));
 
@@ -81,6 +80,8 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
 
   return (
     <div className="home">
+      {/* 인쇄: 두 장 (위: 요약·이번 주·유형별 / 아래: 월별·부서별·신청서·잔여) — PrintFit이 장마다 맞춘다 */}
+      <div className="print-chunk">
       <div className="topbar home-top">
         <div>
           <h1>휴가 대시보드</h1>
@@ -137,6 +138,8 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
         </section>
       </div>
 
+      </div>
+      <div className="print-chunk">
       <div className="grid2 home-row">
         <section className="card">
           <div className="card-title"><Ico name="chart" />월별 휴가 사용 <span className="muted" style={{ fontWeight: 400 }}>(차감 일수)</span></div>
@@ -180,6 +183,7 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
             ))}</div>
           ) : <p className="muted">잔여 5일 이상인 직원이 없습니다.</p>}
         </section>
+      </div>
       </div>
     </div>
   );

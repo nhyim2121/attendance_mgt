@@ -753,5 +753,12 @@ details.fold { border: 1px solid #e1e6f0; border-radius: 10px; }
 html[data-print="port"] .edit-print .ep-tbl { table-layout: auto; }
 html[data-print="port"] .edit-print .ep-tbl td:nth-child(-n+7) { padding-left: 3px; padding-right: 3px; }
 /* 근태 기입 여러 명 인쇄: 한 사람에 한 장 */
-@media print { .edit-print + .edit-print { break-before: page; } }
-.measuring .edit-print + .edit-print { break-before: page; }
+@media print { .edit-print + .edit-print, .print-chunk + .print-chunk { break-before: page; } }
+.measuring .edit-print + .edit-print, .measuring .print-chunk + .print-chunk { break-before: page; }
+
+/* − 숫자 + 칸 (연차 현황 휴가 추가·생성) */
+.stepper { display: inline-flex; align-items: stretch; border: 1px solid var(--line-2); border-radius: 6px; overflow: hidden; background: #fff; }
+.stepper button { border: 0; background: #f3f5f9; width: 30px; font-size: 16px; cursor: pointer; color: #475569; }
+.stepper button:disabled { color: #c3cad6; cursor: default; }
+.stepper input { border: 0; border-left: 1px solid var(--line-2); border-right: 1px solid var(--line-2); border-radius: 0; text-align: center; padding: 5px 4px; }
+.grant-tbl td { vertical-align: middle; }

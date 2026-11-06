@@ -12,7 +12,8 @@ import { getHolidays, getLeavePolicy, getRule, loadBase, rosterDays, staffOn } f
 import { buildOrg, defaultNodes, type OrgBox, type OrgNode } from "@/lib/org";
 import * as store from "@/lib/store";
 import { addDays, dayLabel, hhmm, nowKst, parseTs, todayKst, tsHM, weekday } from "@/lib/time";
-import { fyOf, leaveBalances } from "@/lib/vacation";
+import { fyOf } from "@/lib/vacation";
+import { leaveBook } from "@/lib/leaveBook";
 
 const WEEK_LIMIT = 52;
 const WEEK_WARN = 48;
@@ -123,7 +124,10 @@ export default async function Home() {
   // ---------------------------------------------------------------- 연차 (회계연도)
   const fy = fyOf(today, policy);
   const active = base.employees.filter((e) => (!e.leaveDate || e.leaveDate >= today) && (!e.joinDate || e.joinDate <= today));
-  const bal = leaveBalances(active, base.leaves, adjusts, fy, today, policy).filter((b) => b.total > 0);
+  // 연차 현황(현황표)과 같은 계산 (하이웍스 숫자·직접 수정 포함, '연차 기준'에서 뺀 사람 제외)
+  const excl = new Set(policy.exclude ?? []);
+  const bal = leaveBook(active, base.leaves, adjusts, fy, policy, await store.loadLeaveStatus(fy))(today, (b) => !excl.has(b.name))
+    .bal.filter((b) => b.total > 0);
   const usedRate = bal.length ? Math.round((bal.reduce((t, b) => t + b.used, 0) / bal.reduce((t, b) => t + b.total, 0)) * 100) : 0;
   const most = [...bal].sort((a, b) => b.remain - a.remain).slice(0, 5);
 

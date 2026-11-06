@@ -131,10 +131,23 @@ export default function ReportEditor(p: Props) {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [final, dirty]);
-  const run = (fn: () => Promise<Res>, refresh = true) => start(async () => {
+  // 삭제처럼 서버 내용이 바뀌는 버튼 뒤에만 저장된 값으로 다시 채운다. 자동 저장은 화면을 그대로 둔다 (입력 중 커서가 튕기지 않게)
+  const reload = useRef(false);
+  useEffect(() => {
+    if (!reload.current) return;
+    reload.current = false;
+    setRows(tidySchedule(p.saved.filter((r) => r.section !== "근태"), p.day));
+    setGroups(toGroups(p.saved));
+    setBaseline(null);
+    setSavedOnce(p.isSaved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.saved]);
+  const run = (fn: () => Promise<Res>, refresh = true, resync = false) => start(async () => {
+    reload.current = resync;
     const r = await fn();
     setMsg(r);
     if (r?.ok && refresh) router.refresh();
+    else reload.current = false;
   });
 
   async function image(kind: "png" | "copy") {
@@ -346,7 +359,7 @@ export default function ReportEditor(p: Props) {
           {p.isSaved && (
             <div className="pop-body">
               <p>{dayLabel(p.day)} 보고서를 지웁니다. 근태 판정은 근태현황 파일 기준으로 돌아갑니다.</p>
-              <button className="btn danger" disabled={pending || !p.canDelete} onClick={() => run(() => deleteReportAction(p.day))}>
+              <button className="btn danger" disabled={pending || !p.canDelete} onClick={() => run(() => deleteReportAction(p.day), true, true)}>
                 삭제</button>
               {!p.canDelete && <p className="caption">작성자나 관리자만 지울 수 있습니다.</p>}
             </div>
