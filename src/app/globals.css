@@ -501,6 +501,16 @@ table.doc-tbl.full { width: 100%; }
 .doc-tbl td { border: 1px solid #dfe4ee; padding: 5px 7px; vertical-align: top; }
 .doc-tbl .num { text-align: right; }
 .doc-tbl.info th { width: 11%; }
+/* 요약 보고서: 1. 월별 사용률과 2. 부서별 요약을 나란히, 3. 직원별 현황은 크게 */
+.doc-two { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; align-items: start; }
+.doc-two .doc-tbl { font-size: .74rem; }
+.doc-two .doc-tbl th, .doc-two .doc-tbl td { padding: 3px 4px; }
+.doc-two .doc-h { margin-top: 12px; }
+html[data-print="port"] .doc-two { grid-template-columns: 1fr; }
+@media (max-width: 1000px) { .doc-two { grid-template-columns: 1fr; } }
+table.doc-tbl.doc-staff { font-size: .95rem; }
+.doc-staff th, .doc-staff td { padding: 5px 6px; }
+.doc-staff th { font-size: .88rem; }
 .doc-tbl tr.planned td { color: var(--muted); }
 .doc-meter { display: flex; align-items: center; gap: 6px; }
 .doc-meter .bar { min-width: 50px; }

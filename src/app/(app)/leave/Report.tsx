@@ -159,8 +159,10 @@ export function SummaryReport({ bal, atts, fyText, range, asOf, today, deptOrder
           .map(([l, v]) => <div key={l}><span>{l}</span><b>{v}</b></div>)}
       </div>
 
+      {/* 1·2는 나란히 (가로 인쇄 때 높이를 줄여 3. 직원별 현황을 크게) */}
+      <div className={trend.length ? "doc-two" : undefined}>
       {trend.length > 0 && (
-        <>
+        <div>
           <h3 className="doc-h">1. 월별 연차 사용률 <span className="muted">(매달 말일 기준 누적)</span></h3>
           <table className="doc-tbl full"><tbody>
             <tr><th>월</th>{trend.map((t) => <th key={t.label} className="num">{t.label}</th>)}</tr>
@@ -168,13 +170,14 @@ export function SummaryReport({ bal, atts, fyText, range, asOf, today, deptOrder
             <tr><th>사용일수</th>{trend.map((t) => <td key={t.label} className="num">{n2(t.used)}</td>)}</tr>
             <tr><th>사용률</th>{trend.map((t) => <td key={t.label} className="num"><b>{pct1(t.used, t.total)}%</b></td>)}</tr>
           </tbody></table>
-        </>
+        </div>
       )}
 
+      <div>
       <h3 className="doc-h">{trend.length ? 2 : 1}. 부서별 요약</h3>
       <table className="doc-tbl full"><thead><tr>
         <th>부서</th><th className="num">인원</th><th className="num">총 부여</th><th className="num">사용</th><th className="num">예정</th>
-        <th className="num">잔여</th><th style={{ width: "28%" }}>사용률</th>
+        <th className="num">잔여</th><th style={{ width: trend.length ? "24%" : "28%" }}>사용률</th>
       </tr></thead><tbody>
         {depts.map((d) => {
           const g = bal.filter((b) => b.dept === d), t = sum((b) => b.total, g), u = sum((b) => b.used, g);
@@ -186,12 +189,14 @@ export function SummaryReport({ bal, atts, fyText, range, asOf, today, deptOrder
           );
         })}
       </tbody></table>
+      </div>
+      </div>
 
       <h3 className="doc-h">{trend.length ? 3 : 2}. 직원별 현황</h3>
-      <table className="doc-tbl full"><thead><tr>
+      <table className="doc-tbl full doc-staff"><thead><tr>
         <th>부서</th><th>성명</th><th>직급</th><th>입사일</th><th className="num" title="전년 초과사용·이월, 포상 등 연차 조정">이월·조정</th>
         <th className="num">총 부여</th><th className="num">사용</th>
-        <th className="num">예정</th><th className="num">잔여</th><th style={{ width: "16%" }}>사용률</th>
+        <th className="num">예정</th><th className="num">잔여</th><th style={{ width: "12%" }}>사용률</th>
         {types.map((t) => <th key={t} className="num">{t}(일)</th>)}
       </tr></thead><tbody>
         {sorted.map((b) => {
