@@ -8,7 +8,7 @@
  */
 import type { Employee } from "./employees";
 import type { Leave } from "./hiworks";
-import { applyHwStatus, HW_DEDUCT, type HwBalance, type HwStatus } from "./leaveStatus";
+import { applyHwStatus, HW_DEDUCT, type HwBalance, hwRemain, type HwStatus } from "./leaveStatus";
 import type { DateStr } from "./time";
 import { type Adjust, type LeaveBalance, type LeavePolicy, leaveBalances } from "./vacation";
 
@@ -64,7 +64,7 @@ function rewind(b: HwBalance, s: HwStatus, site: LeaveBalance, atExport: LeaveBa
   return {
     ...b, typeDays, counts, used, planned: 0,
     annual: r4(s.grant.정기 - grantLater), annualNote: `하이웍스 정기 생성 ${s.grant.정기}일${grantLater ? ` − 기준일 뒤 생기는 월차 ${grantLater}일` : ""}`,
-    total: r4(s.granted - grantLater), remain: r4(s.remain + (usedAll - used) - grantLater),
+    total: r4(s.granted - grantLater), remain: r4(hwRemain(s) + (usedAll - used) - grantLater),
     outingHours: r4((typeDays.외출 ?? 0) * p.outingHoursPerDay),
   };
 }

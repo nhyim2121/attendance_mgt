@@ -18,6 +18,7 @@ import { Ico, Stat } from "@/components/HomeKit";
 import MonthCalendar from "@/components/MonthCalendar";
 import { leaveBg, leaveFg } from "@/lib/leaveColors";
 import { leaveBook } from "@/lib/leaveBook";
+import { hwRemain, hwRemainDiffers } from "@/lib/leaveStatus";
 import { ApprovalForm, LeaveStatusForm } from "../upload/forms";
 import { AdjustForm, DeleteButton, PolicyForm, VacationForm } from "./forms";
 import { GrantEdit, HwEdit, LeaveItems } from "./StatusTools";
@@ -396,8 +397,8 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
                 <td className="num"><b>{n4(b.total)}</b></td>
                 <td className="num">{n4(useHw && !b.hw ? b.used + b.planned : b.used)}</td>
                 <td className="num"><span className={`remain${b.remain < 0 ? " neg" : b.remain <= 2 ? " low" : ""}`}>{n4(b.remain)}</span>
-                  {b.hw && Math.abs(b.total - b.used - b.remain) > 0.001 && (
-                    <span className="red" title={`하이웍스 파일에서 생성 ${n4(b.total)} − 사용 ${n4(b.used)} = ${n4(b.total - b.used)}인데 잔여는 ${n4(b.remain)}으로 적혀 있습니다. 하이웍스에서 확인해 주세요.`}> *</span>)}
+                  {b.hw && !b.hw.edited && hwRemainDiffers(b.hw) && (
+                    <span className="red" title={`하이웍스 파일의 잔여 칸은 ${n4(b.hw.remain)}일입니다 (입사 1년 미만 연차 선사용을 잔여에서 빼지 않음). 여기서는 생성 − 사용 = ${n4(b.remain)}일로 적습니다.`}> *</span>)}
                   {b.hw?.edited && <span className="muted" title={`연차 현황에서 직접 고친 숫자 (${b.hw.edited})`}> ✎</span>}</td>
                 {useHw &&<td className="num">{b.site ? (Math.abs(b.site.remain - b.remain) > 0.001
                   ? <span className="red" style={{ fontWeight: 700 }} title={`사이트 계산: 부여 ${n4(b.site.total)} · 사용 ${n4(b.site.used)} · 예정 ${n4(b.site.planned)} · 잔여 ${n4(b.site.remain)} (하이웍스와 ${n4(b.site.remain - b.remain)}일 차이)`}>{n4(b.site.remain)}</span>
@@ -421,7 +422,7 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
                     hidden={hidden.filter((h) => h.name === b.name).map((h) => ({ key: leaveKey(h), day: h.day, type: h.type, content: h.content, src: h.src, by: h.by }))} />
                   {useHw && <>{" "}<HwEdit fy={fy} name={b.name} isNew={!b.hw} joinDate={b.joinDate} exportedAt={hwAt} edited={b.hw?.edited ?? ""}
                     hoursPerDay={policy.outingHoursPerDay}
-                    init={b.hw ? { grant: b.hw.grant, used: b.hw.used, remain: b.hw.remain }
+                    init={b.hw ? { grant: b.hw.grant, used: b.hw.used, remain: hwRemain(b.hw) }
                       : { grant: { 정기: b.total, 포상: 0, 기타: 0 }, used: b.typeDays, remain: b.remain }} /></>}
                 </td>
               </tr>

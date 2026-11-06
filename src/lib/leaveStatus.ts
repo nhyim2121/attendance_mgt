@@ -130,6 +130,13 @@ export function parseLeaveStatus(sheets: Sheets, filename: string, now: string):
 /** 하이웍스 기준 사용(잔여에서 빠지는) 일수 */
 export const hwDeducted = (s: Pick<HwStatus, "used">) => r4(HW_DEDUCT.reduce((t, k) => t + (s.used[k] ?? 0), 0));
 
+/** 잔여 = 생성 − 사용. 하이웍스 파일의 잔여 칸은 입사 1년 미만 직원이 쓴 '연차'(선사용)를 빼지 않아
+ * 초과 사용이 마이너스로 안 보이므로(예: 생성 6 · 사용 8 인데 잔여 1) 쓰지 않는다.
+ * 연차 현황 '숫자 수정'에서 잔여를 직접 넣은 줄만 그 값을 쓴다. */
+export const hwRemain = (s: Pick<HwStatus, "used" | "granted" | "remain" | "edited">) => (s.edited ? s.remain : r4(s.granted - hwDeducted(s)));
+/** 하이웍스 파일의 잔여 칸이 생성 − 사용과 다른지 */
+export const hwRemainDiffers = (s: Pick<HwStatus, "used" | "granted" | "remain">) => Math.abs(s.granted - hwDeducted(s) - s.remain) > 0.001;
+
 /** 사이트 계산 결과 (하이웍스 숫자로 바꾸기 전) */
 export interface SiteCalc { total: number; used: number; planned: number; remain: number }
 
@@ -154,7 +161,7 @@ export function applyHwStatus(bal: LeaveBalance[], rows: HwStatus[], p: LeavePol
       ...b, hw: s, site: { total: b.total, used: b.used, planned: b.planned, remain: b.remain },
       annual: s.grant.정기, annualNote: `하이웍스 정기 생성 ${s.grant.정기}일`, monthly: 0, monthlyLater: 0,
       adjust: r4(s.grant.포상 + s.grant.기타), expired: 0, expireLater: 0,
-      total: s.granted, used, planned: 0, remain: s.remain, typeDays, counts,
+      total: s.granted, used, planned: 0, remain: hwRemain(s), typeDays, counts,
       outingHours: r4((s.used.외출 ?? 0) * p.outingHoursPerDay),
     };
   });
