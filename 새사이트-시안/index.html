@@ -360,6 +360,30 @@ svg.ch { width: 100%; height: auto; display: block; }
 .sk-f .duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 16px; margin-top: 16px; }
 @media (max-width: 1100px) { .sk-f .row3, .sk-f .tri, .sk-f .duo { grid-template-columns: 1fr; } }
 
+
+/* 업무별 대시보드 (F) */
+.sk-f .hello.ar { background: radial-gradient(circle at 88% 15%, rgba(255,255,255,.22), transparent 38%),
+  linear-gradient(120deg, color-mix(in srgb, var(--c) 72%, #000) 0%, var(--c) 55%, color-mix(in srgb, var(--c) 65%, #fff) 100%); }
+.sk-f .hello.ar .ah { display: flex; align-items: center; gap: 12px; }
+.sk-f .hello.ar .ah .ico { width: 44px; height: 44px; border-radius: 14px; background: rgba(255,255,255,.18); color: #fff; }
+.sk-f .hello.ar .ah .ico .i { width: 24px; height: 24px; }
+.sk-f .hello.ar .crumb2 { font-size: .8rem; opacity: .75; }
+.sk-f .hello.ar .crumb2 a { color: #fff; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.sk-f .wide2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+@media (max-width: 1100px) { .sk-f .wide2 { grid-template-columns: 1fr; } }
+.sk-f .menu-all { margin-top: 16px; }
+.sk-f .menu-all .ahome { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.sk-f .menu-all .acard { padding: 12px 14px; box-shadow: none; }
+/* 바로가기 편집 */
+.links .lk { display: flex; align-items: center; gap: 6px; }
+.links .lk a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.links .lk .del { border: 0; background: none; color: #c3c9d4; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 4px; visibility: hidden; }
+.links .lk:hover .del { visibility: visible; }
+.links .lk .del:hover { color: var(--red); }
+.links .add { margin-top: 10px; width: 100%; border: 1px dashed #c8d0de; background: #fafbfd; color: var(--muted); border-radius: 10px; padding: 7px; cursor: pointer; font-weight: 600; }
+.links .add:hover { border-color: var(--blue); color: var(--blue); }
+.links .lhint { font-size: .74rem; color: var(--muted); margin-top: 6px; }
+
 @media (max-width: 900px) { .sk-b, .sk-c, .sk-d { grid-template-columns: 1fr; } .sk-b .side, .sk-c .rail, .sk-c .subp, .sk-d .nside { display: none; } .sk-a .nav { display: none; } }
 
 @media print {
@@ -624,12 +648,94 @@ function dashF() {
       <table class="nt"><tbody><tr onclick="go('mail')"><td>📨 ○○시청 공문 회신</td><td><span class="chip s1">진행 중</span></td><td class="dd r">D-3</td></tr>
         <tr onclick="go('certs')"><td>🏅 ISO 9001 사후심사 준비</td><td><span class="chip s0">시작 전</span></td><td class="dd o">D-19</td></tr><tr onclick="go('vehicles')"><td>🚗 12가 3456 보험 갱신</td><td><span class="chip s0">시작 전</span></td><td class="dd o">D-21</td></tr>
         <tr onclick="go('week52')"><td>⏱️ 주 52시간 근접 1명 확인</td><td><span class="chip s1">진행 중</span></td><td class="dd">이번 주</td></tr><tr onclick="go('training')"><td>🎓 법정의무교육 실시 기록</td><td><span class="chip s2">완료</span></td><td class="dd">11/7</td></tr></tbody></table></div>
-    <div class="card w links"><h4>🔗 바로가기 모음</h4><div class="lg">신고·발급</div><a onclick="toast('정부24가 새 창으로 열립니다 (시안)')">정부24</a><a onclick="toast('홈택스가 새 창으로 열립니다 (시안)')">홈택스</a><a onclick="toast('4대보험 포털이 열립니다 (시안)')">4대보험 정보연계센터</a>
-      <div class="lg">업무</div><a onclick="toast('하이웍스가 열립니다 (시안)')">하이웍스</a><a onclick="toast('우체국 등기 조회가 열립니다 (시안)')">우체국 등기 조회</a><a onclick="toast('안전보건공단이 열립니다 (시안)')">안전보건공단</a></div>
+    ${linksCard('all')}
   </div>
   <div class="tri"><div class="card"><h3>부서별 인원 <small><a onclick="go('org')" style="color:var(--blue)">조직도 ›</a></small></h3>${bars()}</div><div class="card"><h3>월별 1인 평균 주 근로시간 <small><a onclick="go('hours')" style="color:var(--blue)">리포트 ›</a></small></h3>${area()}</div></div>
   <div class="duo"><div class="card"><h3>이번 주 휴가 <small><a onclick="go('leavecal')" style="color:var(--blue)">캘린더 ›</a></small></h3>${weekLeaves()}</div>
     <div class="card"><h3>업무 영역</h3><div class="areas">${NAV.map((a) => `<a class="area" style="--c:${a.color}" onclick="go('home-${a.key}')"><span class="ico" style="--c:${a.color}">${ic(a.icon)}</span>${a.label}</a>`).join("")}</div></div></div>`;
+}
+
+
+/* ===================== 바로가기 (대시보드마다 따로, 이 브라우저에 저장) ===================== */
+const LINK_DEFAULT = {
+  all: [["신고·발급","정부24","https://www.gov.kr"],["신고·발급","홈택스","https://www.hometax.go.kr"],["신고·발급","4대보험 정보연계센터","https://www.4insure.or.kr"],["업무","하이웍스","https://office.hiworks.com"],["업무","우체국 등기 조회","https://service.epost.go.kr"]],
+  hr: [["노무","고용노동부","https://www.moel.go.kr"],["노무","고용24","https://www.work24.go.kr"],["노무","4대보험 정보연계센터","https://www.4insure.or.kr"],["교육","HRD-Net","https://www.hrd.go.kr"],["업무","하이웍스","https://office.hiworks.com"]],
+  ga: [["발급","인터넷등기소","https://www.iros.go.kr"],["발급","홈택스","https://www.hometax.go.kr"],["발급","정부24","https://www.gov.kr"],["입찰·지원","나라장터","https://www.g2b.go.kr"],["입찰·지원","기업마당","https://www.bizinfo.go.kr"],["우편","우체국 등기 조회","https://service.epost.go.kr"]],
+  ehs: [["안전","안전보건공단","https://www.kosha.or.kr"],["환경","올바로시스템","https://www.allbaro.or.kr"],["보건","국민건강보험공단","https://www.nhis.or.kr"]],
+  cert: [["확인·인증","벤처확인시스템","https://www.smes.go.kr/venturein"],["확인·인증","이노비즈","https://www.innobiz.net"],["연구소","한국산업기술진흥협회","https://www.koita.or.kr"]],
+  misc: [["업무","하이웍스","https://office.hiworks.com"]],
+};
+function getLinks(sc) { try { const v = localStorage.getItem("links-" + sc); if (v) return JSON.parse(v); } catch (e) {} return LINK_DEFAULT[sc] || []; }
+function setLinks(sc, v) { try { localStorage.setItem("links-" + sc, JSON.stringify(v)); } catch (e) {} }
+function linksCard(sc, title = "🔗 바로가기 모음") {
+  const L = getLinks(sc), groups = [...new Set(L.map((x) => x[0]))];
+  return `<div class="card w links"><h4>${title}</h4>${groups.map((g) => `<div class="lg">${g}</div>${L.map((x, i) => x[0] !== g ? "" : `<div class="lk"><a href="${x[2]}" target="_blank" rel="noopener">${x[1]}</a><button class="del" title="지우기" onclick="delLink('${sc}', ${i})">×</button></div>`).join("")}`).join("")}
+    ${L.length ? "" : `<p class="empty-note">아직 바로가기가 없습니다.</p>`}<button class="add" onclick="addLink('${sc}')">＋ 바로가기 추가</button></div>`;
+}
+function delLink(sc, i) { const L = getLinks(sc); const [x] = L.splice(i, 1); setLinks(sc, L); render(); toast(`'${x[1]}' 바로가기를 지웠습니다`); }
+function addLink(sc) {
+  const groups = [...new Set(getLinks(sc).map((x) => x[0]))];
+  layer(`<div class="modal"><h2>🔗 바로가기 추가 <button class="x" onclick="closeLayer()">×</button></h2>
+    <div class="fgrid"><label>이름<input id="lk-n" placeholder="예: 나라장터"></label><label>분류<input id="lk-g" list="lk-gl" placeholder="예: 입찰" value="${groups[0] || "업무"}"><datalist id="lk-gl">${groups.map((g) => `<option value="${g}">`).join("")}</datalist></label>
+    <label class="wide">주소<input id="lk-u" placeholder="https://"></label></div>
+    <p class="empty-note">이 대시보드에만 추가됩니다. 같은 사이트를 다른 업무 대시보드에도 두려면 거기서도 추가하세요.</p>
+    <div class="btns" style="justify-content:flex-end"><button class="btn" onclick="closeLayer()">취소</button><button class="btn pri" onclick="saveLink('${sc}')">추가</button></div></div>`, true);
+  setTimeout(() => document.getElementById("lk-n")?.focus(), 50);
+}
+function saveLink(sc) {
+  const n = document.getElementById("lk-n").value.trim(), g = document.getElementById("lk-g").value.trim() || "업무";
+  let u = document.getElementById("lk-u").value.trim();
+  if (!n || !u) { toast("이름과 주소를 적어 주세요"); return; }
+  if (!/^https?:\/\//.test(u)) u = "https://" + u;
+  const L = getLinks(sc); L.push([g, n, u]); setLinks(sc, L); closeLayer(); render(); toast(`'${n}' 바로가기를 추가했습니다`);
+}
+
+/* ===================== 업무별 대시보드 ===================== */
+const todoRows = (xs) => `<table class="nt"><tbody>${xs.map(([to, em, t, st, dd, c]) => `<tr onclick="go('${to}')"><td>${em} ${t}</td><td><span class="chip ${st === "진행 중" ? "s1" : st === "완료" ? "s2" : "s0"}">${st}</span></td><td class="dd ${c || ""}">${dd}</td></tr>`).join("")}</tbody></table>`;
+function miniLedger(id, title, n = 4, cols) {
+  const s = tableOf(id), ci = cols || s.cols.map((_, i) => i);
+  return `<div class="card"><h3>${title} <small><a onclick="go('${id}')" style="color:var(--blue)">전체 ›</a></small></h3><table class="nt"><tbody>
+    ${s.rows.slice(0, n).map((r, i) => `<tr onclick="detail('${id}', ${i})">${ci.map((k) => `<td>${r[k]}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+function leaveBars() {
+  const mon = [8,12,10,14,9,16,22,30,15,18], W = 480;
+  return `<svg class="ch" viewBox="0 0 ${W} 190">${mon.map((v, i) => { const x = 34 + i * 44, h = v * 4.2; return `<rect x="${x}" y="${160 - h}" width="28" height="${h}" rx="5" fill="${i === 9 ? "#e84340" : "#2a56b8"}"/><text x="${x + 14}" y="${154 - h}" font-size="10" text-anchor="middle" font-weight="700">${v}</text><text x="${x + 14}" y="178" font-size="10" text-anchor="middle" fill="#787774">${i + 1}월</text>`; }).join("")}</svg>`;
+}
+const AREA_DASH = {
+  hr: { kpis: [["오늘 출근","23","/ 26명","지각 1 · 미출근 2","clock","#0c3994",0,"daily"],["오늘 휴가","2","명","연차 1 · 반차 1","umbrella","#15803d",0,"leavecal"],["주 52시간 근접","1","명","48시간 이상","gauge","#b45309",1,"week52"],["올해 연차 사용률","65","%","잔여 50일","pie","#0e7490",0,"leavestat"]],
+    quick: [["leavestat","휴가 등록"],["person","근태 기입"],["emp","직원 추가"],["training","교육 기록"],["licenses","자격증·선임 추가"]],
+    todo: [["week52","⏱️","주 52시간 근접 1명 확인","진행 중","이번 주"],["licenses","📜","안전관리자 보수교육 (박지훈)","시작 전","D-22","o"],["training","🎓","산업안전보건교육 다음 차수","시작 전","D-67"],["emp","🪪","신입 입사일·연락처 입력","시작 전","-"],["leavestat","🏖️","연차 초과 사용 1명 확인","완료","11/5"]],
+    widgets: () => `<div class="card"><h3>월별 1인 평균 주 근로시간 <small><a onclick="go('hours')" style="color:var(--blue)">리포트 ›</a></small></h3>${area()}</div><div class="card"><h3>월별 연차 사용일 <small><a onclick="go('leave')" style="color:var(--blue)">휴가 홈 ›</a></small></h3>${leaveBars()}</div>` },
+  ga: { kpis: [["처리 중인 문서","1","건","회신 기한 11/12","mail","#0e7490",1,"mail"],["차량 만기 임박","2","대","보험 11/30 · 검사 12/5","car","#e84340",1,"vehicles"],["입찰 마감","1","건","D-5 · ○○공사","gavel","#b45309",1,"bids"],["비품","4","건","수리 중 1","box","#0c3994",0,"fixtures"]],
+    quick: [["mail","받은 공문 등록"],["mail","보낸 공문 등록"],["fixtures","비품 추가"],["drivelog","차량 운행 기록"],["visitors","방문자 기록"]],
+    todo: [["mail","📨","○○시청 공문 회신","진행 중","D-3","r"],["bids","⚖️","배관 자재 연간 단가 입찰","시작 전","D-5","r"],["grants","🎯","스마트공장 중간보고","시작 전","D-11","o"],["vehicles","🚗","12가 3456 보험 갱신","시작 전","D-21","o"],["pcert","🔑","법인 공동인증서 갱신","시작 전","D-41"]],
+    widgets: () => miniLedger("mail", "최근 문서 수발", 4, [0, 1, 3, 4, 6]) + miniLedger("vehicles", "차량 만기", 3, [0, 1, 3, 4]) },
+  ehs: { kpis: [["건강검진 미수검","1","명","올해 대상 4명","heart","#e84340",1,"checkup"],["재검 대상","1","명","특수(분진)","heart","#b45309",1,"checkup"],["점검 보완","2","건","소방 11/16까지","clip","#b45309",1,"inspections"],["이번 달 폐수","1.2","㎥","위탁 1건 · 인계서 첨부","drop","#0e7490",0,"wastewater"]],
+    quick: [["inspections","점검 기록"],["wastewater","폐수 위탁 기록"],["checkup","검진 결과 입력"]],
+    todo: [["inspections","🔍","소방 점검 보완 2건","진행 중","D-7","o"],["checkup","🩺","이서연 일반검진 수검 안내","시작 전","D-52"],["wastewater","💧","10/9 위탁 인계서 첨부","시작 전","-"],["checkup","🩺","임채원 특수검진 재검","시작 전","-"]],
+    widgets: () => miniLedger("checkup", "건강검진 현황", 4) + miniLedger("inspections", "최근 점검", 3) },
+  cert: { kpis: [["유효한 인증","6","개","경영시스템 3 · 기업 3","medal","#15803d",0,"certs"],["90일 안 일정","2","건","사후심사 · 만료","calstar","#b45309",1,"certs"],["만료 임박","1","개","벤처기업 D-35","alert","#e84340",1,"certs"],["진행 중","0","건","신청·심사 중","list","#0c3994",0,"certs"]],
+    quick: [["certadd","인증 등록"],["certs","일정·이력 추가"],["certs","스캔본 올리기"]],
+    todo: [["certs","🏅","ISO 9001 사후심사 준비","시작 전","D-19","o"],["certs","🏅","벤처기업 재확인 신청","시작 전","D-35","o"],["certs","🏅","ISO 45001 내부심사","시작 전","-"]],
+    widgets: () => `<div class="card"><h3>인증 목록 <small><a onclick="go('certs')" style="color:var(--blue)">전체 ›</a></small></h3><table class="nt"><tbody>${[["ISO 9001","만료 2027-08-31",T("o","사후심사 11/28")],["ISO 14001","만료 2027-08-31",T("g","유효")],["ISO 45001","만료 2028-02-28",T("g","유효")],["벤처기업 확인","만료 2026-12-14",T("r","D-35")],["기업부설연구소","상시",T("g","유효")],["이노비즈","만료 2028-05-20",T("g","유효")]].map(([a, b, c]) => `<tr onclick="certDetail('${a}','인증','${b}')"><td><b>${a}</b></td><td>${b}</td><td>${c}</td></tr>`).join("")}</tbody></table></div>
+      <div class="card"><h3>올해 심사·갱신 일정</h3><ul class="hist"><li>ISO 9001 사후심사<small>2026-11-28 · ○○인증원</small></li><li>벤처기업 확인 만료<small>2026-12-14</small></li><li>ISO 14001 사후심사<small>2027-08 예정</small></li></ul></div>` },
+  misc: { kpis: [["진행 중","1","건","사무실 이전 견적","list","#6d28d9",0,"tasks"],["시작 전","2","건","","list","#0c3994",0,"tasks"],["이번 주 기한","0","건","","calcheck","#15803d",0,"tasks"],["완료(이번 달)","3","건","","calcheck","#15803d",0,"tasks"]],
+    quick: [["tasks","할 일 추가"]],
+    todo: [["tasks","📌","사무실 이전 견적 비교","진행 중","D-11","o"],["tasks","📌","연말 정산 안내문 준비","시작 전","D-22"],["tasks","📌","창고 정리","시작 전","D-21"]],
+    widgets: () => miniLedger("tasks", "진행 건·할 일", 5) + `<div class="card"><h3>메모</h3><p class="empty-note">자유롭게 적어 두는 칸 (예: 다음 주 거래처 방문 예정)</p></div>` },
+};
+function areaDash(key) {
+  const a = AREA[key], c = AREA_DASH[key];
+  return `<div class="hello ar" style="--c:${a.color}"><div class="crumb2"><a onclick="go('dash')">통합 대시보드</a> › ${a.label}</div>
+      <div class="ah" style="margin-top:6px"><span class="ico">${ic(a.icon)}</span><div><h1 style="margin:0">${a.label} 대시보드</h1><p style="margin:4px 0 0">${a.desc}</p></div></div></div>
+    <div class="grid kpis">${c.kpis.map((k) => kpi(...k)).join("")}</div>
+    <div class="row3">
+      <div class="card w"><h4>⚡ 빠른 추가</h4><div class="qb">${c.quick.map(([id, l]) => `<button onclick="editForm('${id}')">＋ ${l}</button>`).join("")}</div></div>
+      <div class="card w"><h4>✅ 이번 주 할 일 <small style="color:var(--muted);font-weight:500;font-size:.8rem">${a.label}</small></h4>${todoRows(c.todo)}</div>
+      ${linksCard(key)}
+    </div>
+    <div class="wide2">${c.widgets()}</div>
+    <div class="card menu-all"><h3>${a.label} 전체 메뉴</h3>${a.groups.map(([g, items]) => `${g ? `<div class="gtitle">${g}</div>` : ""}<div class="ahome">${items.map(([id, l, icn, , , d, n]) => `<div class="acard" style="--c:${a.color}" onclick="go('${id}')"><span class="ico" style="--c:${a.color}">${ic(icn)}</span><div><b>${l}</b><span class="d">${d}</span></div>${n ? `<span class="cnt">${n}</span>` : ""}</div>`).join("")}</div>`).join("")}</div>`;
 }
 
 function segOn2(el) { el.parentElement.querySelectorAll("span").forEach((s) => s.classList.toggle("on", s === el)); }
@@ -708,7 +814,7 @@ function printPage(id) {
 function page() {
   const p = st.p;
   if (p === "dash") return dash();
-  if (p.startsWith("home-")) return areaHome(p.slice(5));
+  if (p.startsWith("home-")) return st.d === "f" ? areaDash(p.slice(5)) : areaHome(p.slice(5));
   if (p.startsWith("print-")) return printPage(p.slice(6));
   const pg = PAGES[p];
   switch (pg.kind) {
@@ -734,7 +840,7 @@ function shell(inner) {
   if (st.d === "b" || st.d === "f") return `<aside class="side"><div class="logo" onclick="go('dash')"><img src="../public/logo.png" alt=""></div>
       <a onclick="go('dash')" class="${st.p === "dash" ? "on" : ""}"><span class="ico">${ic("home")}</span>통합 대시보드</a><div class="g">업무</div>
       ${NAV.map((x) => `<a onclick="go('home-${x.key}')" class="${st.p === "home-" + x.key ? "on" : x.key === ca ? "open" : ""}"><span class="ico">${ic(x.icon)}</span>${x.label}</a>
-        ${x.key === ca ? `<div class="sub">${x.groups.map(([g, it]) => `${g ? `<div class="sg">${g}</div>` : ""}${it.map(([id, l]) => `<a onclick="go('${id}')" class="${id === cid ? "on" : ""}">${l}</a>`).join("")}`).join("")}</div>` : ""}`).join("")}
+        ${x.key === ca ? `<div class="sub">${st.d === "f" ? `<a onclick="go('home-${x.key}')" class="${st.p === "home-" + x.key ? "on" : ""}">📊 ${x.label} 대시보드</a>` : ""}${x.groups.map(([g, it]) => `${g ? `<div class="sg">${g}</div>` : ""}${it.map(([id, l]) => `<a onclick="go('${id}')" class="${id === cid ? "on" : ""}">${l}</a>`).join("")}`).join("")}</div>` : ""}`).join("")}
       <div class="g">시스템</div><a onclick="go('users')" class="${cid === "users" ? "on" : ""}"><span class="ico">${ic("usercog")}</span>사용자 관리</a>
       <div class="me"><b>관리자</b> · 관리자</div></aside><main class="content">${inner}</main>`;
   if (st.d === "c") {
