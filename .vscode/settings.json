@@ -1,0 +1,23 @@
+{
+  // 탐색기 정리: 자동으로 생기거나 더 안 쓰는 폴더·파일은 숨김 (지우지 않음, 다시 보려면 해당 줄을 지우세요)
+  "files.exclude": {
+    ".next": true,
+    "node_modules": true,
+    ".venv": true,
+    ".pytest_cache": true,
+    "core": true,
+    "**/__pycache__": true,
+    "*.tsbuildinfo": true,
+    "next-env.d.ts": true
+  },
+  // 짝이 되는 설정 파일은 하나 아래로 접어서 보이게
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "package.json": "package-lock.json",
+    "tsconfig.json": "tsconfig.*, next-env.d.ts",
+    "next.config.ts": "vitest.config.ts",
+    "README.md": "AGENTS.md",
+    ".gitignore": ".env.example, .env.local, .env"
+  }
+}

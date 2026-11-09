@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { type Filtered, loadBase } from "@/lib/data";
+import { type Filtered, loadBase } from "@/lib/인사노무/data";
 import FilterBar from "./FilterBar";
 
 /** 화면 위 기간·부서·명단 필터 (서버에서 값 채움) */

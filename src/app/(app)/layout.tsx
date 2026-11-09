@@ -4,9 +4,9 @@ import PrintFit from "@/components/PrintFit";
 import { requireUser } from "@/lib/auth";
 import { logout } from "../login/actions";
 
-// 근태 공간 메뉴
+// 인사노무 > 근태 공간 메뉴
 const ITEMS = [
-  { href: "/", label: "홈" },
+  { href: "/attendance", label: "근태 홈" },
   { href: "/daily", label: "일일 현황", group: "근태" },
   { href: "/person", label: "직원별 근태", group: "근태", also: ["/sheets"] },
   { href: "/calendar", label: "근태 캘린더", group: "근태", also: ["/evidence"] },
@@ -29,13 +29,12 @@ const LEAVE_ITEMS = [
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  const items = [...ITEMS, { href: "/users", label: user.role === "관리자" ? "사용자 관리" : "비밀번호 변경", group: "관리" }];
   return (
     <div className="shell">
       <nav className="side">
-        <a href="/" className="logo" title="홈"><img src="/logo.png" alt="주식회사 에쓰엔" /></a>
-        <div className="brand">근태관리통합시스템</div>
-        <Suspense><Nav items={items} leaveItems={LEAVE_ITEMS} /></Suspense>
+        <a href="/" className="logo" title="통합 대시보드"><img src="/logo.png" alt="주식회사 에쓰엔" /></a>
+        <div className="brand">통합관리시스템</div>
+        <Suspense><Nav items={ITEMS} leaveItems={LEAVE_ITEMS} admin={user.role === "관리자"} /></Suspense>
         <div className="who">
           <span><b>{user.name}</b> · {user.role}</span>
           <form action={logout}><button>로그아웃</button></form>

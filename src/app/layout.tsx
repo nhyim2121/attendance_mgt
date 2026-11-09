@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "근태관리통합시스템",
-  description: "CAPS 출입기록 · 하이웍스 근태 통합 관리",
+  title: "통합관리시스템",
+  description: "에쓰엔 통합관리시스템: 총무 · 인사노무(근태·휴가) · 환경안전보건 · 인증 · 기타",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

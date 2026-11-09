@@ -13,15 +13,15 @@
  * - attachments : 근태 증빙 파일 (하이웍스 전자결재 출장 신청서 등)
  */
 import "server-only";
-import type { Override } from "./analytics";
-import type { Employee } from "./employees";
-import type { Leave, RosterRow } from "./hiworks";
-import type { HiddenLeave } from "./leave";
-import { type CapsRecord, finalizeRecords, type LoadInfo, type RawRecord } from "./loader";
-import type { ReportRow } from "./daily";
-import type { Approval } from "./approvals";
-import type { HwStatus } from "./leaveStatus";
-import type { Adjust, Vacation } from "./vacation";
+import type { Override } from "./인사노무/analytics";
+import type { Employee } from "./인사노무/employees";
+import type { Leave, RosterRow } from "./인사노무/hiworks";
+import type { HiddenLeave } from "./인사노무/leave";
+import { type CapsRecord, finalizeRecords, type LoadInfo, type RawRecord } from "./인사노무/loader";
+import type { ReportRow } from "./인사노무/daily";
+import type { Approval } from "./인사노무/approvals";
+import type { HwStatus } from "./인사노무/leaveStatus";
+import type { Adjust, Vacation } from "./인사노무/vacation";
 import { createClient } from "./supabase/server";
 import { addDays, type DateStr, parseTs, shortKst, tsString } from "./time";
 

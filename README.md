@@ -1,4 +1,7 @@
-# 근태관리통합시스템 (관리팀용)
+# 통합관리시스템 (관리팀용)
+
+총무 · 인사노무 · 환경안전보건 · 인증 · 기타 업무를 한 사이트에서 관리합니다. 지금은 인사노무(근태·휴가)가 만들어져 있습니다.
+아래는 인사노무(근태·휴가) 설명입니다.
 
 캡스 월별 출입기록(`N월 근태현황.xls`)과 하이웍스 신청서를 정리한 `근태현황(2026년~).xlsx`를 올리면 다음을 해 줍니다.
 
@@ -28,7 +31,8 @@
 
 | 메뉴 | 하는 일 |
 |---|---|
-| 홈 | 출근/지각/미출근/휴가 카드, 출퇴근 누락, 관리가 필요한 직원, 근로시간 리포트, 휴가 현황 |
+| 통합 대시보드 | 업무 영역(총무·인사노무·환경안전보건·인증·기타)으로 들어가는 첫 화면 (`/`) |
+| 근태 홈 | 출근/지각/미출근/휴가 카드, 출퇴근 누락, 관리가 필요한 직원, 근로시간 리포트, 휴가 현황 |
 | 일일 현황 | 그날 캡스 파일을 올리면 출근·퇴근·지각·미출근·휴가·출장 인원을 자동 집계, 상태별 이름, 직원별 출퇴근 |
 | 일일 근태현황 | 날짜별 근태현황 보고서 등록·수정·삭제 (근태현황·휴가일정·휴일근무·도제), 근태현황 파일/전일 보고서 불러오기, 이미지 저장·복사, 하이웍스 메일 발송 |
 | 출퇴근기록 | 직원 1명의 날짜별 출퇴근 그래프, 근태현황 시트, 하이웍스 기록, 캡스 원본 |
@@ -44,39 +48,62 @@
 
 ## 디렉토리 구조
 
+통합관리시스템의 업무 영역은 **총무 · 인사노무 · 환경안전보건 · 인증 · 기타** 다섯 개입니다 (주소는 /ga · 인사노무 기존 주소 · /ehs · /cert · /misc).
+영역마다 화면은 `src/app/(app)/` 아래, 계산·저장 코드는 `src/lib/<영역 이름>/`, 그 영역만 쓰는 화면 조각은 `src/components/<영역 이름>/`에 둡니다.
+여러 영역이 같이 쓰는 것(로그인, DB, 날짜, 엑셀, 메일)은 각 폴더 바로 아래에 둡니다.
+
+화면 폴더는 괄호가 붙은 영어 이름입니다: `(ga)` 총무 · `(hr)` 인사노무 · `(ehs)` 환경안전보건 · `(cert)` 인증 · `(misc)` 기타 · `(system)` 시스템.
+폴더마다 한글 이름표 파일(`총무.md` 등)이 들어 있습니다. 괄호 폴더는 정리용이라 주소에 들어가지 않습니다 (`(hr)/daily` → `/daily`, `(cert)/cert/iso` → `/cert/iso`).
+화면 폴더 이름은 한글로 하면 Next.js 빌드가 실패해서(2026-11-09 확인) 영어로 둡니다. 계산 코드·화면 조각 폴더(`인사노무`)와 `사이트관리`는 한글입니다. `src`·`public`·`supabase`·`scripts`·`tests`처럼 도구가 정해 둔 이름도 영어 그대로 둡니다.
+
 ```
 caps-attendance-app/
 ├── src/
 │   ├── proxy.ts              # 요청마다 로그인 세션 갱신, 로그인 안 했으면 /login으로
 │   ├── app/
 │   │   ├── login/            # 로그인 (이전 사이트 계정은 첫 로그인 때 자동으로 옮겨짐)
-│   │   ├── (app)/            # 로그인 후 화면: 홈, daily, report, person, edit, sheets, upload, employees, settings, users
-│   │   └── api/export/       # 직원별 시트 엑셀·ZIP 내려받기
-│   ├── components/           # 필터 막대, 카드·표, 차트
-│   └── lib/
-│       ├── loader.ts         # 캡스 파일 읽기, 원본 시트 자동 탐지, 정규화
-│       ├── hiworks.ts        # 근태현황 파일: 명단 + 날짜별 일일보고·휴일근무 표 파싱
-│       ├── analytics.ts      # 일별 근태 판정, 근무형태 표기, 대시보드·일일 현황 집계
-│       ├── splitter.ts       # 직원별 시트(수작업 양식) 엑셀/ZIP 생성
-│       ├── daily.ts          # 일일 근태현황 보고서 변환·HTML(미리보기·메일 공용)
-│       ├── employees.ts      # 직원 명부 적용 (캡스 이름 연결, 재직 기간)
-│       ├── store.ts          # 공용 저장소(Supabase) 읽기·쓰기
-│       ├── data.ts           # 화면 공용 데이터, 기간·부서 필터
-│       ├── auth.ts           # 로그인 사용자, 역할
-│       ├── mailer.ts         # 하이웍스 메일
-│       └── config.ts·time.ts # 열 별칭, 근무 기준, 2026 공휴일, 날짜·시각
+│   │   ├── (app)/            # 로그인 후 화면
+│   │   │   ├── layout.tsx    # 사이드바 (통합 대시보드 + 업무 영역)
+│   │   │   ├── page.tsx      # 통합 대시보드 (/)
+│   │   │   ├── (ga)/ga/      # 총무 (/ga, 준비 중)
+│   │   │   ├── (hr)/         # 인사노무: 근태·휴가 (주소는 그대로)
+│   │   │   │   ├── attendance/  # 근태 홈 (/attendance)
+│   │   │   │   ├── daily/ report/ person/ sheets/ edit/ calendar/ evidence/
+│   │   │   │   ├── hours/ depts/ week52/ monthly/        # 근로시간
+│   │   │   │   ├── leave/                                # 휴가 공간 (/leave/...)
+│   │   │   │   ├── employees/ org/                       # 직원·조직도
+│   │   │   │   └── upload/ settings/                     # 데이터 관리, 근무 기준·공휴일
+│   │   │   ├── (ehs)/ehs/    # 환경안전보건 (/ehs, 준비 중)
+│   │   │   ├── (cert)/cert/  # 인증 (/cert, 준비 중)
+│   │   │   ├── (misc)/misc/  # 기타 (/misc, 준비 중)
+│   │   │   └── (system)/users/ # 사용자 관리 (시스템 공통)
+│   │   └── api/              # 직원별 시트 엑셀·ZIP 내려받기, 첨부파일
+│   ├── components/           # 공통: 사이드바, 필터 막대, 카드·표, 인쇄
+│   │   └── 인사노무/         # 인사노무 전용: 차트, 홈 꾸밈, 달력, 하위 탭
+│   └── lib/                  # 공통: auth·store(Supabase)·time·excel·mailer·config, hub(업무 영역 안내)
+│       └── 인사노무/         # 인사노무(근태·휴가)
+│           ├── loader.ts         # 캡스 파일 읽기, 원본 시트 자동 탐지, 정규화
+│           ├── hiworks.ts        # 근태현황 파일: 명단 + 날짜별 일일보고·휴일근무 표 파싱
+│           ├── approvals.ts      # 하이웍스 근무계획 수립이력(휴가·연장·휴일근무 결재)
+│           ├── analytics.ts      # 일별 근태 판정, 근무형태 표기, 대시보드·일일 현황 집계
+│           ├── splitter.ts       # 직원별 시트(수작업 양식) 엑셀/ZIP 생성
+│           ├── daily.ts·reportSync.ts  # 일일 근태현황 보고서 변환·HTML, 근태 기입과 연동
+│           ├── employees.ts·org.ts     # 직원 명부, 조직도
+│           ├── leave*.ts·vacation.ts   # 휴가·연차 계산, 연차 현황
+│           └── data.ts·dashboard.ts    # 화면 공용 데이터·기간·부서 필터, 홈 지표
 ├── supabase/
 │   ├── config.toml           # 로컬 Supabase 설정 (회원가입·Studio 등 꺼 둠)
 │   └── migrations/           # DB 구조·권한·DB 함수
-├── scripts/
+├── 사이트관리/             # 사이트 켜기·끄기·상태 (bat 파일, 더블클릭)
+├── 자동실행/                 # 작업 스케줄러가 돌리는 프로그램 (예전 이름 scripts)
 │   ├── add-user.ts           # 서버 PC에서 계정 만들기 (첫 관리자 계정)
 │   ├── migrate-sqlite.ts     # 이전 사이트(SQLite) 데이터 옮기기 (한 번만)
 │   ├── backup-db.mjs         # DB 백업 (감시기가 켤 때마다 실행, 30개 보관)
 │   ├── run-server.mjs        # 감시기: Supabase 켜기 → 백업 → 사이트 실행, 멈추면 다시 켬
 │   └── server_control.ps1    # 작업 스케줄러 등록·켜기·끄기·상태
 ├── public/fonts/             # Paperlogy 폰트
-├── data/                     # 백업·로그·이전 SQLite (git 제외, 개인정보)
-└── tests/                    # Vitest
+├── 데이터/                     # 백업·로그·이전 SQLite (git 제외, 개인정보)
+└── 테스트/                   # 자동 검사 (Vitest)
 ```
 
 ## 서버 PC 설치 (처음 한 번)
@@ -102,36 +129,36 @@ npm run add-user                   # 첫 계정은 자동으로 '관리자'
 **관리자 권한 PowerShell**에서 한 번 실행합니다.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\server_control.ps1 lock-ports
+powershell -ExecutionPolicy Bypass -File 자동실행\server_control.ps1 lock-ports
 ```
 
 ## 사이트 켜기
 
-1. 처음 한 번 `powershell -ExecutionPolicy Bypass -File scripts\server_control.ps1 install`로 작업 스케줄러에 등록합니다.
-   이후 로그인하면 자동으로 실행되고, `site_restart.bat`으로 바로 켤 수 있습니다.
-2. 관리팀 다른 PC의 브라우저에서 `http://서버PC의IP:8501`로 접속합니다. 주소는 `site_status.bat`에서 확인합니다.
+1. 처음 한 번 `powershell -ExecutionPolicy Bypass -File 자동실행\server_control.ps1 install`로 작업 스케줄러에 등록합니다.
+   이후 로그인하면 자동으로 실행되고, `사이트관리/site_restart.bat`으로 바로 켤 수 있습니다.
+2. 관리팀 다른 PC의 브라우저에서 `http://서버PC의IP:8501`로 접속합니다. 주소는 `사이트관리/site_status.bat`에서 확인합니다.
    서버 PC와 같은 네트워크(같은 공유기·Wi-Fi 또는 사내망)에 있어야 합니다.
 3. 관리자는 **사용자 관리**에서 팀원 계정을 만들고 처음 비밀번호를 직접 전달합니다.
 
 **백그라운드 실행 (작업 스케줄러):**
-- Windows에 로그인하면 `CAPS 근태 사이트` 작업이 `scripts/run-server.mjs`(감시기)를 실행합니다.
+- Windows에 로그인하면 `CAPS 근태 사이트` 작업이 `자동실행/run-server.mjs`(감시기)를 실행합니다.
   감시기는 Supabase를 켜고(Docker Desktop이 뜰 때까지 최대 5분 기다림), DB를 백업한 뒤 사이트를 켭니다.
 - 사이트가 멈추면 5~60초 뒤 자동으로 다시 켭니다. 감시기 자체가 멈춰도 5분마다 점검해서 다시 켭니다.
 - 프로젝트 폴더의 파일을 더블클릭해서 관리합니다.
-  - `site_status.bat`: 사이트·DB가 켜져 있는지, 접속 주소, 최근 재시작 기록
-  - `site_restart.bat`: 다시 켜기
-  - `site_stop.bat`: 끄기 (자동 재시작도 멈춤, 다시 켜려면 `site_restart.bat`). DB는 켜진 채로 둡니다.
+  - `사이트관리/site_status.bat`: 사이트·DB가 켜져 있는지, 접속 주소, 최근 재시작 기록
+  - `사이트관리/site_restart.bat`: 다시 켜기
+  - `사이트관리/site_stop.bat`: 끄기 (자동 재시작도 멈춤, 다시 켜려면 `사이트관리/site_restart.bat`). DB는 켜진 채로 둡니다.
 - 기록은 두 곳에 남습니다.
-  - `data/logs/watchdog.log`: 켜고 멈춘 기록
-  - `data/logs/server-날짜.log`: 사이트 출력
-- **코드를 바꾼 뒤에는** `npm run build`를 하고 `site_restart.bat`을 실행해야 반영됩니다.
-- `start_server.bat`은 창을 띄워 직접 실행할 때만 씁니다. 먼저 `site_stop.bat`을 실행하세요.
+  - `데이터/logs/watchdog.log`: 켜고 멈춘 기록
+  - `데이터/logs/server-날짜.log`: 사이트 출력
+- **코드를 바꾼 뒤에는** `npm run build`를 하고 `사이트관리/site_restart.bat`을 실행해야 반영됩니다.
+- `사이트관리/start_server.bat`은 창을 띄워 직접 실행할 때만 씁니다. 먼저 `사이트관리/site_stop.bat`을 실행하세요.
 
 서버 PC가 꺼지거나 절전 모드가 되면 사이트도 멈춥니다. 늘 켜 두는 PC에서 실행하세요.
 
 ## 백업과 복원
 
-감시기가 사이트를 켤 때마다 `data/db/backup/caps-날짜-시각.sql.gz`(앱 데이터 + 로그인 계정)를 만들고 최근 30개를 남깁니다.
+감시기가 사이트를 켤 때마다 `데이터/db/backup/caps-날짜-시각.sql.gz`(앱 데이터 + 로그인 계정)를 만들고 최근 30개를 남깁니다.
 `npm run db:backup`으로 직접 만들 수도 있습니다.
 
 복원은 다음 순서로 합니다. **현재 DB를 지우고 백업으로 바꾸므로** 먼저 `npm run db:backup`으로 지금 상태를 남겨 두세요.
@@ -139,14 +166,14 @@ powershell -ExecutionPolicy Bypass -File scripts\server_control.ps1 lock-ports
 ```powershell
 npx supabase db reset --local      # DB를 비우고 supabase/migrations로 구조를 다시 만듦
 # 백업 파일을 풀어 넣기 (파일 이름은 바꿔서)
-node -e "process.stdout.write(require('zlib').gunzipSync(require('fs').readFileSync('data/db/backup/caps-20261028-190443.sql.gz')))" | docker exec -i supabase_db_caps-attendance-app psql -U postgres -d postgres
+node -e "process.stdout.write(require('zlib').gunzipSync(require('fs').readFileSync('데이터/db/backup/caps-20261028-190443.sql.gz')))" | docker exec -i supabase_db_caps-attendance-app psql -U postgres -d postgres
 ```
 
 ## 하이웍스 메일 설정
 
 1. `.env.local`에 `HIWORKS_SMTP_USER`(보내는 메일 주소)와 `HIWORKS_SMTP_PASSWORD`를 적습니다. 서버는 `smtps.hiworks.com:465`(SSL)입니다.
 2. 하이웍스 관리자 설정에서 외부 메일 프로그램(SMTP) 사용이 허용되어 있어야 합니다.
-3. `site_restart.bat`으로 다시 켜면 **일일 근태현황 → 하이웍스 메일로 보내기**를 쓸 수 있습니다. 받는 사람·참조는 마지막에 보낸 값이 기본으로 남습니다.
+3. `사이트관리/site_restart.bat`으로 다시 켜면 **일일 근태현황 → 하이웍스 메일로 보내기**를 쓸 수 있습니다. 받는 사람·참조는 마지막에 보낸 값이 기본으로 남습니다.
 
 사이트에서 저장한 일일 근태현황은 근태 판정에 바로 반영됩니다. 같은 날짜는 근태현황 파일보다 사이트 내용이 우선합니다.
 
@@ -155,7 +182,7 @@ node -e "process.stdout.write(require('zlib').gunzipSync(require('fs').readFileS
 2026-10-28에 Python(Streamlit) 사이트에서 이 구성으로 바꿨습니다.
 
 - 데이터는 `npm run migrate-sqlite`로 옮겼습니다. 출입기록 22,224건, 근태 1,354건, 직원 28명, 보고서, 업로드 이력이 모두 옮겨졌습니다.
-  원본 `data/db/caps.sqlite`는 그대로 남아 있습니다.
+  원본 `데이터/db/caps.sqlite`는 그대로 남아 있습니다.
 - 계정은 비밀번호 해시째 옮겼습니다. 각자 **쓰던 아이디·비밀번호로 처음 로그인하면** 새 계정으로 자동 전환됩니다.
 - 판정 로직은 실제 데이터 10개월분으로 이전 코드와 대조했습니다. 일별 판정 6,564건, 근로시간 리포트, 직원별 시트 11,102행이 모두 같습니다.
 - 바뀐 점이 하나 있습니다. 직원 명부에 있는 사람은 사번이 찍힌 기록(매일 올리는 `Search_*.xls`)도 이름 하나로 묶습니다.

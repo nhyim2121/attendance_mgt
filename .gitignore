@@ -11,7 +11,8 @@ next-env.d.ts
 supabase/.temp/
 supabase/.branches/
 
-# 실제 출입기록은 개인정보이므로 저장소에 올리지 않음
+# 실제 출입기록은 개인정보이므로 저장소에 올리지 않음 (데이터 = 예전 이름 data)
+데이터/
 data/
 *.xlsx
 *.xls

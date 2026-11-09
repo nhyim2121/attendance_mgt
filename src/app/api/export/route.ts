@@ -1,8 +1,8 @@
 /** 직원별 시트 엑셀·ZIP 내려받기. 주소의 필터(월·부서·직원)는 화면과 같다. */
 import type { NextRequest } from "next/server";
 import { currentUser } from "@/lib/auth";
-import { buildWorkbook, buildZip } from "@/lib/splitter";
-import { sheetData, summaryRows } from "../../(app)/sheets/compute";
+import { buildWorkbook, buildZip } from "@/lib/인사노무/splitter";
+import { sheetData, summaryRows } from "../../(app)/(hr)/sheets/compute";
 
 export async function GET(req: NextRequest) {
   if (!(await currentUser())) return new Response("로그인이 필요합니다.", { status: 401 });

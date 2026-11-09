@@ -778,3 +778,25 @@ html[data-print="port"] .edit-print .ep-tbl td:nth-child(-n+7) { padding-left: 3
 .stepper button:disabled { color: #c3cad6; cursor: default; }
 .stepper input { border: 0; border-left: 1px solid var(--line-2); border-right: 1px solid var(--line-2); border-radius: 0; text-align: center; padding: 5px 4px; }
 .grant-tbl td { vertical-align: middle; }
+
+/* 통합관리시스템 사이드바: 업무 영역 (지금 영역만 펼침) */
+.side a.sec { display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
+.side a.sec .caret { font-size: .72rem; opacity: .6; }
+.side a.sec.open { background: rgba(255,255,255,.08); }
+.side .sec-items { margin: 4px 0 8px 8px; padding-left: 8px; border-left: 1px solid rgba(255,255,255,.16); }
+.side .sec-items .space-switch { margin: 2px 0 4px; }
+@media (max-width: 860px) { .side .sec-items { display: contents; } }
+
+/* 통합 대시보드 */
+.hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.hub-card { border-top: 4px solid var(--hub, #0c3994) !important; display: flex; flex-direction: column; gap: 8px; }
+.hub-card h2 { margin: 0; font-size: 1.15rem; color: var(--hub, #0a2b70); }
+.hub-card .hub-sub { color: var(--muted); font-size: .86rem; margin: 0; }
+.hub-card ul { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.hub-card li a { display: inline-block; padding: 4px 10px; border: 1px solid #d6dce8; border-radius: 999px; font-size: .86rem;
+  text-decoration: none; color: #1f2d4a; background: #fff; }
+.hub-card li a:hover { border-color: var(--hub, #0c3994); color: var(--hub, #0c3994); }
+.hub-card .soon { display: inline-block; font-size: .78rem; font-weight: 700; color: #6b7280; background: #eef0f4;
+  border-radius: 10px; padding: 2px 9px; align-self: flex-start; }
+.hub-card .plan { color: var(--faint); font-size: .84rem; margin: 0; }
+.hub-card .hub-go { margin-top: auto; font-weight: 700; font-size: .9rem; text-decoration: none; color: var(--hub, #0c3994); }

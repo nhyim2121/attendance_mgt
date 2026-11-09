@@ -12,9 +12,9 @@
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:status": "supabase status",
-    "db:backup": "node scripts/backup-db.mjs",
-    "add-user": "tsx scripts/add-user.ts",
-    "migrate-sqlite": "tsx scripts/migrate-sqlite.ts"
+    "db:backup": "node 자동실행/backup-db.mjs",
+    "add-user": "tsx 자동실행/add-user.ts",
+    "migrate-sqlite": "tsx 자동실행/migrate-sqlite.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
