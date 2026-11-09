@@ -343,6 +343,23 @@ svg.ch { width: 100%; height: auto; display: block; }
 .card.dense .av { width: 24px; height: 24px; font-size: .7rem; }
 @media (max-width: 1100px) { .cats, .wk, .btm { grid-template-columns: 1fr; } }
 
+
+/* ================= 시안 F: B(남색 사이드바·배너·숫자카드) 중심 + D의 빠른 추가·이번 주 할 일·바로가기 모음 ================= */
+.sk-f .row3 { display: grid; grid-template-columns: 230px minmax(0, 1fr) 250px; gap: 16px; margin-top: 16px; }
+.sk-f .w h4 { margin: 0 0 12px; font-size: 1rem; display: flex; align-items: center; gap: 8px; color: var(--navy); }
+.sk-f .qb { display: flex; flex-direction: column; gap: 7px; }
+.sk-f .qb button { text-align: left; background: #f4f6fb; border: 1px solid #e3e8f2; border-radius: 12px; padding: 9px 12px; cursor: pointer; color: var(--ink2); font-weight: 600; transition: background .15s, border-color .15s; }
+.sk-f .qb button:hover { background: #eaf0fc; border-color: #c8d5f0; color: var(--blue); }
+.sk-f .nt td { padding: 9px 6px; }
+.sk-f .links .lg { font-size: .74rem; color: var(--muted); font-weight: 700; margin: 10px 0 3px; }
+.sk-f .links .lg:first-of-type { margin-top: 0; }
+.sk-f .links a { display: block; padding: 4px 0; color: var(--ink); font-size: .9rem; text-decoration: none; }
+.sk-f .links a::before { content: "• "; color: #b8c0cf; }
+.sk-f .links a:hover { color: var(--blue); }
+.sk-f .tri { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; margin-top: 16px; }
+.sk-f .duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 16px; margin-top: 16px; }
+@media (max-width: 1100px) { .sk-f .row3, .sk-f .tri, .sk-f .duo { grid-template-columns: 1fr; } }
+
 @media (max-width: 900px) { .sk-b, .sk-c, .sk-d { grid-template-columns: 1fr; } .sk-b .side, .sk-c .rail, .sk-c .subp, .sk-d .nside { display: none; } .sk-a .nav { display: none; } }
 
 @media print {
@@ -357,7 +374,8 @@ svg.ch { width: 100%; height: auto; display: block; }
 <body>
 <div class="picker">
   <div class="grp"><b>시안</b>
-    <button data-d="e">★ E · 통합안 (A 바탕)</button>
+    <button data-d="f">★ F · B 중심 + D 할 일</button>
+    <button data-d="e">E · 통합안 (A 바탕)</button>
     <button data-d="a">A · 깔끔한 흰색</button>
     <button data-d="b">B · 남색 사이드바</button>
     <button data-d="c">C · 업무형 촘촘</button>
@@ -466,9 +484,9 @@ const TODO = [["mail","○○시청 공문 회신","문서 수발 대장 · 2026
 const EVENTS = { 2: [["연차 · 최유진","g"]], 5: [["반차 · 박지훈","b"]], 9: [["연차 · 최유진","g"],["오후 반차 · 박지훈","b"]], 11: [["연차 · 김민준","g"]], 12: [["공문 회신 기한","r"]], 13: [["외출 · 정하늘","o"]], 14: [["입찰 마감","r"]], 16: [["소방 보완 기한","o"]], 20: [["지원사업 중간보고","o"],["연차 · 윤서아","g"]], 24: [["교육 · 생산팀","v"]], 28: [["ISO 9001 사후심사","r"]], 30: [["차량 보험 만기","o"]] };
 
 /* ===================== 상태·이동 ===================== */
-let st = { d: "e", p: "dash" };
+let st = { d: "f", p: "dash" };
 function go(p) { location.hash = st.d + "/" + p; }
-function fromHash() { const [d, p] = location.hash.slice(1).split("/"); if (d && "abcde".includes(d)) st.d = d; st.p = p && (PAGES[p] || p === "dash" || p.startsWith("home-") || p.startsWith("print-")) ? p : "dash"; render(); }
+function fromHash() { const [d, p] = location.hash.slice(1).split("/"); if (d && "abcdef".includes(d)) st.d = d; st.p = p && (PAGES[p] || p === "dash" || p.startsWith("home-") || p.startsWith("print-")) ? p : "dash"; render(); }
 function toast(m) { const t = document.createElement("div"); t.className = "toast"; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); }
 function closeLayer() { document.getElementById("layer").innerHTML = ""; }
 function layer(html, center) { document.getElementById("layer").innerHTML = `<div class="overlay ${center ? "center" : ""}" onclick="if(event.target===this)closeLayer()">${html}</div>`; }
@@ -528,6 +546,7 @@ function weekLeaves() { return `<ul class="leaves"><li><span>월 · 최유진</s
 function dash() {
   if (st.d === "d") return dashD();
   if (st.d === "e") return dashE();
+  if (st.d === "f") return dashF();
   const hello = st.d === "c" ? `<div class="hello"><h1>통합 대시보드</h1><p>2026년 11월 9일 (월) · 관리자</p></div>`
     : `<div class="hello"><span style="opacity:.75;font-size:.85rem">2026년 11월 9일 월요일</span><h1>안녕하세요, <em>관리자</em>님</h1><p>오늘 처리할 일이 4건 있습니다.</p></div>`;
   return `${hello}<div class="grid kpis">
@@ -593,6 +612,25 @@ function dashE() {
         <div class="lg">업무</div><a onclick="toast('하이웍스가 열립니다 (시안)')">하이웍스</a><a onclick="toast('우체국 등기 조회가 열립니다 (시안)')">우체국 등기 조회</a></div></div>`;
 }
 function dens(el) { const card = el.closest(".card"); card.classList.toggle("dense"); el.textContent = card.classList.contains("dense") ? "넓게 보기" : "촘촘하게 보기"; }
+
+
+function dashF() {
+  return `<div class="hello"><span style="opacity:.75;font-size:.85rem">2026년 11월 9일 월요일</span><h1>안녕하세요, <em>관리자</em>님</h1><p>오늘 처리할 일이 4건 있습니다.</p></div>
+  <div class="grid kpis">${kpi("오늘 출근", "23", "/ 26명", "지각 1 · 미출근 2", "clock", "#0c3994", 0, "daily")}${kpi("오늘 휴가", "2", "명", "연차 1 · 반차 1", "umbrella", "#15803d", 0, "leavecal")}
+    ${kpi("처리 중인 문서", "1", "건", "회신 기한 11/12", "mail", "#0e7490", 1, "mail")}${kpi("만기 임박", "3", "건", "30일 안 · 인증 1 · 차량 2", "alert", "#e84340", 1, "vehicles")}</div>
+  <div class="row3">
+    <div class="card w"><h4>⚡ 빠른 추가</h4><div class="qb"><button onclick="editForm('leavestat')">＋ 휴가 등록</button><button onclick="editForm('mail')">＋ 받은 공문 등록</button><button onclick="editForm('fixtures')">＋ 비품 추가</button><button onclick="editForm('drivelog')">＋ 차량 운행 기록</button><button onclick="editForm('tasks')">＋ 할 일 추가</button></div></div>
+    <div class="card w"><h4>✅ 이번 주 할 일</h4><div class="tabs2"><span class="on" onclick="segOn2(this)">전체</span><span onclick="segOn2(this)">문서</span><span onclick="segOn2(this)">만기·갱신</span><span onclick="segOn2(this)">인사</span></div>
+      <table class="nt"><tbody><tr onclick="go('mail')"><td>📨 ○○시청 공문 회신</td><td><span class="chip s1">진행 중</span></td><td class="dd r">D-3</td></tr>
+        <tr onclick="go('certs')"><td>🏅 ISO 9001 사후심사 준비</td><td><span class="chip s0">시작 전</span></td><td class="dd o">D-19</td></tr><tr onclick="go('vehicles')"><td>🚗 12가 3456 보험 갱신</td><td><span class="chip s0">시작 전</span></td><td class="dd o">D-21</td></tr>
+        <tr onclick="go('week52')"><td>⏱️ 주 52시간 근접 1명 확인</td><td><span class="chip s1">진행 중</span></td><td class="dd">이번 주</td></tr><tr onclick="go('training')"><td>🎓 법정의무교육 실시 기록</td><td><span class="chip s2">완료</span></td><td class="dd">11/7</td></tr></tbody></table></div>
+    <div class="card w links"><h4>🔗 바로가기 모음</h4><div class="lg">신고·발급</div><a onclick="toast('정부24가 새 창으로 열립니다 (시안)')">정부24</a><a onclick="toast('홈택스가 새 창으로 열립니다 (시안)')">홈택스</a><a onclick="toast('4대보험 포털이 열립니다 (시안)')">4대보험 정보연계센터</a>
+      <div class="lg">업무</div><a onclick="toast('하이웍스가 열립니다 (시안)')">하이웍스</a><a onclick="toast('우체국 등기 조회가 열립니다 (시안)')">우체국 등기 조회</a><a onclick="toast('안전보건공단이 열립니다 (시안)')">안전보건공단</a></div>
+  </div>
+  <div class="tri"><div class="card"><h3>부서별 인원 <small><a onclick="go('org')" style="color:var(--blue)">조직도 ›</a></small></h3>${bars()}</div><div class="card"><h3>월별 1인 평균 주 근로시간 <small><a onclick="go('hours')" style="color:var(--blue)">리포트 ›</a></small></h3>${area()}</div></div>
+  <div class="duo"><div class="card"><h3>이번 주 휴가 <small><a onclick="go('leavecal')" style="color:var(--blue)">캘린더 ›</a></small></h3>${weekLeaves()}</div>
+    <div class="card"><h3>업무 영역</h3><div class="areas">${NAV.map((a) => `<a class="area" style="--c:${a.color}" onclick="go('home-${a.key}')"><span class="ico" style="--c:${a.color}">${ic(a.icon)}</span>${a.label}</a>`).join("")}</div></div></div>`;
+}
 
 function segOn2(el) { el.parentElement.querySelectorAll("span").forEach((s) => s.classList.toggle("on", s === el)); }
 
@@ -693,7 +731,7 @@ function shell(inner) {
       ${a ? `<div class="subnav"><div class="subnav-in"><a onclick="go('home-${a.key}')" class="${st.p === "home-" + a.key ? "on" : ""}">${a.label} 홈</a>${a.groups.flatMap(([, it]) => it).map(([id, l]) => `<a onclick="go('${id}')" class="${id === cid ? "on" : ""}">${l}</a>`).join("")}</div></div>` : ""}</div>
       <div class="content">${inner}</div>`;
   }
-  if (st.d === "b") return `<aside class="side"><div class="logo" onclick="go('dash')"><img src="../public/logo.png" alt=""></div>
+  if (st.d === "b" || st.d === "f") return `<aside class="side"><div class="logo" onclick="go('dash')"><img src="../public/logo.png" alt=""></div>
       <a onclick="go('dash')" class="${st.p === "dash" ? "on" : ""}"><span class="ico">${ic("home")}</span>통합 대시보드</a><div class="g">업무</div>
       ${NAV.map((x) => `<a onclick="go('home-${x.key}')" class="${st.p === "home-" + x.key ? "on" : x.key === ca ? "open" : ""}"><span class="ico">${ic(x.icon)}</span>${x.label}</a>
         ${x.key === ca ? `<div class="sub">${x.groups.map(([g, it]) => `${g ? `<div class="sg">${g}</div>` : ""}${it.map(([id, l]) => `<a onclick="go('${id}')" class="${id === cid ? "on" : ""}">${l}</a>`).join("")}`).join("")}</div>` : ""}`).join("")}
@@ -724,7 +762,7 @@ function fitSheet() {
 function render() {
   closeLayer();
   const app = document.getElementById("app");
-  app.className = st.d === "e" ? "sk-a sk-e" : "sk-" + st.d;
+  app.className = st.d === "e" ? "sk-a sk-e" : st.d === "f" ? "sk-b sk-f" : "sk-" + st.d;
   app.innerHTML = shell(page());
   document.querySelectorAll(".picker [data-d]").forEach((b) => b.classList.toggle("on", b.dataset.d === st.d));
   fitSheet(); scrollTo(0, 0);
