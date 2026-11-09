@@ -1,0 +1,105 @@
+/* ================================================================ 기존 화면 전체에 D(노션형) 세부 디자인
+   틀은 B(남색 사이드바·배너), 화면 안의 버튼·입력칸·탭·표·카드·알림·제목은 D.
+   화면에서만 적용한다 (@media screen) — 인쇄 양식(A4 문서)은 예전 그대로 둔다. */
+@media screen {
+  .f { --d-bg: #fbfaf7; --d-line: #ebe9e3; --d-line2: #e3e2dc; --d-ink: #37352f; --d-muted: #787774; --d-faint: #91908b;
+       --d-hover: #f7f6f3; --d-soft: #f1f0ec; }
+  .f .main { --line: var(--d-line); --line-2: var(--d-line2); --muted: var(--d-muted); --faint: var(--d-faint); --ink-2: var(--d-ink); }
+
+  /* 제목: 막대 대신 화면 이모지 (PageMark가 data-emoji를 붙인다) */
+  .f .main > h1, .f .topbar h1, .f .main h1.page { color: var(--d-ink); font-size: 1.7rem; letter-spacing: -.02em; }
+  .f .main > h1::before { content: none; display: none; }
+  .f .main h1[data-emoji]::before { content: attr(data-emoji); display: inline; width: auto; height: auto; background: none; margin-right: 8px; font-size: .95em; }
+  .f .caption { color: var(--d-muted); }
+  .f .muted { color: var(--d-faint); }
+  .f .pm-crumb { color: var(--d-faint); font-size: .8rem; margin: -6px 0 6px; }
+  .f .pm-crumb a { color: var(--d-faint); text-decoration: none; }
+  .f .pm-crumb a:hover { color: var(--blue); }
+
+  /* 카드 */
+  .f .main .card, .f .home .card { background: #fff; border: 1px solid var(--d-line); border-radius: 10px; box-shadow: none; }
+  .f .card-title, .f .home .card-title { color: var(--d-ink); font-weight: 700; font-size: 1rem; }
+  .f .sub-title { border-left: 0; padding-left: 0; color: var(--d-faint); font-size: .8rem; letter-spacing: .02em; }
+  .f details.fold { border: 1px solid var(--d-line); border-radius: 10px; box-shadow: none; background: #fff; }
+  .f details.fold > summary { color: var(--d-ink); list-style: none; }
+  .f details.fold > summary::-webkit-details-marker { display: none; }
+  .f details.fold > summary::before { content: "▸"; display: inline-block; width: 1.1em; color: var(--d-faint); transition: transform .15s; }
+  .f details.fold[open] > summary::before { transform: rotate(90deg); }
+  .f details.pop[open] > .pop-body { border: 1px solid var(--d-line); border-radius: 10px; box-shadow: 0 10px 30px -10px rgba(15,15,15,.25); }
+
+  /* 버튼: 평평한 D 버튼, 주 버튼만 남색 */
+  .f .main .btn { border: 1px solid var(--d-line2); background: #fff; color: var(--d-ink); border-radius: 6px; font-weight: 500; box-shadow: none; }
+  .f .main .btn:hover { background: var(--d-hover); }
+  .f .main .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 600; }
+  .f .main .btn.primary:hover { background: #0a2f7c; }
+  .f .main .btn.danger { color: #c4320a; border-color: #f2d4cc; }
+  .f .main .btn.danger:hover { background: #fdf1ee; }
+  .f .main .pill, .f .home .pill { background: #fff; color: var(--d-ink); border: 1px solid var(--d-line2); border-radius: 6px;
+    box-shadow: none; padding: 6px 12px; font-weight: 500; font-size: .88rem; text-decoration: none; }
+  .f .main .pill:hover, .f .home .pill:hover { background: var(--d-hover); }
+  .f .home .btn.sm { border-color: var(--d-line2); color: var(--d-ink); }
+
+  /* 입력칸 */
+  .f .main input[type=text], .f .main input[type=password], .f .main input[type=date], .f .main input[type=number], .f .main input[type=email],
+  .f .main input[type=search], .f .main input[type=month], .f .main input[type=time], .f .main select, .f .main textarea {
+    border: 1px solid var(--d-line2); border-radius: 6px; background: #fff; color: var(--d-ink); }
+  .f .main input:focus, .f .main select:focus, .f .main textarea:focus { outline: 3px solid rgba(35,131,226,.18); border-color: #7fa6e0; }
+  .f .field > span, .f .field > label, .f label.field { color: var(--d-muted); }
+  .f .main .ep-search input { border: 0; outline: 0; background: none; padding: 9px 0; }
+
+  /* 탭·구간 고르기: 회색으로 깔리는 D 탭 */
+  .f .tabs { background: none; padding: 0; gap: 4px; border-bottom: 1px solid var(--d-line); border-radius: 0; display: flex; margin-bottom: 14px; }
+  .f .tabs button, .f .tabs a { border-radius: 6px 6px 0 0; padding: 7px 12px; color: var(--d-muted); font-weight: 500; box-shadow: none;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .f .tabs button:hover, .f .tabs a:hover { background: var(--d-hover); color: var(--d-ink); }
+  .f .tabs .on { background: none; color: var(--d-ink); font-weight: 700; border-bottom-color: var(--d-ink); box-shadow: none; }
+  .f .seg { border: 0; gap: 2px; background: none; overflow: visible; }
+  .f .seg a, .f .seg button { border: 0 !important; border-radius: 6px; background: none; color: var(--d-muted); padding: 4px 10px; font-size: .84rem; }
+  .f .seg a:hover, .f .seg button:hover { background: var(--d-hover); }
+  .f .seg .on { background: var(--d-soft) !important; color: var(--d-ink) !important; font-weight: 700; }
+
+  /* 거르기 줄 */
+  .f .filters { border: 1px solid var(--d-line); border-left: 1px solid var(--d-line); border-radius: 10px; background: #fff; box-shadow: none; }
+
+  /* 숫자 칸 */
+  .f .metric { border: 1px solid var(--d-line); border-top: 1px solid var(--d-line); border-radius: 10px; box-shadow: none; background: #fff; }
+  .f .metric .l { color: var(--d-muted); }
+  .f .metric .v { color: var(--d-ink); font-weight: 800; }
+  .f .tile { background: var(--d-hover); border-radius: 8px; }
+  .f .tile-l { color: var(--d-muted); }
+  .f .tile-n { color: var(--d-ink); }
+  .f .tile-n.warn { color: var(--red); }
+
+  /* 근태 홈: 복숭아·남색 칠 대신 미색 바탕 */
+  .f .home { --teal: #37352f; --teal-2: #f1f0ec; --peach: var(--d-bg); --peach-line: var(--d-line); --org: #c4320a; background: var(--d-bg); }
+  .f .hstats { border: 1px solid var(--d-line); }
+  .f .hstat-l { color: var(--d-muted); font-weight: 500; }
+  .f .hstat-v { color: var(--d-ink); }
+  .f .hstat:nth-child(even) .hstat-v { color: var(--d-ink); }
+  .f .hstat .ico, .f .ico { background: var(--d-soft); color: var(--d-ink); border-radius: 8px; }
+  .f .hstat:nth-child(even) .ico { background: #fdf1ee; color: #c4320a; }
+
+  /* 표: 줄만 있는 D 표 */
+  .f .main .tbl th { background: var(--d-hover); color: var(--d-muted); font-weight: 600; border-bottom: 1px solid var(--d-line); }
+  .f .main .tbl td { border-bottom: 1px solid var(--d-line); }
+  .f .main .tbl tbody tr:nth-child(even) td { background: none; }
+  .f .main .tbl tbody tr:hover td { background: var(--d-hover); }
+  .f .list-table td { border-bottom-color: var(--d-line); }
+  .f .main .doc-page .doc-tbl th { background: var(--d-hover); color: var(--d-muted); border-color: var(--d-line2); }
+  .f .main .doc-page .doc-tbl td { border-color: var(--d-line2); }
+
+  /* 칩 */
+  .f .main .tag { border-radius: 4px; font-weight: 600; font-size: .74rem; padding: 1px 7px; }
+
+  /* 알림 줄: D 콜아웃 (이모지 + 연한 바탕) */
+  .f .msg { border-radius: 8px; border: 0; padding: 10px 14px 10px 40px; position: relative; color: var(--d-ink); }
+  .f .msg::before { position: absolute; left: 14px; top: 10px; }
+  .f .msg.ok { background: #edf3ec; } .f .msg.ok::before { content: "✅"; }
+  .f .msg.err { background: #fdebec; } .f .msg.err::before { content: "⚠️"; }
+  .f .msg.warn { background: #fbf3db; } .f .msg.warn::before { content: "💡"; }
+  .f .msg.info { background: #e7f3f8; } .f .msg.info::before { content: "ℹ️"; }
+
+  /* 총무·인증 카드 */
+  .f .cert-card, .f .ga-home .card { border-left-width: 3px; }
+  .f .cert-cat { color: var(--d-ink); }
+}

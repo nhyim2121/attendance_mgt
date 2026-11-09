@@ -1,48 +1,72 @@
-/** 직원 관리: 입사·퇴사를 포함한 직원 명부 등록·수정·삭제. 출퇴근 집계는 이 명부 기준. */
-import { Metric } from "@/components/ui";
-import { loadBase } from "@/lib/인사노무/data";
+/** 직원 관리: 숫자 카드 · 다가오는 인사 일정 · 직원 목록(검색·부서·재직/퇴사·정렬) + 줄을 누르면 상세 서랍. 출퇴근 집계는 이 명부 기준. */
+import Link from "next/link";
+import CsvButton from "@/components/CsvButton";
+import { requireUser } from "@/lib/auth";
+import { loadAvatars } from "@/lib/인사노무/avatar";
+import { getLeavePolicy, loadBase } from "@/lib/인사노무/data";
 import { statusLabel } from "@/lib/인사노무/employees";
+import { hrEvents, tenure, tenureText } from "@/lib/인사노무/hrEvents";
+import { leaveBook } from "@/lib/인사노무/leaveBook";
+import { loadEmpFiles, loadPrivate } from "@/lib/인사노무/private";
+import { fyOf } from "@/lib/인사노무/vacation";
 import * as store from "@/lib/store";
-import { addDays, todayKst } from "@/lib/time";
-import EmployeeEditor, { AddFromCaps } from "./EmployeeEditor";
+import { todayKst } from "@/lib/time";
+import EmployeeEditor, { type Extra } from "./EmployeeEditor";
 
-export const metadata = { title: "직원 관리 · 근태관리통합시스템" };
+export const metadata = { title: "직원 관리 · 통합관리시스템" };
 
-export default async function EmployeesPage() {
-  const [base, spans] = await Promise.all([loadBase(), store.recordNameSpan()]);
+export default async function EmployeesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const user = await requireUser();
+  const admin = user.role === "관리자";
+  const sp = await searchParams;
+  const [base, spans, avatars, policy, adjusts] = await Promise.all([
+    loadBase(), store.recordNameSpan(), admin ? loadAvatars() : Promise.resolve({} as Record<string, number>), getLeavePolicy(), store.loadAdjusts(),
+  ]);
   const emps = base.employees;
   const today = todayKst();
-  const status = emps.map((e) => statusLabel(e, today));
-  const monthStart = `${today.slice(0, 7)}-01`;
-  const joined = emps.filter((e) => e.joinDate && e.joinDate >= monthStart).map((e) => e.name);
-  const left = emps.filter((e) => e.leaveDate && e.leaveDate >= monthStart).map((e) => e.name);
   const depts = [...new Set([...emps.map((e) => e.dept).filter(Boolean), "생산팀", "품질팀", "관리팀", "영업팀", "연구소"])].sort();
-  const seen = Object.fromEntries(spans.map((s) => [s.name, [s.first_day, s.last_day] as [string, string]]));
+  const spanOf = new Map(spans.map((s) => [s.name, [s.first_day, s.last_day] as [string, string]]));
 
-  // 캡스에는 찍히는데 명부에 없는 사람 (최근 90일)
-  const registered = new Set([...emps.map((e) => e.name), ...emps.map((e) => e.capsName).filter(Boolean)]);
-  const recent = spans.filter((s) => s.last_day >= addDays(today, -90) && !registered.has(s.name))
-    .sort((a, b) => (a.last_day < b.last_day ? 1 : -1))
-    .map((s) => ({ name: s.name, first: s.first_day, last: s.last_day }));
+  // 연차 (연차 현황과 같은 계산)
+  const fy = fyOf(today, policy);
+  const active = emps.filter((e) => (!e.leaveDate || e.leaveDate >= today) && (!e.joinDate || e.joinDate <= today));
+  let bal = new Map<string, { total: number; used: number; remain: number }>();
+  try {
+    const b = leaveBook(active, base.leaves, adjusts, fy, policy, await store.loadLeaveStatus(fy))(today).bal;
+    bal = new Map(b.map((x) => [x.name, { total: x.total, used: x.used, remain: x.remain }]));
+  } catch { /* 연차 계산이 안 돼도 명부는 보인다 */ }
+
+  // 관리자만: 생년월일·주민번호(가린 값)·급여, 첨부 파일
+  const [priv, files] = admin ? await Promise.all([loadPrivate(), loadEmpFiles()]) : [{}, {}];
+  const extra: Record<string, Extra> = Object.fromEntries(emps.map((e) => [e.name, {
+    tenure: tenureText(tenure(e, today)), span: spanOf.get(e.capsName || e.name) ?? null, leave: bal.get(e.name) ?? null,
+    ...(admin ? {
+      priv: (priv as Record<string, Extra["priv"]>)[e.name],
+      files: ((files as Record<string, { id: number; fileName: string; size: number; createdAt: string }[]>)[e.name] ?? [])
+        .map((f) => ({ id: f.id, fileName: f.fileName, size: f.size, createdAt: f.createdAt })),
+    } : {}),
+  }]));
+  const events = hrEvents(emps, today);
+  const openNew = sp.new === "1";
 
   return (
-    <>
-      <h1>직원 관리</h1>
-      <p className="caption">여기에 등록된 직원만 출퇴근 집계·일일 현황·직원별 시트에 나옵니다. 입사일 전과 퇴사일 뒤의 기록은 집계에서 빠집니다 (퇴사일 = 마지막 근무일). 캡스에 다른 이름으로 찍히는 직원은 &apos;캡스 이름&apos;에 적어 주세요.</p>
-      <div className="metrics">
-        <Metric label="재직" value={`${status.filter((s) => s === "재직").length}명`} />
-        <Metric label="입사 예정" value={`${status.filter((s) => s === "입사 예정").length}명`} />
-        <Metric label="퇴사" value={`${status.filter((s) => s === "퇴사").length}명`} />
-        <Metric label={`${+today.slice(5, 7)}월 입사 / 퇴사`} value={`${joined.length} / ${left.length}명`}
-          title={[joined.length ? `입사: ${joined.join(", ")}` : "", left.length ? `퇴사: ${left.join(", ")}` : ""].filter(Boolean).join(" · ")} />
+    <div className="ep">
+      <div className="ep-head">
+        <div>
+          <div className="ep-crumb"><Link href="/">홈</Link> › <Link href="/hr">인사노무</Link> › 인사</div>
+          <h1 className="ep-title">🪪 직원 관리</h1>
+          <p className="ep-desc">직원 명부·입사일·연락처 · 여기 등록된 직원만 출퇴근 집계에 나옵니다 (퇴사일 = 마지막 근무일)</p>
+        </div>
+        <div className="ep-btns noprint">
+          <Link href="/employees?new=1" className="ep-btn pri" scroll={false}>＋ 직원 추가</Link>
+          <CsvButton name={`직원명부_${today}.csv`} label="엑셀"
+            head={["이름", "상태", "부서", "직급", "직책", "입사일", "퇴사일", "근속", "휴대전화", "내선", "이메일", "캡스 이름", "사번", "비고"]}
+            rows={emps.map((e) => [e.name, statusLabel(e, today), e.dept, e.rank, e.position, e.joinDate ?? "", e.leaveDate ?? "", extra[e.name].tenure,
+              e.phone, e.ext, e.email, e.capsName, e.empId, e.note])} />
+        </div>
       </div>
-      <div className="card">
-        <EmployeeEditor key={JSON.stringify(emps)} emps={emps} depts={depts} today={today} seen={seen} />
-      </div>
-      <div className="card" style={{ marginTop: 16 }}>
-        <div className="card-title">캡스에는 찍히는데 명부에 없는 사람</div>
-        {recent.length ? <AddFromCaps people={recent} /> : <p className="muted">최근 90일 동안 명부에 없는 출입자가 없습니다.</p>}
-      </div>
-    </>
+      <EmployeeEditor key={openNew ? "new" : "list"} emps={emps} depts={depts} today={today} extra={extra} avatars={avatars}
+        admin={admin} openNew={openNew} events={events} fyLabel={`${fy}${policy.fyStartMonth === 1 ? "년" : "회계연도"}`} />
+    </div>
   );
 }

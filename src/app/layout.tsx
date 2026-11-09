@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./f.css";
+import "./d.css";
 
 export const metadata: Metadata = {
   title: "통합관리시스템",

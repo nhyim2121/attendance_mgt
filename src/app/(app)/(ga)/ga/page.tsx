@@ -1,66 +1,43 @@
-/** 총무 홈: 업무분장표의 '1. 문서 및 자료관리' 업무와 지금 처리 중인 문서 (관리자 한 사람만 사용) */
-import Link from "next/link";
-import AreaBooks from "@/components/대장/AreaBooks";
+/** 총무 대시보드 (F안, 관리자만): 처리 중인 문서·대장 기한·공동인증서 만료 */
+import AreaDash from "@/components/대시/AreaDash";
+import { Card, MiniTable, Tag } from "@/components/대시/parts";
 import { requireAdminPage } from "@/lib/auth";
-import { loadOpenMails, mailNo } from "@/lib/총무/mail";
+import { bookStats, ddayText, ddayTone, todos } from "@/lib/대시/data";
 import { certAlert, loadCerts } from "@/lib/총무/issue";
-import { addDays, dayLabel, todayKst } from "@/lib/time";
+import { loadOpenMails, mailNo } from "@/lib/총무/mail";
+import { daysBetween, dayLabel, todayKst } from "@/lib/time";
 
 export const metadata = { title: "총무 · 통합관리시스템" };
-
-// 업무분장표 1. 문서 및 자료관리 중 이 사이트에서 하는 것
-const WORKS = [
-  { no: "1-1 · 1-6", label: "문서 수발 대장", href: "/ga/mail", desc: "공문 수신·발신, 우편·등기·팩스·택배 대장과 스캔본", when: "매일" },
-  { no: "1-3", label: "양식함", desc: "각종 양식 최신본과 제·개정 이력", when: "발생 시" },
-  { no: "1-7", label: "증빙·법인서류 발급 대장", href: "/ga/issue", desc: "서류별 발급 기록과 발급본, 최근 발급일", when: "발생 시" },
-  { no: "1-7", label: "공동인증서 관리", href: "/ga/certs", desc: "공동인증서·금융인증서·OTP 보관자·위치·만료일, 만료 60일 전 알림", when: "발생 시" },
-  { no: "1-5", label: "명함·이메일 서명", desc: "직원 정보로 서명 만들기, 명함 신청 대장", when: "발생 시" },
-];
 
 export default async function GaHome() {
   await requireAdminPage();
   const today = todayKst();
-  const [open, certs] = await Promise.all([loadOpenMails(), loadCerts()]);
-  const due = certs.filter((c) => certAlert(c, today));
+  const [open, certs, stats, list] = await Promise.all([loadOpenMails(), loadCerts(), bookStats("ga"), todos(true)]);
+  const dueCerts = certs.filter((c) => certAlert(c, today));
+  const st = (k: string) => stats.find((s) => s.key === k);
+  const gaDue = list.filter((t) => t.area === "ga" && t.cat !== "문서");
+  const nextMail = open.filter((m) => m.due).sort((a, b) => a.due!.localeCompare(b.due!))[0];
   return (
-    <>
-      <h1>총무</h1>
-      <p className="caption">업무분장표 총무 업무를 대장으로 옮기고 있습니다. 총무 화면은 관리자 계정에서만 보입니다.</p>
-      <div className="ga-home">
-        {WORKS.map((w) => (
-          <div key={w.label} className={`card${w.href ? "" : " off"}`}>
-            <div className="muted" style={{ fontSize: ".8rem" }}>{w.no} · {w.when}</div>
-            <div className="card-title" style={{ margin: 0 }}>{w.href ? <Link href={w.href}>{w.label} →</Link> : w.label}</div>
-            <div>{w.desc}</div>
-            {!w.href && <span className="muted" style={{ fontSize: ".8rem" }}>준비 중</span>}
-          </div>
-        ))}
-      </div>
-      <AreaBooks area="ga" title="총무 대장" />
-
-      {due.length > 0 && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <div className="card-title">만료가 다가오는 인증서 <span className="muted" style={{ fontWeight: 400 }}>{due.length}개</span></div>
-          <ul style={{ margin: 0 }}>{due.map((c) => (
-            <li key={c.id}><Link href="/ga/certs">{c.name}</Link> · {c.holder} ·{" "}
-              <span className={certAlert(c, today) === "d60" ? "orange" : "red"}>만료 {dayLabel(c.expires!, true)}</span></li>
-          ))}</ul>
-        </div>
-      )}
-
-      <div className="card" style={{ marginTop: 16 }}>
-        <div className="card-title">처리 중인 문서 <span className="muted" style={{ fontWeight: 400 }}>{open.length}건</span></div>
-        {open.length ? (
-          <table className="tbl"><thead><tr><th>번호</th><th>날짜</th><th>상대처</th><th>제목</th><th>기한</th></tr></thead>
-            <tbody>{open.map((x) => (
-              <tr key={x.id}>
-                <td><Link href={`/ga/mail?y=${x.year}&edit=${x.id}#form`}>{mailNo(x)}</Link></td>
-                <td>{dayLabel(x.day)}</td><td>{x.party}</td><td>{x.title}</td>
-                <td className={x.due && x.due < today ? "red" : x.due && x.due <= addDays(today, 3) ? "orange" : ""}>{x.due ? dayLabel(x.due) : ""}</td>
-              </tr>
-            ))}</tbody></table>
-        ) : <p className="muted" style={{ margin: 0 }}>처리 중인 문서가 없습니다.</p>}
-      </div>
-    </>
+    <AreaDash area="ga"
+      kpis={[
+        { label: "처리 중인 문서", n: open.length, unit: "건", sub: nextMail ? `회신 기한 ${dayLabel(nextMail.due!)}` : "문서 수발 대장", icon: "mail", color: "#0e7490", warn: open.length > 0, href: "/ga/mail?open=1" },
+        { label: "대장 기한", n: gaDue.length, unit: "건", sub: gaDue[0] ? `${gaDue[0].title.slice(0, 18)} ${ddayText(gaDue[0].left)}` : "차량·SW·입찰 등", icon: "car", color: "#e84340", warn: gaDue.length > 0, href: "/ga/b/vehicles" },
+        { label: "공동인증서 만료", n: dueCerts.length, unit: "개", sub: "60일 안", icon: "key", color: "#b45309", warn: dueCerts.length > 0, href: "/ga/certs" },
+        { label: "비품", n: st("fixtures")?.open ?? 0, unit: "건", sub: `이번 달 운행 ${st("drivelog")?.thisMonth ?? 0}건`, icon: "box", color: "#0c3994", href: "/ga/b/fixtures" },
+      ]}
+      quick={[["/ga/mail#form", "받은·보낸 공문 등록"], ["/ga/issue#form", "서류 발급 기록"], ["/ga/b/fixtures#form", "비품 추가"], ["/ga/b/drivelog#form", "차량 운행 기록"], ["/ga/b/visitors#form", "방문자 기록"]]}>
+      <Card title="처리 중인 문서" more={["문서 수발 대장", "/ga/mail"]}>
+        <MiniTable empty="처리 중인 문서가 없습니다." rows={open.slice(0, 6).map((m) => ({
+          href: `/ga/mail?y=${m.year}&edit=${m.id}#form`,
+          cells: [mailNo(m), <Tag key="d" tone={m.dir === "수신" ? "b" : "o"}>{m.dir}</Tag>, m.party, m.title,
+            m.due ? <Tag key="due" tone={ddayTone(daysBetween(today, m.due)) || "k"}>{ddayText(daysBetween(today, m.due))}</Tag> : ""],
+        }))} />
+      </Card>
+      <Card title="다가오는 만기·기한" more={["법인차량", "/ga/b/vehicles"]}>
+        <MiniTable empty="30일 안에 오는 만기가 없습니다." rows={gaDue.slice(0, 6).map((t) => ({
+          href: t.href, cells: [t.title, t.sub.split(" · ")[0], <Tag key="d" tone={ddayTone(t.left) || "k"}>{ddayText(t.left)}</Tag>],
+        }))} />
+      </Card>
+    </AreaDash>
   );
 }
