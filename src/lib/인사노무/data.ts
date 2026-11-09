@@ -18,6 +18,8 @@ interface RuleSetting {
   start: string; end: string; grace_min: number; workdays: number[]; overtime_min: number; round_min: number;
   label_all: boolean;
 }
+/** 설정 'emp_rules': 직원 이름 -> 근무 요일(월=0)·시각("08:30") 예외 */
+interface EmpRuleSetting { workdays?: number[]; start?: string; end?: string; note?: string }
 
 const toMin = (s: string) => +s.slice(0, 2) * 60 + +s.slice(3, 5);
 const toHM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -30,11 +32,18 @@ export function ruleToSetting(r: WorkRule): RuleSetting {
 }
 
 export const getRule = cache(async (): Promise<WorkRule> => {
-  const d = await store.getSetting<RuleSetting | null>("rule", null);
-  if (!d) return DEFAULT_RULE;
+  const [d, emp] = await Promise.all([
+    store.getSetting<RuleSetting | null>("rule", null),
+    store.getSetting<Record<string, EmpRuleSetting>>("emp_rules", {}),
+  ]);
+  // 직원별 예외 (예: 일학습병행 도제 수·목·금 08:30~16:30)
+  const byEmp = Object.fromEntries(Object.entries(emp ?? {}).map(([n, e]) => [n, {
+    workdays: e.workdays, start: e.start ? toMin(e.start) : undefined, end: e.end ? toMin(e.end) : undefined, note: e.note,
+  }]));
+  if (!d) return { ...DEFAULT_RULE, byEmp };
   return {
     start: toMin(d.start), end: toMin(d.end), graceMin: d.grace_min, workdays: d.workdays,
-    overtimeMin: d.overtime_min, roundMin: d.round_min, labelAll: d.label_all,
+    overtimeMin: d.overtime_min, roundMin: d.round_min, labelAll: d.label_all, byEmp,
   };
 });
 
@@ -112,7 +121,8 @@ export function leavesIn(leaves: Leave[], records: CapsRecord[]): Leave[] {
 
 export async function computeDays(records: CapsRecord[], rule: WorkRule): Promise<DayRow[]> {
   const [base, holidays] = await Promise.all([loadBase(), getHolidays()]);
-  return buildDays(records, leavesIn(base.leaves, records), rule, holidays, base.overrides);
+  return buildDays(records, leavesIn(base.leaves, records), rule, holidays, base.overrides,
+    new Map(base.employees.map((e) => [e.name, e.dept])));
 }
 
 /** 파일 이름·시트 이름에 쓸 기간 표시 (한 달이면 '9월'). */

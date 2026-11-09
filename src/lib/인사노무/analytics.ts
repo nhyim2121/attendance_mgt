@@ -1,6 +1,6 @@
 /** 일별 근태 판정, 근무형태 자동 표기, 직원별 요약. */
 import {
-  ALARM_MODES, EXCUSED_TYPES, FULL_DAY_TYPES, type Holidays, LEAVE_DAY_VALUE, TRAVEL_TYPES, type WorkRule,
+  ALARM_MODES, EXCUSED_TYPES, FULL_DAY_TYPES, type Holidays, LEAVE_DAY_VALUE, ruleFor, TRAVEL_TYPES, type WorkRule,
 } from "../config";
 import type { Leave } from "./hiworks";
 import type { CapsRecord } from "./loader";
@@ -106,8 +106,9 @@ function pickInOut(g: CapsRecord[]): [CapsRecord | null, CapsRecord | null, Ts] 
   return [inRec, outs.length ? outs[outs.length - 1] : null, s[s.length - 1].ts];
 }
 
-export function isHoliday(d: DateStr, rule: WorkRule, holidays: Holidays): boolean {
-  return !rule.workdays.includes(weekday(d)) || d in holidays;
+/** 쉬는 날인가: 공휴일이거나 근무 요일이 아님. emp를 주면 그 직원의 근무 요일(직원별 예외)로 본다. */
+export function isHoliday(d: DateStr, rule: WorkRule, holidays: Holidays, emp?: string): boolean {
+  return !ruleFor(rule, emp).workdays.includes(weekday(d)) || d in holidays;
 }
 
 export function firstLine(text: string): string {
@@ -151,6 +152,7 @@ function emptyDay(emp: string, dept: string, day: DateStr): DayRow {
  */
 export function buildDays(
   records: CapsRecord[], leaves: Leave[] | null, rule: WorkRule, holidays: Holidays, overrides: Override[] = [],
+  staffDept: Map<string, string> = new Map(), // 직원 명부 이름 -> 부서: 캡스 기록이 없는 직원도 직접 기입한 날은 보인다
 ): DayRow[] {
   const rec = records.filter((r) => !ALARM_MODES.has(r.mode));
   if (!rec.length) return [];
@@ -185,7 +187,7 @@ export function buildDays(
   }
   for (const [emp, [first, last]] of span) {
     for (let d = first; d <= last; d = addDays(d, 1)) {
-      if (!isHoliday(d, rule, holidays) && !rows.has(`${emp}|${d}`)) rows.set(`${emp}|${d}`, emptyDay(emp, deptOf.get(emp)!, d));
+      if (!isHoliday(d, rule, holidays, emp) && !rows.has(`${emp}|${d}`)) rows.set(`${emp}|${d}`, emptyDay(emp, deptOf.get(emp)!, d));
     }
   }
 
@@ -209,8 +211,13 @@ export function buildDays(
   const lo = days.reduce((a, b) => (b < a ? b : a));
   const hi = days.reduce((a, b) => (b > a ? b : a));
   const ovMap = new Map<string, Override>();
+  const tagged = new Set(deptOf.keys()); // 그 기간 캡스 기록이 있는 직원
   for (const o of overrides) {
-    if (!deptOf.has(o.employee) || o.day < lo || o.day > hi) continue;
+    if (o.day < lo || o.day > hi) continue;
+    if (!tagged.has(o.employee)) { // 캡스 기록이 없는 직원(도제 등): 시각을 직접 적은 날만 근태로 본다
+      if (!staffDept.has(o.employee) || (!o.clockIn && !o.clockOut)) continue;
+      deptOf.set(o.employee, staffDept.get(o.employee)!);
+    }
     const k = `${o.employee}|${o.day}`;
     ovMap.set(k, o);
     if (!rows.has(k)) rows.set(k, emptyDay(o.employee, deptOf.get(o.employee)!, o.day));
@@ -219,7 +226,8 @@ export function buildDays(
   const out = [...rows.values()];
   for (const r of out) {
     r.wd = weekdayKr(r.day);
-    r.holiday = isHoliday(r.day, rule, holidays);
+    const er = ruleFor(rule, r.emp); // 이 직원의 근무 기준 (직원별 예외 반영)
+    r.holiday = isHoliday(r.day, rule, holidays, r.emp);
     const g = leaveMap.get(`${r.emp}|${r.day}`);
     if (g) {
       const types = unique(g.map((l) => l.type));
@@ -232,8 +240,8 @@ export function buildDays(
     // 출장·교육·외근 날 하이웍스 시각으로 채우기
     r.inSrc = r.in !== null ? "캡스" : "";
     r.outSrc = r.out !== null ? "캡스" : "";
-    const startStd = ts(r.day) + rule.start * MIN;
-    const endStd = ts(r.day) + rule.end * MIN;
+    const startStd = ts(r.day) + er.start * MIN;
+    const endStd = ts(r.day) + er.end * MIN;
     const travel = splitTypes(r.leave).some((t) => TRAVEL_TYPES.has(t)) && !r.holiday;
     if (travel && (r.in === null || r.in > startStd)) Object.assign(r, { in: startStd, inRec: null, inSrc: "하이웍스" });
     if (travel && (r.out === null || r.out < endStd)) Object.assign(r, { out: endStd, outRec: null, outSrc: "하이웍스" });
@@ -262,7 +270,7 @@ export function buildDays(
 
     r.stayH = r.in !== null && r.out !== null ? Math.round(((r.out - r.in) / HOUR) * 100) / 100 : null;
     const excused = splitTypes(r.leave).some((t) => EXCUSED_TYPES.has(t));
-    const startAt = startStd + rule.graceMin * MIN;
+    const startAt = startStd + er.graceMin * MIN;
     r.late = !r.holiday && !excused && r.in !== null && r.in > startAt;
     r.early = !r.holiday && !excused && r.out !== null && r.out < endStd;
     r.status = statusOf(r);
@@ -535,13 +543,15 @@ export interface BoardRow {
  */
 export function dailyBoard(
   days: DayRow[], leaves: Leave[] | null, staff: [string, string][], day: DateStr, rule: WorkRule,
-  now: Ts | null = null, holiday = false,
+  now: Ts | null = null, holidayAll = false,
 ): BoardRow[] {
   const d = new Map(days.filter((r) => r.day === day).map((r) => [r.emp, r]));
   const lv = (leaves ?? []).filter((l) => l.day === day);
-  const endAt = ts(day) + rule.end * MIN;
   return staff.map(([emp, dept]) => {
     const r = d.get(emp) ?? null;
+    const endAt = ts(day) + ruleFor(rule, emp).end * MIN;
+    // 직원별 근무 요일이 아닌 날(예: 도제의 월·화)은 그 사람에게 휴일
+    const holiday = holidayAll || !ruleFor(rule, emp).workdays.includes(weekday(day));
     const mine = lv.filter((l) => l.name === emp);
     const types = mine.length ? unique(mine.map((l) => l.type)) : r ? splitTypes(r.leave) : [];
     const content = mine.length

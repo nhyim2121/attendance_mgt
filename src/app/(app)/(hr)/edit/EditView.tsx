@@ -5,7 +5,7 @@ import { NoData } from "@/components/ui";
 import { isHoliday } from "@/lib/인사노무/analytics";
 import { computeDays, getHolidays, getRecords, getRule, loadBase, type SearchParams } from "@/lib/인사노무/data";
 import { employeeRows, SHEET_COLUMNS } from "@/lib/인사노무/splitter";
-import { daysInMonth, makeDate, shortKst, weekday, weekdayKr } from "@/lib/time";
+import { daysInMonth, makeDate, shortKst, weekdayKr } from "@/lib/time";
 import PrintButton from "@/components/PrintButton";
 import { splitReportTypes } from "@/lib/인사노무/daily";
 import { VACATION_TYPES } from "@/lib/인사노무/vacation";
@@ -30,7 +30,10 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
   const n = daysInMonth(month);
   const records = await getRecords(`${month}-01`, `${month}-${String(n).padStart(2, "0")}`);
   const present = new Set(records.map((r) => r.emp));
-  let names = base.roster.map((r) => r.name).filter((x) => present.has(x));
+  // 그 달 캡스 기록이 있는 직원 + 기록이 없어도 직접 기입한 날이 있거나 직원별 근무 기준(도제 등)이 있는 재직자
+  const typedIn = new Set(base.overrides.filter((o) => o.day.startsWith(month)).map((o) => o.employee));
+  const employed = new Set(base.employees.filter((e) => (!e.leaveDate || e.leaveDate >= `${month}-01`) && (!e.joinDate || e.joinDate <= `${month}-31`)).map((e) => e.name));
+  let names = base.roster.map((r) => r.name).filter((x) => present.has(x) || (employed.has(x) && (typedIn.has(x) || !!rule.byEmp?.[x])));
   if (!names.length) names = [...present].sort();
   const emp = names.includes(String(sp.emp)) ? String(sp.emp) : names[0];
 
@@ -95,7 +98,7 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
         // 출퇴근 시각이 하나도 없는 날은 하이웍스·보고서에 휴일근무로 올라 있어도 휴일근무로 보이지 않는다
         day: d, wd: weekdayKr(d),
         status: status.get(d) === "휴일근무" && !ins?.[C("발생시각")] && !outs?.[C("발생시각")] ? "휴일"
-          : status.get(d) ?? (weekday(d) >= 5 ? "휴일" : ""),
+          : status.get(d) ?? (isHoliday(d, rule, holidays, emp) ? "휴일" : ""),
         // 근무형태는 자동(휴일·연장, 직접 고친 값이 있으면 그 값). 근무지·인원·업무내용만 직접 입력한 값
         clock_in: ins?.[C("발생시각")] ?? "", in_type: ins?.[C("근무형태")] ?? "",
         clock_out: outs?.[C("발생시각")] ?? "", out_type: outs?.[C("근무형태")] ?? "",
@@ -110,8 +113,8 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
         ],
         placeHint: r[0]?.[C("근무지")] ?? "", noteHint: r[0]?.[C("비고")] ?? "",
         workHint: dayOf.get(d)?.leaveContent?.split("\n")[0] ?? "",
-        holiday: isHoliday(d, rule, holidays),
-        kinds: kindsOf(dayOf.get(d), outs?.[C("근무형태")] ?? "", isHoliday(d, rule, holidays), ins?.[C("근무형태")] ?? ""),
+        holiday: isHoliday(d, rule, holidays, emp),
+        kinds: kindsOf(dayOf.get(d), outs?.[C("근무형태")] ?? "", isHoliday(d, rule, holidays, emp), ins?.[C("근무형태")] ?? ""),
         edited: o ? `${o.editedBy} ${shortKst(o.editedAt)}` : "",
       };
     });

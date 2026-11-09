@@ -91,7 +91,7 @@ export default async function DailyPage({ searchParams }: { searchParams: Promis
     ["휴일·연장근무", COLORS.amber, board.filter((b) => b.group === "휴일근무" || b.overtime).map((b) =>
       [b.emp, (b.overtime ? "연장 " : "") + (b.leaveContent || (b.group === "휴일근무" ? "휴일근무" : ""))])],
   ];
-  const shown = holiday ? board.filter((b) => b.group !== "휴무") : board;
+  const shown = board.filter((b) => b.group !== "휴무"); // 휴일, 또는 그 직원의 근무 요일이 아닌 날(도제의 월·화 등)은 빼고 보인다
 
   return (
     <>

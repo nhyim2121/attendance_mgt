@@ -2,7 +2,7 @@
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
 import { type DayRow, splitTypes, workTypeIn, workTypeOut } from "./analytics";
-import type { WorkRule } from "../config";
+import { ruleFor, type WorkRule } from "../config";
 import type { CapsRecord } from "./loader";
 import { hhmm, type Ts, tsHM, tsTime } from "../time";
 
@@ -120,7 +120,7 @@ export function employeeRows(days: DayRow[], rule: WorkRule): SheetRow[] {
         const m = /~\s*(\d{1,2}):(\d{2})/.exec(content);
         if (m) wt = `연장(${m[1].padStart(2, "0")}:${m[2]})`;
       }
-      if (wt === null) wt = rawWt || workTypeLabel(kind, t, d.holiday, filled, rule);
+      if (wt === null) wt = rawWt || workTypeLabel(kind, t, d.holiday, filled, ruleFor(rule, d.emp)); // 직원별 근무 기준 반영
       out.push([d.wd, d.day, tsTime(t), name, wt, kind, auth, ovPlace ?? (rawPlace || place),
         ovNote ?? (rawNote || note), checkText]);
     }

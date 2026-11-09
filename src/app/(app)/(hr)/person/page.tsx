@@ -23,7 +23,9 @@ export default async function PersonPage({ searchParams }: { searchParams: Promi
   const [rule, base] = await Promise.all([getRule(), loadBase()]);
 
   const all = await computeDays(f.records, rule);
-  const names = employeeSummary(all, base.roster.map((r) => r.name)).map((s) => s.emp);
+  // 출퇴근기록은 캡스 기록이 있는 직원만 (기록 없이 근태 기입만 한 직원은 근태 기입 탭에서 본다)
+  const tagged = new Set(f.records.map((r) => r.emp));
+  const names = employeeSummary(all, base.roster.map((r) => r.name)).map((s) => s.emp).filter((n) => tagged.has(n));
   const emp = names.includes(String(sp.emp)) ? String(sp.emp) : names[0];
   const mine = f.records.filter((r) => r.emp === emp);
   const days = await computeDays(mine, rule);

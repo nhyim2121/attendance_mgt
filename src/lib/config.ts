@@ -60,6 +60,17 @@ export interface WorkRule {
   overtimeMin: number; // 퇴근 기준보다 이만큼 늦으면 '연장'
   roundMin: number; // 연장/휴일 시각 절사 단위(분)
   labelAll: boolean; // true면 평범한 날에도 근무형태 '정상(08:30)' 기입 (수작업 시트는 비워 둠)
+  byEmp?: Record<string, EmpRule>; // 직원별 예외 (예: 일학습병행 도제는 수·목·금 08:30~16:30). 설정 'emp_rules'
+}
+
+/** 직원 한 명의 근무 기준 예외. 비운 항목은 회사 기준을 따른다. */
+export interface EmpRule { workdays?: number[]; start?: number; end?: number; note?: string }
+
+/** 그 직원에게 적용할 근무 기준 (직원별 예외가 없으면 회사 기준 그대로). */
+export function ruleFor(rule: WorkRule, emp?: string): WorkRule {
+  const e = emp ? rule.byEmp?.[emp] : undefined;
+  if (!e) return rule;
+  return { ...rule, workdays: e.workdays ?? rule.workdays, start: e.start ?? rule.start, end: e.end ?? rule.end };
 }
 
 export const DEFAULT_RULE: WorkRule = {
