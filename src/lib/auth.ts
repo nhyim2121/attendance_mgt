@@ -59,3 +59,10 @@ export async function createAccount(admin: SupabaseClient, loginId: string, name
     throw new Error(`계정을 만들지 못했습니다: ${e2.message}`);
   }
 }
+
+/** 관리자 한 사람만 쓰는 화면 (총무 등): 다른 계정은 통합 대시보드로 돌려보낸다. */
+export async function requireAdminPage(): Promise<AppUser> {
+  const u = await requireUser();
+  if (u.role !== "관리자") redirect("/");
+  return u;
+}

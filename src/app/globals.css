@@ -800,3 +800,47 @@ html[data-print="port"] .edit-print .ep-tbl td:nth-child(-n+7) { padding-left: 3
   border-radius: 10px; padding: 2px 9px; align-self: flex-start; }
 .hub-card .plan { color: var(--faint); font-size: .84rem; margin: 0; }
 .hub-card .hub-go { margin-top: auto; font-weight: 700; font-size: .9rem; text-decoration: none; color: var(--hub, #0c3994); }
+
+/* 총무 > 문서 수발 대장 */
+.seg label { padding: 5px 12px; color: var(--ink-2); font-size: .85rem; background: #fff; cursor: pointer; border-right: 1px solid #c7ced9; }
+.seg label:last-child { border-right: 0; }
+.seg label.on { background: var(--blue); color: #fff; }
+.ga-mail td.no { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ga-mail .dir { display: inline-block; font-size: .72rem; font-weight: 700; border-radius: 4px; padding: 0 5px; margin-right: 6px; }
+.ga-mail .d-수신 { background: #e0f2fe; color: #0369a1; }
+.ga-mail .d-발신 { background: #fef3c7; color: #b45309; }
+.ga-mail .tag.kind { background: #eef2f7; color: #334155; }
+.ga-mail tr.editing td { background: #fffbe6; }
+.ga-mail .file { font-size: .82rem; }
+.mstat { border: 0; border-radius: 10px; padding: 2px 10px; font-size: .78rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.mstat.open { background: #fee2e2; color: #b91c1c; }
+.mstat.done { background: #dcfce7; color: #15803d; }
+.x { border: 0; background: none; color: #94a3b8; cursor: pointer; font-size: 1rem; padding: 0 4px; }
+.x:hover { color: #dc2626; }
+.ga-home { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.ga-home .card { display: flex; flex-direction: column; gap: 6px; }
+.ga-home .card.off { opacity: .6; }
+.orange { color: var(--orange); font-weight: 600; }
+.ga-mail .reply { font-size: .8rem; color: #0369a1; }
+.chip { display: inline-block; border: 1px solid #d5dbe5; border-radius: 14px; padding: 3px 10px; font-size: .84rem; text-decoration: none; color: var(--ink-2); background: #fff; }
+.chip.old { border-color: #f5c27a; background: #fff8ec; }
+.ga-mail tr.inactive td { opacity: .55; }
+
+/* 인증 */
+.cert-cat { font-size: 1rem; margin: 0 0 8px; }
+.cert-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.cert-card { display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: inherit; border-left: 4px solid #16a34a; }
+.cert-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+.cert-card.a-d90 { border-left-color: var(--orange); }
+.cert-card.a-d30, .cert-card.a-late { border-left-color: var(--red); }
+.cert-card.s-진행중 { border-left-color: #2563eb; }
+.cert-card.s-만료, .cert-card.s-취소반납 { border-left-color: #94a3b8; opacity: .6; }
+.cert-detail { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; }
+@media (max-width: 900px) { .cert-detail { grid-template-columns: 1fr; } }
+.tbl.kv th { text-align: left; background: #f6f8fb; font-weight: 600; }
+
+/* 업무 대장 입력칸 */
+.lg-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 12px; }
+.lg-fields .field.wide { grid-column: span 2; }
+.lg-fields .field input, .lg-fields .field select, .lg-fields .field textarea { width: 100%; box-sizing: border-box; }
+@media (max-width: 520px) { .lg-fields .field.wide { grid-column: span 1; } }

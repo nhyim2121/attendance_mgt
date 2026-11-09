@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Nav from "@/components/Nav";
 import PrintFit from "@/components/PrintFit";
 import { requireUser } from "@/lib/auth";
+import { bookHref, booksIn } from "@/lib/대장/books";
 import { logout } from "../login/actions";
 
 // 인사노무 > 근태 공간 메뉴
@@ -15,6 +16,7 @@ const ITEMS = [
   { href: "/monthly", label: "월 근태 집계", group: "근로시간" },
   { href: "/employees", label: "직원 관리", group: "인사" },
   { href: "/org", label: "조직도", group: "인사" },
+  ...booksIn("hr").map((b) => ({ href: bookHref(b), label: b.title, group: "인사" })),
   { href: "/upload", label: "데이터 관리", group: "관리" },
   { href: "/settings", label: "근무 기준·공휴일", group: "관리" },
 ]

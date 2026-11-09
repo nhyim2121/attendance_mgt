@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { type Area, bookHref, booksIn } from "@/lib/대장/books";
 
 // 기간·부서 필터는 화면을 옮겨도 유지한다
 const KEEP = ["month", "from", "to", "dept", "all", "fy", "asof"];
@@ -15,6 +16,19 @@ export const SECTIONS = [
   { key: "cert", label: "인증", href: "/cert" },
   { key: "misc", label: "기타", href: "/misc" },
 ] as const;
+// 관리자 한 사람만 쓰는 영역
+const ADMIN_ONLY: string[] = ["ga", "cert", "ehs", "misc"];
+/** 영역 홈 + 그 영역 대장들 */
+const areaItems = (home: string, label: string, area: Area) => [{ href: home, label }, ...booksIn(area).map((b) => ({ href: bookHref(b), label: b.title }))];
+// 인증 메뉴
+const CERT_ITEMS = [{ href: "/cert", label: "인증 현황" }];
+// 총무 메뉴 (관리자만)
+const GA_ITEMS = [
+  { href: "/ga", label: "총무 홈" },
+  { href: "/ga/mail", label: "문서 수발 대장" },
+  { href: "/ga/issue", label: "증빙·법인서류 발급" },
+  { href: "/ga/certs", label: "공동인증서 관리" },
+];
 const under = (path: string, p: string) => path === p || path.startsWith(`${p}/`);
 /** 이 주소가 속한 영역. 통합 대시보드(/)·사용자 관리는 영역 없음, 나머지 기존 화면은 모두 인사노무. */
 function sectionOf(path: string): string {
@@ -38,11 +52,30 @@ export default function Nav({ items: attItems, leaveItems, admin }: { items: Ite
     <>
       <Link href="/" className={path === "/" ? "on" : ""}>통합 대시보드</Link>
       <div className="group">업무</div>
-      {SECTIONS.map((s) => (
+      {SECTIONS.filter((s) => admin || !ADMIN_ONLY.includes(s.key)).map((s) => (
         <div key={s.key}>
           <Link href={s.href} className={`sec${cur === s.key ? " open" : ""}`}>
             {s.label}<span className="caret">{cur === s.key ? "▾" : "▸"}</span>
           </Link>
+          {cur === s.key && s.key === "ga" && (
+            <div className="sec-items">
+              {[...GA_ITEMS, ...booksIn("ga").map((b) => ({ href: bookHref(b), label: b.title }))].map((it) => (
+                <Link key={it.href} href={it.href} className={path === it.href || (it.href !== "/ga" && under(path, it.href)) ? "on" : ""}>{it.label}</Link>
+              ))}
+            </div>
+          )}
+          {cur === s.key && (s.key === "ehs" || s.key === "misc") && (
+            <div className="sec-items">
+              {areaItems(s.href, `${s.label} 홈`, s.key).map((it) => (
+                <Link key={it.href} href={it.href} className={path === it.href || (it.href !== s.href && under(path, it.href)) ? "on" : ""}>{it.label}</Link>
+              ))}
+            </div>
+          )}
+          {cur === s.key && s.key === "cert" && (
+            <div className="sec-items">
+              {CERT_ITEMS.map((it) => <Link key={it.href} href={it.href} className={under(path, it.href) ? "on" : ""}>{it.label}</Link>)}
+            </div>
+          )}
           {cur === s.key && s.key === "hr" && (
             <div className="sec-items">
               <div className="space-switch">

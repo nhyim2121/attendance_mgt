@@ -54,6 +54,7 @@ async function main() {
     await sleep(10_000);
   }
   run("node 자동실행/backup-db.mjs");
+  run("node 자동실행/backup-files.mjs"); // 업무 영역 자료 폴더 백업·작업기록
   if (!existsSync(join(ROOT, ".next", "BUILD_ID"))) {
     log("빌드가 없어 npm run build를 실행합니다.");
     run("npm run build");

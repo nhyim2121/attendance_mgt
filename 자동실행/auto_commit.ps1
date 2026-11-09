@@ -12,6 +12,8 @@ function Write-Log($m) { "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $m" | Out-Fi
 try {
     $branch = (git rev-parse --abbrev-ref HEAD).Trim()
     if ($branch -ne "main") { Write-Log "main 브랜치가 아니라서($branch) 건너뜀"; exit 0 }
+    # 업무 영역 자료 폴더 백업·작업기록 (GitHub에는 안 올라감)
+    $fb = node (Join-Path $Root "자동실행/backup-files.mjs") 2>&1; if ($fb) { Write-Log "자료 백업: $($fb -join ' | ')" }
     git add -A
     $changed = git diff --cached --name-only
     if ($changed) {

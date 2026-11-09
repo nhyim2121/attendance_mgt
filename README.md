@@ -81,6 +81,9 @@ caps-attendance-app/
 │   ├── components/           # 공통: 사이드바, 필터 막대, 카드·표, 인쇄
 │   │   └── 인사노무/         # 인사노무 전용: 차트, 홈 꾸밈, 달력, 하위 탭
 │   └── lib/                  # 공통: auth·store(Supabase)·time·excel·mailer·config, hub(업무 영역 안내)
+│       ├── 대장/             # 업무 대장 공통 틀: books.ts(대장·칸 설정)에 한 덩어리 더하면 화면·엑셀·알림이 생김
+│       ├── 인증/             # 인증·지정 현황과 이력 (cert.ts)
+│       ├── 총무/             # 총무: 문서 수발 대장(mail.ts), 증빙·법인서류·공동인증서(issue.ts)
 │       └── 인사노무/         # 인사노무(근태·휴가)
 │           ├── loader.ts         # 캡스 파일 읽기, 원본 시트 자동 탐지, 정규화
 │           ├── hiworks.ts        # 근태현황 파일: 명단 + 날짜별 일일보고·휴일근무 표 파싱
@@ -94,10 +97,12 @@ caps-attendance-app/
 ├── supabase/
 │   ├── config.toml           # 로컬 Supabase 설정 (회원가입·Studio 등 꺼 둠)
 │   └── migrations/           # DB 구조·권한·DB 함수
+├── 총무/ 인사노무/ 환경안전보건/ 인증/ 기타/   # 업무 영역 폴더: 자료(직접 작업) · 백업(자동 zip) · 작업기록.md (이 PC에만, GitHub 제외)
 ├── 사이트관리/             # 사이트 켜기·끄기·상태 (bat 파일, 더블클릭)
 ├── 자동실행/                 # 작업 스케줄러가 돌리는 프로그램 (예전 이름 scripts)
 │   ├── add-user.ts           # 서버 PC에서 계정 만들기 (첫 관리자 계정)
 │   ├── migrate-sqlite.ts     # 이전 사이트(SQLite) 데이터 옮기기 (한 번만)
+│   ├── backup-files.mjs      # 업무 영역 자료 폴더 백업·작업기록 (18:00, 사이트 켤 때)
 │   ├── backup-db.mjs         # DB 백업 (감시기가 켤 때마다 실행, 30개 보관)
 │   ├── run-server.mjs        # 감시기: Supabase 켜기 → 백업 → 사이트 실행, 멈추면 다시 켬
 │   └── server_control.ps1    # 작업 스케줄러 등록·켜기·끄기·상태
