@@ -304,6 +304,45 @@ svg.ch { width: 100%; height: auto; display: block; }
 .sk-d .main-pad { max-width: 1180px; margin: 0 auto; padding: 26px 40px; }
 @media (max-width: 1100px) { .sk-d .row3, .charts, .sk-d .cols { grid-template-columns: 1fr; } .sk-d .hrkpi { grid-template-columns: 1fr 1fr; } }
 
+
+/* ================= 시안 E: 통합안 (A 바탕 + B 숫자카드·남색 포인트 + C 촘촘 보기 + D 분류 목록·할 일·그래프) ================= */
+.sk-e { --bg: #f6f7f9; }
+.sk-e .top { box-shadow: 0 1px 0 var(--line); }
+.sk-e .top::before { content: ""; display: block; height: 3px; background: linear-gradient(90deg, #0c3994 0%, #2a56b8 70%, #e84340 100%); }
+.sk-e .nav a.on { background: #0c3994; color: #fff; }
+.sk-e .hello2 { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; margin-bottom: 22px; }
+.sk-e .hello2 .d { color: var(--muted); font-size: .85rem; font-weight: 600; }
+.sk-e .hello2 h1 { font-size: 1.9rem; margin: 4px 0 0; letter-spacing: -.03em; }
+.sk-e .hello2 h1 em { font-style: normal; color: var(--blue); }
+.sk-e .hello2 p { color: var(--muted); margin: 6px 0 0; }
+.sk-e .hello2 p b { color: var(--red); }
+.qa { display: flex; gap: 8px; flex-wrap: wrap; }
+.qa button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 14px; cursor: pointer; font-weight: 600; color: var(--ink2); box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+.qa button:hover { border-color: var(--blue); color: var(--blue); }
+.qa button .i { width: 15px; height: 15px; }
+.sk-e .kpi { position: relative; overflow: hidden; }
+.sk-e .kpi::after { content: ""; position: absolute; right: -18px; top: -18px; width: 70px; height: 70px; border-radius: 50%; background: color-mix(in srgb, var(--kc, #0c3994) 8%, transparent); }
+.cats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.cat h3 { margin: 0 0 10px; }
+.cat h3 .pill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; font-size: .95rem; font-weight: 800; background: color-mix(in srgb, var(--c) 11%, #fff); color: var(--c); }
+.cat h3 .pill small { font-weight: 700; letter-spacing: .04em; opacity: .7; font-size: .7rem; }
+.cat h3 a { font-size: .8rem; color: var(--muted); font-weight: 600; text-decoration: none; }
+.cat ul { list-style: none; margin: 0; padding: 0; }
+.cat li a { display: flex; align-items: center; gap: 10px; padding: 7px 6px; border-radius: 10px; color: var(--ink); text-decoration: none; font-size: .92rem; }
+.cat li a:hover { background: color-mix(in srgb, var(--c) 6%, #fff); }
+.cat li .ico { width: 28px; height: 28px; border-radius: 8px; }
+.cat li .ico .i { width: 15px; height: 15px; }
+.wk { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+.btm { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) 260px; gap: 16px; margin-top: 16px; }
+.links2 .lg { font-size: .74rem; color: var(--muted); font-weight: 700; margin: 10px 0 4px; }
+.links2 a { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; font-size: .9rem; background: #f6f7f9; margin-bottom: 5px; }
+.links2 a:hover { background: #edf2fc; color: var(--blue); }
+.links2 a::after { content: "↗"; color: var(--muted); font-size: .8rem; }
+.dens { display: inline-flex; }
+.card.dense .t td { padding: 6px 10px; font-size: .86rem; } .card.dense .t th { padding: 7px 10px; background: #f7f8fa; }
+.card.dense .av { width: 24px; height: 24px; font-size: .7rem; }
+@media (max-width: 1100px) { .cats, .wk, .btm { grid-template-columns: 1fr; } }
+
 @media (max-width: 900px) { .sk-b, .sk-c, .sk-d { grid-template-columns: 1fr; } .sk-b .side, .sk-c .rail, .sk-c .subp, .sk-d .nside { display: none; } .sk-a .nav { display: none; } }
 
 @media print {
@@ -318,6 +357,7 @@ svg.ch { width: 100%; height: auto; display: block; }
 <body>
 <div class="picker">
   <div class="grp"><b>시안</b>
+    <button data-d="e">★ E · 통합안 (A 바탕)</button>
     <button data-d="a">A · 깔끔한 흰색</button>
     <button data-d="b">B · 남색 사이드바</button>
     <button data-d="c">C · 업무형 촘촘</button>
@@ -426,9 +466,9 @@ const TODO = [["mail","○○시청 공문 회신","문서 수발 대장 · 2026
 const EVENTS = { 2: [["연차 · 최유진","g"]], 5: [["반차 · 박지훈","b"]], 9: [["연차 · 최유진","g"],["오후 반차 · 박지훈","b"]], 11: [["연차 · 김민준","g"]], 12: [["공문 회신 기한","r"]], 13: [["외출 · 정하늘","o"]], 14: [["입찰 마감","r"]], 16: [["소방 보완 기한","o"]], 20: [["지원사업 중간보고","o"],["연차 · 윤서아","g"]], 24: [["교육 · 생산팀","v"]], 28: [["ISO 9001 사후심사","r"]], 30: [["차량 보험 만기","o"]] };
 
 /* ===================== 상태·이동 ===================== */
-let st = { d: "b", p: "dash" };
+let st = { d: "e", p: "dash" };
 function go(p) { location.hash = st.d + "/" + p; }
-function fromHash() { const [d, p] = location.hash.slice(1).split("/"); if (d && "abcd".includes(d)) st.d = d; st.p = p && (PAGES[p] || p === "dash" || p.startsWith("home-") || p.startsWith("print-")) ? p : "dash"; render(); }
+function fromHash() { const [d, p] = location.hash.slice(1).split("/"); if (d && "abcde".includes(d)) st.d = d; st.p = p && (PAGES[p] || p === "dash" || p.startsWith("home-") || p.startsWith("print-")) ? p : "dash"; render(); }
 function toast(m) { const t = document.createElement("div"); t.className = "toast"; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); }
 function closeLayer() { document.getElementById("layer").innerHTML = ""; }
 function layer(html, center) { document.getElementById("layer").innerHTML = `<div class="overlay ${center ? "center" : ""}" onclick="if(event.target===this)closeLayer()">${html}</div>`; }
@@ -471,7 +511,7 @@ function tableOf(id) {
 }
 function tableView(id, filt = true) {
   const s = tableOf(id), pg = PAGES[id];
-  return `<div class="card" style="padding:14px 16px 6px">${filt ? `<div class="filters"><input placeholder="🔍 검색" oninput="filterRows(this)"><span class="seg"><span class="on" onclick="segOn(this)">전체</span><span onclick="segOn(this)">진행 중</span><span onclick="segOn(this)">완료</span></span>${pg && pg.kind === "ledger" ? `<select><option>2026년</option><option>2025년</option></select>` : ""}</div>` : ""}
+  return `<div class="card" style="padding:14px 16px 6px">${filt ? `<div class="filters"><input placeholder="🔍 검색" oninput="filterRows(this)"><span class="seg"><span class="on" onclick="segOn(this)">전체</span><span onclick="segOn(this)">진행 중</span><span onclick="segOn(this)">완료</span></span>${pg && pg.kind === "ledger" ? `<select><option>2026년</option><option>2025년</option></select>` : ""}${st.d === "e" ? `<button class="btn" style="margin-left:auto;padding:6px 12px" onclick="dens(this)">촘촘하게 보기</button>` : ""}</div>` : ""}
     <div class="tbl-wrap"><table class="t"><thead><tr>${s.cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>
     ${s.rows.map((r, i) => `<tr onclick="detail('${id}', ${i})">${r.map((c, k) => `<td>${k === 0 && (id === "leavestat" || id === "emp") ? av(c, i) : c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
     <p class="empty-note">줄을 누르면 상세가 열립니다 · ${s.rows.length}건</p></div>`;
@@ -487,6 +527,7 @@ function weekLeaves() { return `<ul class="leaves"><li><span>월 · 최유진</s
 
 function dash() {
   if (st.d === "d") return dashD();
+  if (st.d === "e") return dashE();
   const hello = st.d === "c" ? `<div class="hello"><h1>통합 대시보드</h1><p>2026년 11월 9일 (월) · 관리자</p></div>`
     : `<div class="hello"><span style="opacity:.75;font-size:.85rem">2026년 11월 9일 월요일</span><h1>안녕하세요, <em>관리자</em>님</h1><p>오늘 처리할 일이 4건 있습니다.</p></div>`;
   return `${hello}<div class="grid kpis">
@@ -528,6 +569,31 @@ function dashD() {
       <div class="hk" onclick="go('leavestat')"><span class="em">🏖️</span><div><div class="l">이번 달 연차 사용</div><div class="n">18<small>일</small></div></div></div><div class="hk" onclick="go('week52')"><span class="em">⚠️</span><div><div class="l">52시간 근접</div><div class="n" style="color:var(--red)">1<small>명</small></div></div></div></div>
     <div class="charts"><div class="w"><h4>📊 부서별 인원</h4>${bars()}</div><div class="w"><h4>📉 월별 1인 평균 주 근로시간</h4>${area()}</div></div></div>`;
 }
+
+function dashE() {
+  const k = (l, n, u, t, ic_, c, w, to) => kpi(l, n, u, t, ic_, c, w, to).replace('class="card kpi', `style="--kc:${c}" class="card kpi`);
+  const cat = (a, extra) => `<div class="card cat" style="--c:${a.color}"><h3><span class="pill">${a.label} <small>${a.en}</small></span><a onclick="go('home-${a.key}')">전체 ›</a></h3><ul>
+    ${[...a.groups, ...(extra || [])].flatMap(([, it]) => it).map(([id, l, icn, , , , n]) => `<li><a onclick="go('${id}')"><span class="ico" style="--c:${a.color}">${ic(icn)}</span>${l}${n ? `<span class="cnt">${n}</span>` : ""}</a></li>`).join("")}</ul></div>`;
+  const safety = { ...AREA.ehs, label: "안전·인증·기타", en: "SAFETY", key: "ehs" };
+  const safetyList = `<div class="card cat" style="--c:#15803d"><h3><span class="pill">안전·인증·기타 <small>SAFETY</small></span><a onclick="go('home-ehs')">전체 ›</a></h3><ul>
+    ${["ehs", "cert", "misc"].flatMap((key) => AREA[key].groups.flatMap(([, it]) => it).map(([id, l, icn, , , , n]) => `<li><a onclick="go('${id}')"><span class="ico" style="--c:${AREA[key].color}">${ic(icn)}</span>${l}${n ? `<span class="cnt">${n}</span>` : ""}</a></li>`)).join("")}</ul></div>`;
+  return `<div class="hello2"><div><span class="d">2026년 11월 9일 월요일</span><h1>안녕하세요, <em>관리자</em>님</h1><p>오늘 처리할 일 <b>4건</b> · 이번 주 휴가 4건</p></div>
+      <div class="qa"><button onclick="editForm('leavestat')">${ic("plus")}휴가 등록</button><button onclick="editForm('mail')">${ic("plus")}받은 공문</button><button onclick="editForm('fixtures')">${ic("plus")}비품</button><button onclick="editForm('drivelog')">${ic("plus")}차량 운행</button><button onclick="editForm('tasks')">${ic("plus")}할 일</button></div></div>
+    <div class="grid kpis">${k("오늘 출근", "23", "/ 26명", "지각 1 · 미출근 2", "clock", "#0c3994", 0, "daily")}${k("오늘 휴가", "2", "명", "연차 1 · 반차 1", "umbrella", "#15803d", 0, "leavecal")}
+      ${k("처리 중인 문서", "1", "건", "회신 기한 11/12", "mail", "#0e7490", 1, "mail")}${k("만기 임박", "3", "건", "30일 안 · 인증 1 · 차량 2", "alert", "#e84340", 1, "vehicles")}</div>
+    <div class="cats">${cat(AREA.hr)}${cat(AREA.ga)}${safetyList}</div>
+    <div class="wk"><div class="card"><h3>이번 주 할 일 <small>누르면 해당 화면으로</small></h3><div class="tabs2"><span class="on" onclick="segOn2(this)">전체</span><span onclick="segOn2(this)">문서</span><span onclick="segOn2(this)">만기·갱신</span><span onclick="segOn2(this)">인사</span></div>
+        <table class="nt"><tbody><tr onclick="go('mail')"><td>${ic("mail")} ○○시청 공문 회신</td><td><span class="chip s1">진행 중</span></td><td class="dd r">D-3</td></tr>
+          <tr onclick="go('certs')"><td>${ic("medal")} ISO 9001 사후심사 준비</td><td><span class="chip s0">시작 전</span></td><td class="dd o">D-19</td></tr><tr onclick="go('vehicles')"><td>${ic("car")} 12가 3456 보험 갱신</td><td><span class="chip s0">시작 전</span></td><td class="dd o">D-21</td></tr>
+          <tr onclick="go('week52')"><td>${ic("gauge")} 주 52시간 근접 1명 확인</td><td><span class="chip s1">진행 중</span></td><td class="dd">이번 주</td></tr><tr onclick="go('training')"><td>${ic("cap")} 법정의무교육 실시 기록</td><td><span class="chip s2">완료</span></td><td class="dd">11/7</td></tr></tbody></table></div>
+      <div class="card"><h3>이번 주 휴가 <small><a onclick="go('leavecal')" style="color:var(--blue)">캘린더 ›</a></small></h3>${weekLeaves()}</div></div>
+    <div class="btm"><div class="card"><h3>부서별 인원 <small><a onclick="go('org')" style="color:var(--blue)">조직도 ›</a></small></h3>${bars()}</div>
+      <div class="card"><h3>월별 1인 평균 주 근로시간 <small><a onclick="go('hours')" style="color:var(--blue)">리포트 ›</a></small></h3>${area()}</div>
+      <div class="card links2"><h3>바로가기 모음</h3><div class="lg">신고·발급</div><a onclick="toast('정부24가 새 창으로 열립니다 (시안)')">정부24</a><a onclick="toast('홈택스가 새 창으로 열립니다 (시안)')">홈택스</a><a onclick="toast('4대보험 포털이 열립니다 (시안)')">4대보험 정보연계센터</a>
+        <div class="lg">업무</div><a onclick="toast('하이웍스가 열립니다 (시안)')">하이웍스</a><a onclick="toast('우체국 등기 조회가 열립니다 (시안)')">우체국 등기 조회</a></div></div>`;
+}
+function dens(el) { const card = el.closest(".card"); card.classList.toggle("dense"); el.textContent = card.classList.contains("dense") ? "넓게 보기" : "촘촘하게 보기"; }
+
 function segOn2(el) { el.parentElement.querySelectorAll("span").forEach((s) => s.classList.toggle("on", s === el)); }
 
 function areaHome(key) {
@@ -619,7 +685,7 @@ function curArea() { const p = st.p; if (p.startsWith("home-")) return p.slice(5
 function curId() { return st.p.startsWith("print-") ? st.p.slice(6) : st.p; }
 function shell(inner) {
   const ca = curArea(), cid = curId();
-  if (st.d === "a") {
+  if (st.d === "a" || st.d === "e") {
     const a = AREA[ca];
     return `<div class="top"><div class="top-in"><img src="../public/logo.png" alt="" onclick="go('dash')">
       <nav class="nav"><a onclick="go('dash')" class="${st.p === "dash" ? "on" : ""}">대시보드</a>${NAV.map((x) => `<a onclick="go('home-${x.key}')" class="${x.key === ca ? "on" : ""}">${x.label}</a>`).join("")}</nav>
@@ -658,7 +724,7 @@ function fitSheet() {
 function render() {
   closeLayer();
   const app = document.getElementById("app");
-  app.className = "sk-" + st.d;
+  app.className = st.d === "e" ? "sk-a sk-e" : "sk-" + st.d;
   app.innerHTML = shell(page());
   document.querySelectorAll(".picker [data-d]").forEach((b) => b.classList.toggle("on", b.dataset.d === st.d));
   fitSheet(); scrollTo(0, 0);
