@@ -32,7 +32,7 @@ const LEAVE_ITEMS = [
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   return (
-    <div className="shell">
+    <div className="shell d2">
       <nav className="side">
         <a href="/" className="logo" title="통합 대시보드"><img src="/logo.png" alt="주식회사 에쓰엔" /></a>
         <div className="brand">통합관리시스템</div>

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import AppIcon, { AREA_ICON } from "@/components/AppIcon";
+import { hubOf } from "@/lib/hub";
 import { type Area, bookHref, booksIn } from "@/lib/대장/books";
 
 // 기간·부서 필터는 화면을 옮겨도 유지한다
@@ -50,12 +52,15 @@ export default function Nav({ items: attItems, leaveItems, admin }: { items: Ite
   let group: string | undefined;
   return (
     <>
-      <Link href="/" className={path === "/" ? "on" : ""}>통합 대시보드</Link>
+      <Link href="/" className={`sec${path === "/" ? " on" : ""}`}>
+        <span className="sec-l"><AppIcon name="dashboard" color="#0c3994" size="sm" />통합 대시보드</span>
+      </Link>
       <div className="group">업무</div>
       {SECTIONS.filter((s) => admin || !ADMIN_ONLY.includes(s.key)).map((s) => (
         <div key={s.key}>
           <Link href={s.href} className={`sec${cur === s.key ? " open" : ""}`}>
-            {s.label}<span className="caret">{cur === s.key ? "▾" : "▸"}</span>
+            <span className="sec-l"><AppIcon name={AREA_ICON[s.key]} color={hubOf(s.key).color} size="sm" />{s.label}</span>
+            <span className="caret">{cur === s.key ? "▾" : "▸"}</span>
           </Link>
           {cur === s.key && s.key === "ga" && (
             <div className="sec-items">
@@ -100,7 +105,9 @@ export default function Nav({ items: attItems, leaveItems, admin }: { items: Ite
         </div>
       ))}
       <div className="group">시스템</div>
-      <Link href="/users" className={under(path, "/users") ? "on" : ""}>{admin ? "사용자 관리" : "비밀번호 변경"}</Link>
+      <Link href="/users" className={`sec${under(path, "/users") ? " on" : ""}`}>
+        <span className="sec-l"><AppIcon name={admin ? "userCog" : "key"} color="#6b7280" size="sm" />{admin ? "사용자 관리" : "비밀번호 변경"}</span>
+      </Link>
     </>
   );
 }

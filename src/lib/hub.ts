@@ -8,7 +8,8 @@ export interface HubSection {
 }
 export const HUB: HubSection[] = [
   { key: "hr", label: "인사노무", href: "/attendance", color: "#0c3994", desc: "근태(출퇴근·근로시간)와 휴가·연차, 직원·조직도", ready: true,
-    links: [["근태 홈", "/attendance"], ["일일 현황", "/daily"], ["주 52시간", "/week52"], ["휴가 홈", "/leave"], ["연차 현황", "/leave/status"], ["직원 관리", "/employees"], ["조직도", "/org"], ...booksIn("hr").map((b) => [b.title, bookHref(b)] as [string, string])] },
+    links: [["근태 홈", "/attendance"], ["일일 현황", "/daily"], ["직원별 근태", "/person"], ["근태 캘린더", "/calendar"], ["근로시간 리포트", "/hours"], ["주 52시간", "/week52"], ["월 근태 집계", "/monthly"],
+      ["휴가 홈", "/leave"], ["연차 현황", "/leave/status"], ["휴가 캘린더", "/leave/calendar"], ["직원 관리", "/employees"], ["조직도", "/org"], ...booksIn("hr").map((b) => [b.title, bookHref(b)] as [string, string])] },
   { key: "ga", label: "총무", href: "/ga", color: "#0e7490", desc: "문서·비품·차량·보안·복리후생·지원사업·입찰 (관리자만)", ready: true,
     links: [["총무 홈", "/ga"], ["문서 수발 대장", "/ga/mail"], ["증빙·법인서류 발급", "/ga/issue"], ["공동인증서 관리", "/ga/certs"], ...booksIn("ga").map((b) => [b.title, bookHref(b)] as [string, string])] },
   { key: "ehs", label: "환경안전보건", href: "/ehs", color: "#15803d", desc: "폐수·안전 점검·건강검진 (관리자만)", ready: true,
