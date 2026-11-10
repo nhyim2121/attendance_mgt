@@ -19,8 +19,8 @@ export default async function Page() {
         { label: "연차 사용률", n: hr.usedRate, unit: "%", sub: `잔여 ${hr.remain}일 · ${hr.fy}`, icon: "pie", color: "#0e7490", href: "/leave/status" },
       ]}
       quick={[["/leave/register", "휴가 등록"], ["/sheets?tab=edit", "근태 기입"], ["/employees", "직원 추가"], ["/hr/b/training#form", "교육 기록"], ["/hr/b/licenses#form", "자격증·선임 추가"]]}>
-      <Card title="월별 1인 평균 주 근로시간" more={["리포트", "/hours"]}><HoursLine data={hr.monthly} /></Card>
-      <Card title="월별 휴가 사용 건수" more={["휴가 홈", "/leave"]}><Bars data={hr.leaveByMonth.map((m) => ({ label: m.label, n: m.n }))} hiLast /></Card>
+      <Card en="HOURS" title="월별 1인 평균 주 근로시간" more={["리포트", "/hours"]}><HoursLine data={hr.monthly} /></Card>
+      <Card en="LEAVE USE" title="월별 휴가 사용 건수" more={["휴가 홈", "/leave"]}><Bars data={hr.leaveByMonth.map((m) => ({ label: m.label, n: m.n }))} hiLast /></Card>
     </AreaDash>
   );
 }

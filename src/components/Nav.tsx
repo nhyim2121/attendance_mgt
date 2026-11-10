@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import AppIcon, { AREA_ICON } from "@/components/AppIcon";
 import { areaOfPath, emojiOf, isOn, MENU } from "@/lib/대시/menu";
 
 // 기간·부서 필터는 화면을 옮겨도 유지한다 (인사노무 화면끼리)
 const KEEP = ["month", "from", "to", "dept", "all", "fy", "asof"];
 
-/** 사이드바 (F안): 통합 대시보드 + 업무 영역. 영역을 누르면 그 영역 대시보드로 가고,
- *  지금 있는 영역만 펼쳐서 [대시보드] + 묶음별 메뉴를 보인다. */
+/** 사이드바 (통합 디자인, 1차 B 남색 + 1차 D 펼침 목록): 통합 대시보드 + 업무 영역.
+ *  영역을 누르면 그 영역 대시보드로 가고, 지금 있는 영역만 펼쳐서 [대시보드] + 묶음별 메뉴를 보인다.
+ *  사이드바를 접으면(1차 C) 이모지 칸만 남는다. */
 export default function Nav({ admin }: { admin: boolean }) {
   const path = usePathname();
   const sp = useSearchParams();
@@ -19,19 +19,20 @@ export default function Nav({ admin }: { admin: boolean }) {
   const cur = areaOfPath(path);
   return (
     <>
-      <Link href="/" className={`sec${path === "/" ? " on" : ""}`}>
-        <span className="sec-l"><AppIcon name="dashboard" color="#0c3994" size="sm" />통합 대시보드</span>
+      <Link href="/" className={`sec${path === "/" ? " on" : ""}`} title="통합 대시보드">
+        <span className="sec-l"><span className="ch">🏠</span><span className="t">통합 대시보드</span></span>
       </Link>
       <div className="group">업무</div>
       {MENU.filter((a) => admin || !a.adminOnly).map((a) => (
         <div key={a.key}>
-          <Link href={a.dash} className={`sec${path === a.dash ? " on" : cur === a.key ? " open" : ""}`}>
-            <span className="sec-l"><AppIcon name={AREA_ICON[a.key]} color={a.color} size="sm" />{a.label}</span>
+          <Link href={a.dash} title={a.label} style={{ ["--c" as string]: a.color }}
+            className={`sec${path === a.dash ? " on" : cur === a.key ? " open" : ""}`}>
+            <span className="sec-l"><span className="ch">{emojiOf(a.key)}</span><span className="t">{a.label}</span></span>
             <span className="caret">{cur === a.key ? "▾" : "▸"}</span>
           </Link>
           {cur === a.key && (
             <div className="sec-items">
-              <Link href={a.dash} className={`dash${path === a.dash ? " on" : ""}`}>📊 {a.label} 대시보드</Link>
+              <Link href={a.dash} className={`dash${path === a.dash ? " on" : ""}`}><span className="em">📊</span>{a.label} 대시보드</Link>
               {a.groups.map((g) => (
                 <div key={g.label}>
                   {g.label && <div className="group">{g.label}</div>}
@@ -46,8 +47,8 @@ export default function Nav({ admin }: { admin: boolean }) {
         </div>
       ))}
       <div className="group">시스템</div>
-      <Link href="/users" className={`sec${path === "/users" || path.startsWith("/users/") ? " on" : ""}`}>
-        <span className="sec-l"><AppIcon name={admin ? "userCog" : "key"} color="#6b7280" size="sm" />{admin ? "사용자 관리" : "비밀번호 변경"}</span>
+      <Link href="/users" className={`sec${path === "/users" || path.startsWith("/users/") ? " on" : ""}`} title={admin ? "사용자 관리" : "비밀번호 변경"}>
+        <span className="sec-l"><span className="ch">{admin ? "⚙️" : "🔑"}</span><span className="t">{admin ? "사용자 관리" : "비밀번호 변경"}</span></span>
       </Link>
     </>
   );

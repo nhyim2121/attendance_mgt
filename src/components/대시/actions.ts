@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { isScope, loadLinks, saveLinks } from "@/lib/대시/links";
+import { isQuad, loadMemos, loadTodo4, newId, saveMemos, saveTodo4 } from "@/lib/대시/notes";
 
 type Res = { ok?: string; error?: string } | null;
 
@@ -30,5 +31,49 @@ export async function deleteLink(scope: string, index: number, name: string): Pr
   const list = await loadLinks(scope);
   if (list[index]?.name !== name) return;
   await saveLinks(scope, list.filter((_, i) => i !== index));
+  revalidatePath("/", "layout");
+}
+
+// ---------------------------------------------------------------- 할 일 4칸 (내 것만)
+export async function addTodo4(text: string, q: number): Promise<void> {
+  const u = await requireUser();
+  const t = text.trim().slice(0, 200);
+  if (!t || !isQuad(q)) return;
+  await saveTodo4(u.id, [...(await loadTodo4(u.id)), { id: newId(), text: t, q, done: false }]);
+  revalidatePath("/", "layout");
+}
+export async function toggleTodo4(id: string): Promise<void> {
+  const u = await requireUser();
+  await saveTodo4(u.id, (await loadTodo4(u.id)).map((x) => (x.id === id ? { ...x, done: !x.done } : x)));
+  revalidatePath("/", "layout");
+}
+export async function deleteTodo4(id: string): Promise<void> {
+  const u = await requireUser();
+  await saveTodo4(u.id, (await loadTodo4(u.id)).filter((x) => x.id !== id));
+  revalidatePath("/", "layout");
+}
+/** 끝낸 일 한꺼번에 치우기 */
+export async function clearDoneTodo4(): Promise<void> {
+  const u = await requireUser();
+  await saveTodo4(u.id, (await loadTodo4(u.id)).filter((x) => !x.done));
+  revalidatePath("/", "layout");
+}
+
+// ---------------------------------------------------------------- 메모 (내 것만)
+export async function addMemo(text: string): Promise<void> {
+  const u = await requireUser();
+  const t = text.trim().slice(0, 300);
+  if (!t) return;
+  await saveMemos(u.id, [...(await loadMemos(u.id)), { id: newId(), text: t, star: false }]);
+  revalidatePath("/", "layout");
+}
+export async function starMemo(id: string): Promise<void> {
+  const u = await requireUser();
+  await saveMemos(u.id, (await loadMemos(u.id)).map((x) => (x.id === id ? { ...x, star: !x.star } : x)));
+  revalidatePath("/", "layout");
+}
+export async function deleteMemo(id: string): Promise<void> {
+  const u = await requireUser();
+  await saveMemos(u.id, (await loadMemos(u.id)).filter((x) => x.id !== id));
   revalidatePath("/", "layout");
 }

@@ -27,13 +27,13 @@ export default async function Page() {
         { label: "진행 중", n: items.filter((c) => c.status === "진행 중").length, unit: "건", sub: "신청·심사 중", icon: "list", color: "#0c3994", href: "/cert" },
       ]}
       quick={[["/cert#add", "인증 등록"], ["/cert", "일정·이력 추가"], ["/cert", "스캔본 올리기"]]}>
-      <Card title="인증 목록" more={["전체", "/cert"]}>
+      <Card en="CERTS" title="인증 목록" more={["전체", "/cert"]}>
         <MiniTable empty="등록한 인증이 없습니다." rows={items.slice(0, 8).map((c) => ({
           href: `/cert/item?id=${c.id}`,
           cells: [<b key="n">{c.name}</b>, c.expires ? `만료 ${c.expires}` : "상시", <Tag key="s" tone={STATUS_TONE[c.status] ?? "k"}>{c.status}</Tag>],
         }))} />
       </Card>
-      <Card title="90일 안 심사·갱신 일정">
+      <Card en="AUDITS" title="90일 안 심사·갱신 일정">
         <MiniTable empty="90일 안에 오는 일정이 없습니다." rows={alerts.slice(0, 8).map(({ c, a }) => ({
           href: `/cert/item?id=${c.id}`, cells: [c.name, a.label, a.day, <Tag key="d" tone={ddayTone(a.left) || "k"}>{ddayText(a.left)}</Tag>],
         }))} />

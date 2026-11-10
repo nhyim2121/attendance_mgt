@@ -24,20 +24,20 @@ export default async function BookArea({ area }: { area: "ehs" | "misc" }) {
   return (
     <AreaDash area={area} kpis={kpis} quick={quick}>
       {stats.length === 1 ? (
-        <Card title="진행 중인 일" more={["전체", stats[0].href]}>
+        <Card en="IN PROGRESS" title="진행 중인 일" more={["전체", stats[0].href]}>
           <MiniTable empty="진행 중인 일이 없습니다." rows={openRows.map(({ r, name }) => ({
             href: `${stats[0].href}?edit=${r.id}#form`,
             cells: [name, r.data.status ? <Tag key="s" tone={r.data.status === "진행 중" ? "b" : "k"}>{r.data.status}</Tag> : "", r.data.due ? `기한 ${dayLabel(r.data.due)}` : ""],
           }))} />
         </Card>
       ) : (
-        <Card title="다가오는 기한">
+        <Card en="DUE" title="다가오는 기한">
           <MiniTable empty="다가오는 기한이 없습니다." rows={mine.slice(0, 6).map((t) => ({
             href: t.href, cells: [t.title, t.sub.split(" · ")[0], <Tag key="d" tone={ddayTone(t.left) || "k"}>{ddayText(t.left)}</Tag>],
           }))} />
         </Card>
       )}
-      <Card title="최근 기록">
+      <Card en="RECENT" title="최근 기록">
         <MiniTable empty="아직 기록이 없습니다." rows={recent.map(({ b, r, name }) => ({
           href: `${stats.find((s) => s.key === b.key)!.href}?edit=${r.id}#form`, cells: [r.day ? dayLabel(r.day, true) : "-", name, <span key="b" className="fd-sub">{b.title}</span>],
         }))} />
