@@ -14,6 +14,8 @@ import { loadOpenMails, mailNo } from "../총무/mail";
 import { type Area, BOOKS, bookHref } from "../대장/books";
 import { alertsOf as rowAlerts, isClosed, rowName, type Row } from "../대장/logic";
 import { loadBooks } from "../대장/store";
+import { DONE_STAGES, nextDeadline } from "../총무/bid";
+import { loadBids } from "../총무/bidStore";
 
 export const WEEK_WARN = 48;
 export const WEEK_LIMIT = 52;
@@ -99,7 +101,12 @@ export const todos = cache(async (admin: boolean): Promise<Todo[]> => {
     out.push({ area: "hr", cat: "인사", icon: "gauge", title: `${w.emp} 주 ${w.hours}시간`, sub: `주 52시간 관리 · ${w.dept || "부서 없음"}${w.hours > WEEK_LIMIT ? " · 초과" : ""}`, href: "/week52", left: null });
   }
   if (admin) {
-    const [mails, items, certs, rows] = await Promise.all([loadOpenMails(), loadItems(), loadCerts(), ledgerRows()]);
+    const [mails, items, certs, rows, bids] = await Promise.all([loadOpenMails(), loadItems(), loadCerts(), ledgerRows(), loadBids()]);
+    for (const b of bids) {
+      if (b.stage === "새 공고" || DONE_STAGES.includes(b.stage)) continue;
+      const nd = nextDeadline(b, today);
+      if (nd) out.push({ area: "ga", cat: "기한", icon: "/bid", title: `${b.name} · ${nd.label.split(" (")[0]}`, sub: `입찰관리 · ${nd.at}`, href: `/bid/item?id=${b.id}`, left: nd.left });
+    }
     for (const m of mails) {
       out.push({ area: "ga", cat: "문서", icon: "mail", title: `${m.party} ${m.title}`.trim(), sub: `문서 수발 대장 · ${mailNo(m)}${m.due ? "" : " · 처리 중"}`,
         href: `/ga/mail?y=${m.year}&edit=${m.id}#form`, left: m.due ? daysBetween(today, m.due) : null });

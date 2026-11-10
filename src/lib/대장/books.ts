@@ -165,21 +165,6 @@ export const BOOKS: Book[] = [
     ],
   },
   {
-    key: "bids", area: "ga", title: "입찰 관리", desc: "입찰 공고·마감·투찰 결과", folder: "1. 총무\\10. 입찰관리",
-    day: "posted", title1: "name", filters: ["result"], closed: { k: "result", values: ["낙찰", "유찰", "포기", "미낙찰"] },
-    fields: [
-      { k: "posted", label: "공고일", type: "date" },
-      { k: "no", label: "공고번호", type: "text", hide: true },
-      { k: "name", label: "공고명", type: "text", req: true, wide: true },
-      { k: "client", label: "발주처", type: "text" },
-      { k: "due", label: "투찰 마감", type: "date", alert: 7 },
-      { k: "base", label: "기초금액", type: "money" },
-      { k: "bid", label: "투찰금액", type: "money" },
-      { k: "result", label: "결과", type: "select", options: ["검토 중", "투찰 완료", "낙찰", "미낙찰", "유찰", "포기"] },
-      { k: "note", label: "비고", type: "textarea", hide: true },
-    ],
-  },
-  {
     key: "meetings", area: "ga", title: "회의록", desc: "회의 결정 사항과 후속 조치 기한", folder: "1. 총무\\1. 문서 및 자료관리\\1-8. 회의",
     day: "day", title1: "title", closed: { k: "status", values: ["완료"] },
     fields: [
@@ -289,5 +274,4 @@ export const bookOf = (key: string) => BOOKS.find((b) => b.key === key);
 export const booksIn = (area: Area) => BOOKS.filter((b) => b.area === area);
 /** 대장 화면 주소 */
 export const AREA_BASE: Record<Area, string> = { ga: "/ga/b", hr: "/hr/b", ehs: "/ehs/b", misc: "/misc/b" };
-/** 대장 화면 주소. 입찰 대장은 입찰관리 화면(/bid) 안에 있다. */
-export const bookHref = (b: Book) => (b.key === "bids" ? "/bid" : `${AREA_BASE[b.area]}/${b.key}`);
+export const bookHref = (b: Book) => `${AREA_BASE[b.area]}/${b.key}`;
