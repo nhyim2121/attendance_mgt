@@ -2,7 +2,7 @@
  *  대장은 books.ts에서 가져오고, 아래 GA_GROUPS에 없는 총무 대장은 '그 밖' 묶음에 들어간다. */
 import { type Area, bookHref, BOOKS, booksIn } from "../대장/books";
 
-export interface MenuItem { href: string; label: string; desc?: string; also?: string[]; exact?: boolean }
+export interface MenuItem { href: string; label: string; desc?: string; also?: string[]; exact?: boolean; admin?: boolean }
 export interface MenuGroup { label: string; items: MenuItem[] }
 export interface MenuArea {
   key: "hr" | "ga" | "ehs" | "cert" | "misc"; label: string; en: string; color: string; desc: string;
@@ -114,11 +114,24 @@ export const MENU: MenuArea[] = [
     ] }],
   },
   {
-    key: "misc", label: "기타", en: "ETC", color: "#6d28d9", desc: "진행 건·할 일", dash: "/misc", adminOnly: true,
-    groups: [{ label: "", items: booksOf("misc") }],
+    key: "misc", label: "기타", en: "MY WORK", color: "#6d28d9", desc: "주간업무일지·타부서 업무협조·개인일정·월별 캘린더", dash: "/misc", adminOnly: false,
+    groups: [
+      { label: "업무 기록", items: [
+        { href: "/misc/weekly", label: "주간업무일지", desc: "금주 실적·차주 계획, 팀 모아보기, 인쇄·엑셀" },
+        { href: "/misc/coop", label: "타부서 업무협조", desc: "품질·생산·영업·구매·연구소와 주고받는 요청" },
+      ] },
+      { label: "일정", items: [
+        { href: "/misc/plan", label: "개인일정", desc: "회의·외근·출장·교육 일정, 반복 일정" },
+        { href: "/misc/calendar", label: "월별 캘린더", desc: "한 달 동안 한 일과 잡힌 일" },
+      ] },
+      { label: "그 밖", items: booksOf("misc").map((it) => ({ ...it, admin: true })) },
+    ],
   },
 ];
 export const menuOf = (key: string) => MENU.find((a) => a.key === key)!;
+/** 이 계정에 보이는 메뉴: 관리자 전용 영역·화면을 뺀다 */
+export const menuFor = (admin: boolean): MenuArea[] => MENU.filter((a) => admin || !a.adminOnly)
+  .map((a) => ({ ...a, groups: a.groups.map((g) => ({ ...g, items: g.items.filter((i) => admin || !i.admin) })).filter((g) => g.items.length) }));
 
 /** 메뉴 이모지 (사이드바·전체 메뉴). 영역은 키, 화면은 주소, 대장은 끝 이름으로 찾는다. */
 const EMOJI: Record<string, string> = {
@@ -127,6 +140,7 @@ const EMOJI: Record<string, string> = {
   "/leave": "🏖️", "/leave/status": "📈", "/leave/calendar": "🌴", "/leave/evidence": "📎", "/leave/register": "✍️",
   "/employees": "🪪", "/org": "🌳", "/upload": "💾", "/settings": "⚙️",
   "/ga/mail": "📨", "/ga/issue": "🧾", "/ga/certs": "🔑", "/bid": "⚖️", "/cert?from=ga": "🏅", "/cert": "🏅", "/cert#add": "➕", "/users": "⚙️",
+  "/misc/weekly": "📓", "/misc/coop": "🤝", "/misc/plan": "🧭", "/misc/calendar": "🗓️",
   training: "🎓", licenses: "📜", meetings: "💬", fixtures: "📦", vehicles: "🚗", drivelog: "🛣️", software: "💿",
   visitors: "🚪", ppe: "🦺", dorm: "🏠", grants: "🎯", bids: "⚖️", checkup: "🩺", wastewater: "💧", inspections: "🔍", tasks: "📝",
 };

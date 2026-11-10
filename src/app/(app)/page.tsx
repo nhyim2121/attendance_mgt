@@ -8,7 +8,7 @@ import { toViews } from "@/components/대시/views";
 import { requireUser } from "@/lib/auth";
 import { ddayText, hrSnap, todos, WEEK_WARN } from "@/lib/대시/data";
 import { loadLinks } from "@/lib/대시/links";
-import { MENU } from "@/lib/대시/menu";
+import { menuFor } from "@/lib/대시/menu";
 import { loadMemos, loadTodo4 } from "@/lib/대시/notes";
 import { todayKst } from "@/lib/time";
 
@@ -52,7 +52,7 @@ export default async function HubPage() {
         <Todo4Card items={t4} />
         <MemoCard items={memos} />
         <LinksCard scope="all" links={links} />
-        <Win en="MENU" ko="업무 영역 전체 메뉴" className="s12"><MenuLists areas={MENU.filter((a) => admin || !a.adminOnly)} /></Win>
+        <Win en="MENU" ko="업무 영역 전체 메뉴" className="s12"><MenuLists areas={menuFor(admin)} /></Win>
         <Card en="TEAM" title="부서별 인원" more={["조직도", "/org"]} className="s5"><Bars data={hr.depts.map((d) => ({ label: d.dept, n: d.n }))} /></Card>
         <Card en="HOURS" title="월별 1인 평균 주 근로시간" more={["리포트", "/hours"]} className="s7"><HoursLine data={hr.monthly} /></Card>
         <Card en="LEAVE" title="이번 주 휴가·출장" more={["캘린더", "/leave/calendar"]} className="s4"><Leaves items={hr.weekLeaves} today={today} /></Card>

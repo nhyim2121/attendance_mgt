@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { areaOfPath, emojiOf, isOn, MENU } from "@/lib/대시/menu";
+import { areaOfPath, emojiOf, isOn, menuFor } from "@/lib/대시/menu";
 
 // 기간·부서 필터는 화면을 옮겨도 유지한다 (인사노무 화면끼리)
 const KEEP = ["month", "from", "to", "dept", "all", "fy", "asof"];
@@ -23,7 +23,7 @@ export default function Nav({ admin, bid = false }: { admin: boolean; bid?: bool
         <span className="sec-l"><span className="ch">🏠</span><span className="t">통합 대시보드</span></span>
       </Link>
       <div className="group">업무</div>
-      {MENU.filter((a) => admin || !a.adminOnly).map((a) => (
+      {menuFor(admin).map((a) => (
         <div key={a.key}>
           <Link href={a.dash} title={a.label} style={{ ["--c" as string]: a.color }}
             className={`sec${path === a.dash ? " on" : cur === a.key ? " open" : ""}`}>

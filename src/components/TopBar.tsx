@@ -3,7 +3,7 @@
  *  접기·촘촘하게는 이 브라우저에 기억한다. 화면을 옮기면 창 제목(영어)이 뒤섞였다가 맞춰진다 (2차 F). */
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { emojiOf, MENU } from "@/lib/대시/menu";
+import { emojiOf, menuFor } from "@/lib/대시/menu";
 
 const KEYS = { rail: "u-rail", dense: "u-dense" } as const;
 type Pref = keyof typeof KEYS;
@@ -30,7 +30,7 @@ export default function TopBar({ admin }: { admin: boolean }) {
   const [rail, setRail] = useState(false);
   const [dense, setDense] = useState(false);
   const [q, setQ] = useState("");
-  const items = MENU.filter((a) => admin || !a.adminOnly).flatMap((a) => a.groups.flatMap((g) => g.items.map((it) => ({ ...it, area: a.label }))));
+  const items = menuFor(admin).flatMap((a) => a.groups.flatMap((g) => g.items.map((it) => ({ ...it, area: a.label }))));
 
   useEffect(() => {
     const r = read("rail"), d = read("dense");

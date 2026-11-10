@@ -16,6 +16,9 @@ import { alertsOf as rowAlerts, isClosed, rowName, type Row } from "../대장/lo
 import { loadBooks } from "../대장/store";
 import { DONE_STAGES, nextDeadline } from "../총무/bid";
 import { loadBids } from "../총무/bidStore";
+import { currentUser } from "../auth";
+import { coopLeft, isOpen, occurrences, timeText } from "../기타/work";
+import { loadCoops, loadPlans } from "../기타/workStore";
 
 export const WEEK_WARN = 48;
 export const WEEK_LIMIT = 52;
@@ -135,6 +138,18 @@ export const todos = cache(async (admin: boolean): Promise<Todo[]> => {
         out.push({ area: "hr", cat: "기한", icon: bookHref(b), title: `${rowName(b, r.data)} · ${a.label}`, sub: `${b.title} · ${a.day}`, href: `${bookHref(b)}?edit=${r.id}#form`, left: a.left });
       }
     }
+  }
+  // 기타(내 업무): 기한 있는 업무협조(관리팀 공용) + 7일 안 내 개인일정
+  const me = await currentUser();
+  const [coops, plans] = await Promise.all([loadCoops(), me ? loadPlans(me.id) : Promise.resolve([])]);
+  for (const c of coops) {
+    const left = coopLeft(c, today);
+    if (!isOpen(c) || left === null || left > 90) continue;
+    out.push({ area: "misc", cat: "기한", icon: "/misc/coop", title: `[${c.dept}] ${c.title}`, sub: `업무협조 · ${c.dir} · ${c.due}`, href: `/misc/coop?id=${c.id}`, left });
+  }
+  for (const p of plans) {
+    const h = occurrences(p, today, addDays(today, 7)).find((x) => !x.done && (x.day === x.start || x.day === today));
+    if (h && p.kind !== "개인") out.push({ area: "misc", cat: "기한", icon: "/misc/plan", title: p.title, sub: `개인일정 · ${p.kind} ${timeText(p)}`, href: `/misc/plan?d=${h.day}&edit=${p.id}`, left: daysBetween(today, h.day) });
   }
   return out.sort((a, b) => (a.left ?? 9999) - (b.left ?? 9999));
 });
