@@ -15,7 +15,7 @@ const book = (key: string): MenuItem => {
 };
 const booksOf = (area: Area, skip: string[] = []) => booksIn(area).filter((b) => !skip.includes(b.key)).map((b) => book(b.key));
 
-/** 총무 묶음: 회사 업무분장·X:\관리팀. 총무 폴더 번호(1~12) 그대로. 아직 화면이 없는 묶음은 '준비 중' 화면으로 간다. */
+/** 총무 묶음: 회사 업무분장·X:\관리팀\1. 총무 폴더 번호(1~12) 그대로. 아직 화면이 없는 묶음은 '준비 중' 화면으로 간다. */
 const GA_GROUPS: [string, string[]][] = [
   ["2. 복리 및 후생", ["ppe", "dorm"]],
   ["3. 보안·전산", ["visitors", "software"]],

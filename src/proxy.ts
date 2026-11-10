@@ -18,7 +18,8 @@ export async function proxy(request: NextRequest) {
     },
   });
   const { data } = await supabase.auth.getClaims();
-  const isLogin = request.nextUrl.pathname.startsWith("/login");
+  // 입찰 자동 불러오기는 로그인 대신 비밀 머리글로 확인한다 (route.ts)
+  const isLogin = request.nextUrl.pathname.startsWith("/login") || request.nextUrl.pathname === "/api/bid/fetch";
   if (!data?.claims && !isLogin) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

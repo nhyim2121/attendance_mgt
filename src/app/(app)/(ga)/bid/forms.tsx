@@ -1,8 +1,9 @@
 "use client";
 /** 입찰관리 화면의 입력 부품: 공고 등록·고치기, 단계, 업무 절차, 투찰 계산기, 결과, 메모, 알림 조건, 불러오기 */
-import { useActionState, useState, useTransition } from "react";
+import Link from "next/link";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { type Bid, calcBid, DATE_KEYS, KINDS, STAGES, type Watch } from "@/lib/총무/bid";
-import { addCheck, fetchNow, removeBid, removeCheck, saveBidForm, saveMemo, saveResult, saveWatchForm, setStage, toggleCheck } from "./actions";
+import { addCheck, fetchNow, keepFound, removeBid, removeCheck, saveBidForm, saveMemo, saveResult, saveWatchForm, searchNow, setStage, toggleCheck } from "./actions";
 
 type Res = { ok?: string; error?: string } | null;
 const Msg = ({ r }: { r: Res }) => (r?.error ? <p className="fd-err">{r.error}</p> : r?.ok ? <p className="u-okmsg">{r.ok}</p> : null);
@@ -175,8 +176,85 @@ export function FetchButton({ ready }: { ready: boolean }) {
   const [res, act, busy] = useActionState(fetchNow, null);
   return (
     <form action={act} className="u-fetch">
-      <button className="fd-btn pri" disabled={busy || !ready}>{busy ? "불러오는 중… (1~2분)" : "🔄 나라장터에서 지금 불러오기"}</button>
+      <button className="fd-btn" disabled={busy || !ready} title="알림 조건의 키워드로 최근 7일을 다시 찾습니다">{busy ? "불러오는 중… (1~2분)" : "🔄 알림 조건으로 지금 불러오기"}</button>
       <Msg r={res} />
     </form>
+  );
+}
+
+// ---------------------------------------------------------------- 공고 검색 (나라장터, 저장 안 함 → 골라서 담기)
+export function SearchBox({ ready, kinds }: { ready: boolean; kinds: string[] }) {
+  const [res, act, busy] = useActionState(searchNow, null);
+  const [kept, setKept] = useState<Record<string, number>>({});
+  const [pending, start] = useTransition();
+  return (
+    <div>
+      <form action={act} className="u-bform u-search">
+        <div className="row">
+          <input name="keyword" placeholder="🔍 공고명 키워드 (예: 전동기, 발전기)" disabled={!ready} />
+          <button className="fd-btn pri" disabled={busy || !ready}>{busy ? "찾는 중…" : "검색"}</button>
+        </div>
+        <details className="u-fold sm"><summary>세부 조건</summary>
+          <div className="g">
+            <div className="kinds">구분 {KINDS.slice(0, 3).map((k) => <label key={k} className="ck"><input type="checkbox" name="kinds" value={k} defaultChecked={kinds.includes(k)} />{k}</label>)}</div>
+            <label>기간<select name="days" defaultValue="7"><option value="1">최근 1일</option><option value="3">최근 3일</option><option value="7">최근 7일</option></select></label>
+            <label>추정가격 최소(원)<input name="minPrice" inputMode="numeric" /></label>
+            <label>추정가격 최대(원)<input name="maxPrice" inputMode="numeric" /></label>
+            <label>참가 지역<input name="region" placeholder="예: 충청남도" /></label>
+            <label>공고기관<input name="org" placeholder="예: 한국수자원공사" /></label>
+          </div>
+        </details>
+      </form>
+      {!ready && <p className="fd-empty">검색은 공공데이터포털 인증키를 넣으면 켜집니다 (아래 안내).</p>}
+      {res?.error && <p className="fd-err">{res.error}</p>}
+      {res?.items && (
+        <div className={`u-found${pending ? " busy" : ""}`}>
+          <div className="lg">검색 결과 {res.items.length}건{res.note ? ` · ${res.note}` : ""}</div>
+          {!res.items.length && <p className="fd-empty">맞는 공고가 없습니다.</p>}
+          <ul className="u-inbox">{res.items.map((it) => (
+            <li key={it.key}>
+              <a className="t" href={it.bid.url || "#"} target="_blank" rel="noopener noreferrer"><b>{it.bid.name}</b><small>{it.line}</small>
+                {it.matched.length > 0 && <span className="kw">{it.matched.map((k) => <i key={k}>{k}</i>)}</span>}</a>
+              <span className="act">{kept[it.key]
+                ? <Link className="u-qs" href={`/bid/item?id=${kept[it.key]}`}>담김 ✓</Link>
+                : <button type="button" className="u-qs" disabled={pending} onClick={() => start(async () => { const r = await keepFound(it.bid, it.matched); setKept((m) => ({ ...m, [it.key]: r.id })); })}>담기</button>}</span>
+            </li>
+          ))}</ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- 받은 공고 (찾기·조건 맞는 것만·정렬)
+export interface InboxItem { id: number; name: string; org: string; line: string; fit: number; matched: string[]; ok: boolean; close: string; posted: string }
+export function InboxList({ items }: { items: InboxItem[] }) {
+  const [q, setQ] = useState("");
+  const [only, setOnly] = useState(true);
+  const [sort, setSort] = useState<"fit" | "close" | "new">("fit");
+  const shown = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    const list = items.filter((b) => (!only || b.ok) && (!t || `${b.name} ${b.org} ${b.line}`.toLowerCase().includes(t)));
+    const by = { fit: (a: InboxItem, b: InboxItem) => b.fit - a.fit, close: (a: InboxItem, b: InboxItem) => (a.close || "9").localeCompare(b.close || "9"), new: (a: InboxItem, b: InboxItem) => b.posted.localeCompare(a.posted) }[sort];
+    return [...list].sort(by);
+  }, [items, q, only, sort]);
+  const hidden = items.filter((b) => !b.ok).length;
+  return (
+    <div>
+      <div className="u-ibar">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 받은 공고에서 찾기" />
+        <select value={sort} onChange={(e) => setSort(e.target.value as "fit" | "close" | "new")} aria-label="정렬"><option value="fit">적합도 순</option><option value="close">투찰 마감 순</option><option value="new">최근 공고 순</option></select>
+        <label className="ck"><input type="checkbox" checked={only} onChange={(e) => setOnly(e.target.checked)} />지금 조건에 맞는 것만{hidden ? ` (숨김 ${hidden})` : ""}</label>
+      </div>
+      {shown.length ? (
+        <ul className="u-inbox">{shown.slice(0, 30).map((b) => (
+          <li key={b.id}>
+            <Link href={`/bid/item?id=${b.id}`} className="t"><span className="u-stars" title={`적합도 ${b.fit}/5`}>{"★".repeat(b.fit)}<i>{"★".repeat(5 - b.fit)}</i></span> <b>{b.name}</b><small>{b.line}</small>
+              {b.matched.length > 0 && <span className="kw">{b.matched.map((k) => <i key={k}>{k}</i>)}</span>}</Link>
+            <span className="act"><QuickStage id={b.id} label="검토하기" stage="검토 중" /><QuickStage id={b.id} label="불참" stage="불참" /></span>
+          </li>
+        ))}</ul>
+      ) : <p className="fd-empty">{items.length ? "찾는 공고가 없습니다." : "검토할 새 공고가 없습니다. 알림 조건에 맞는 공고가 올라오면 자동으로 여기에 쌓입니다."}</p>}
+    </div>
   );
 }

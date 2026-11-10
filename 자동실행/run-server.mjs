@@ -2,11 +2,12 @@
  *
  * - 이미 8501 포트에서 사이트가 돌고 있으면 아무것도 하지 않고 끝낸다 (중복 실행 방지).
  * - Supabase(Docker)를 켜고, 저장소를 백업한 뒤 사이트를 켠다. 사이트가 멈추면 몇 초 뒤 다시 켠다.
+ * - 08~20시 2시간마다 입찰 공고 자동 불러오기 (/api/bid/fetch, .env.local BID_CRON_KEY).
  * - 서버 출력: 데이터/logs/server-YYYYMMDD.log, 재시작 기록: 데이터/logs/watchdog.log
  * 실행: node 자동실행/run-server.mjs   (먼저 npm run build)
  */
 import { spawn, spawnSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, openSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { createConnection } from "node:net";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -27,6 +28,31 @@ function portInUse() {
     s.once("error", () => res(false));
     s.once("timeout", () => { s.destroy(); res(false); });
   });
+}
+
+/** .env.local 의 한 값 (감시기는 Next가 아니라서 직접 읽는다) */
+function envValue(name) {
+  try {
+    const line = readFileSync(join(ROOT, ".env.local"), "utf8").split(/\r?\n/).find((l) => l.startsWith(`${name}=`));
+    return line ? line.slice(name.length + 1).trim() : "";
+  } catch { return ""; }
+}
+
+/** 입찰 공고 자동 불러오기: 한국 시각 08~20시, 2시간마다 */
+function scheduleBidFetch() {
+  let last = 0;
+  setInterval(async () => {
+    const hour = Number(stamp().slice(11, 13));
+    if (hour < 8 || hour > 20 || Date.now() - last < 2 * 3600e3) return;
+    const key = envValue("BID_CRON_KEY");
+    if (!key || !envValue("DATA_GO_KR_KEY")) return;
+    last = Date.now();
+    try {
+      const res = await fetch(`http://127.0.0.1:${PORT}/api/bid/fetch`, { method: "POST", headers: { "x-cron-key": key }, signal: AbortSignal.timeout(10 * 60e3) });
+      const j = await res.json().catch(() => ({}));
+      log(`입찰 공고 자동 불러오기: ${j.message ?? res.status}`);
+    } catch (e) { log(`입찰 공고 자동 불러오기 실패: ${e.message}`); }
+  }, 5 * 60e3);
 }
 
 // shell: true에는 명령을 문자열 하나로 넘긴다 (인자 배열을 같이 넘기면 Node가 DEP0190 경고를 띄움)
@@ -60,6 +86,7 @@ async function main() {
     run("npm run build");
   }
 
+  scheduleBidFetch();
   let quickFails = 0;
   for (;;) {
     const started = Date.now();

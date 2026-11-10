@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireBid } from "@/lib/auth";
-import { type Bid, DATE_KEYS, DEFAULT_CHECKLIST, emptyBid, KINDS, type Stage, STAGES, type Watch } from "@/lib/총무/bid";
+import { type Bid, DATE_KEYS, DEFAULT_CHECKLIST, emptyBid, KINDS, matchWatch, type Stage, STAGES, summaryOf, type Watch } from "@/lib/총무/bid";
 import { deleteBid, loadBid, loadWatch, saveBid, saveFetchLog, saveWatch } from "@/lib/총무/bidStore";
-import { fetchG2b } from "@/lib/총무/g2b";
+import { fetchG2b, keepBid, searchG2b } from "@/lib/총무/g2b";
+import { todayKst } from "@/lib/time";
 
 type Res = { ok?: string; error?: string } | null;
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
@@ -115,19 +116,47 @@ export async function saveWatchForm(_prev: Res, f: FormData): Promise<Res> {
   return { ok: "알림 조건을 저장했습니다. 다음 불러오기부터 적용됩니다." };
 }
 
-/** 나라장터에서 지금 불러오기 */
+/** 나라장터에서 지금 불러오기 (알림 조건으로, 최근 7일) */
 export async function fetchNow(_prev: Res): Promise<Res> {
-  await requireBid();
+  const me = await requireBid();
   const at = new Date().toISOString();
   try {
-    const r = await fetchG2b(await loadWatch());
-    await saveFetchLog({ at, ok: true, message: `새 공고 ${r.added}건 · 확인 ${r.seen}건 · 일정 갱신 ${r.updated}건`, added: r.added, seen: r.seen });
+    const r = await fetchG2b(await loadWatch(), undefined, 7);
+    await saveFetchLog({ at, ok: true, message: `새 공고 ${r.added}건 · 확인 ${r.seen}건 · 일정 갱신 ${r.updated}건`, added: r.added, seen: r.seen, by: me.name });
     done();
     return { ok: `나라장터에서 새 공고 ${r.added}건을 가져왔습니다.` };
   } catch (e) {
     const message = (e as Error).message;
-    await saveFetchLog({ at, ok: false, message, added: 0, seen: 0 });
+    await saveFetchLog({ at, ok: false, message, added: 0, seen: 0, by: me.name });
     done();
     return { error: message };
   }
+}
+
+// ---------------------------------------------------------------- 공고 검색 (저장 안 함) · 담기
+export interface Found { key: string; bid: Omit<Bid, "id">; line: string; matched: string[] }
+export type SearchRes = { error?: string; items?: Found[]; note?: string } | null;
+
+export async function searchNow(_prev: SearchRes, f: FormData): Promise<SearchRes> {
+  await requireBid();
+  const kinds = f.getAll("kinds").map(String).filter((k) => (KINDS as readonly string[]).includes(k));
+  const q = { keyword: str(f, "keyword"), kinds, days: Number(str(f, "days")) || 7, minPrice: money(f, "minPrice"), maxPrice: money(f, "maxPrice"), region: str(f, "region"), org: str(f, "org") };
+  if (!q.keyword && !q.org) return { error: "키워드나 기관 중 하나는 적어 주세요." };
+  try {
+    const [found, w] = await Promise.all([searchG2b(q), loadWatch()]);
+    const today = todayKst();
+    const items = found.slice(0, 200).map((b) => ({ key: `${b.ntceNo}-${b.ntceOrd}`, bid: b, line: summaryOf({ ...b, id: 0 }, today).line, matched: matchWatch(w, b) ?? [] }));
+    return { items, note: found.length > 200 ? `${found.length}건 중 200건만 보입니다. 조건을 좁혀 주세요.` : undefined };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+/** 검색 결과를 받은 공고에 담기 */
+export async function keepFound(b: Omit<Bid, "id">, matched: string[]): Promise<{ id: number; isNew: boolean }> {
+  await requireBid();
+  const clean: Omit<Bid, "id"> = { ...emptyBid(), ...b, src: "g2b", stage: "새 공고", checklist: [], memo: "", fetchedAt: new Date().toISOString() };
+  const r = await keepBid(clean, matched.map(String).slice(0, 20));
+  done();
+  return r;
 }

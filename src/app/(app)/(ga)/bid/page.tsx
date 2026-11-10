@@ -3,16 +3,14 @@
 import Link from "next/link";
 import { type KpiProps, Kpis, Win } from "@/components/대시/parts";
 import { requireBidPage } from "@/lib/auth";
-import { BID_SITES, type Bid, dateLabel, DATE_KEYS, daysLeft, dLabel, DONE_STAGES, fitScore, FLOW, nextDeadline, siteOf, summaryOf, won } from "@/lib/총무/bid";
+import { BID_SITES, type Bid, dateLabel, DATE_KEYS, daysLeft, dLabel, DONE_STAGES, fitScore, FLOW, matchWatch, nextDeadline, siteOf, summaryOf, won } from "@/lib/총무/bid";
 import { loadBids, loadFetchLog, loadWatch } from "@/lib/총무/bidStore";
 import { fullKst, todayKst } from "@/lib/time";
-import { BidForm, FetchButton, QuickStage, WatchForm } from "./forms";
+import { FetchButton, type InboxItem, InboxList, SearchBox, WatchForm } from "./forms";
 
 export const metadata = { title: "입찰관리 · 통합관리시스템" };
-const OWNERS = ["김도아", "윤정아"];
 const API_TXT = { ready: "자동 연동", later: "연동 예정", none: "바로가기" } as const;
 
-const Stars = ({ n }: { n: number }) => <span className="u-stars" title={`적합도 ${n}/5`}>{"★".repeat(n)}<i>{"★".repeat(5 - n)}</i></span>;
 const href = (b: Bid) => `/bid/item?id=${b.id}`;
 
 export default async function Page() {
@@ -20,6 +18,11 @@ export default async function Page() {
   const today = todayKst();
   const [bids, watch, log] = await Promise.all([loadBids(), loadWatch(), loadFetchLog()]);
   const hasKey = !!process.env.DATA_GO_KR_KEY;
+  const inboxItems: InboxItem[] = bids.filter((b) => b.stage === "새 공고").map((b) => {
+    const hit = matchWatch(watch, b);
+    return { id: b.id, name: b.name, org: `${b.org} ${b.demand}`, line: summaryOf(b, today).line, fit: fitScore({ ...b, matched: hit ?? b.matched }, today),
+      matched: hit ?? b.matched, ok: hit !== null, close: b.dates.bidClose ?? "", posted: b.dates.posted ?? "" };
+  });
   const inbox = bids.filter((b) => b.stage === "새 공고").sort((a, b) => fitScore(b, today) - fitScore(a, today));
   const active = bids.filter((b) => b.stage !== "새 공고" && !DONE_STAGES.includes(b.stage));
   const year = today.slice(0, 4);
@@ -35,7 +38,7 @@ export default async function Page() {
   const urgent = deadlines[0];
 
   const kpis: KpiProps[] = [
-    { label: "받은 공고 (검토 전)", n: inbox.length, unit: "건", sub: hasKey ? (log ? `마지막 불러오기 ${fullKst(log.at).slice(5, 16)}` : "아직 불러오지 않음") : "직접 등록 · 자동 연동 준비 중", icon: "mail", color: "#0c3994", warn: inbox.length > 0, href: "#inbox" },
+    { label: "받은 공고 (검토 전)", n: inboxItems.filter((b) => b.ok).length, unit: "건", sub: hasKey ? (log ? `마지막 불러오기 ${fullKst(log.at).slice(5, 16)}` : "아직 불러오지 않음") : "인증키를 넣으면 자동으로 쌓임", icon: "mail", color: "#0c3994", warn: inbox.length > 0, href: "#inbox" },
     { label: "7일 안 투찰 마감", n: closeWeek.length, unit: "건", sub: closeWeek[0] ? `${closeWeek[0].name.slice(0, 16)} ${dLabel(daysLeft(closeWeek[0].dates.bidClose, today))}` : "없음", icon: "alert", color: "#e84340", warn: closeWeek.length > 0, href: "#due" },
     { label: "진행 중", n: active.length, unit: "건", sub: FLOW.map((s) => `${s} ${active.filter((b) => b.stage === s).length}`).slice(0, 3).join(" · "), icon: "list", color: "#0e7490", href: "#flow" },
     { label: `${year}년 낙찰률`, n: tried.length ? Math.round((won_.length / tried.length) * 100) : 0, unit: "%", sub: `투찰 ${tried.length}건 · 낙찰 ${won_.length}건`, icon: "medal", color: "#b45309", href: "#history" },
@@ -64,20 +67,9 @@ export default async function Page() {
           </div>
         </Win>
 
-        <Win en="INBOX" ko="받은 공고 · 적합도 순" className="s7" more={["직접 등록", "#new"]}>
+        <Win en="INBOX" ko="받은 공고 · 알림 조건에 맞춰 자동으로 쌓임" className="s7">
           <span id="inbox" />
-          {inbox.length ? (
-            <ul className="u-inbox">{inbox.slice(0, 12).map((b) => {
-              const s = summaryOf(b, today);
-              return (
-                <li key={b.id}>
-                  <Link href={href(b)} className="t"><Stars n={fitScore(b, today)} /> <b>{b.name}</b><small>{s.line}</small>
-                    {b.matched.length > 0 && <span className="kw">{b.matched.map((k) => <i key={k}>{k}</i>)}</span>}</Link>
-                  <span className="act"><QuickStage id={b.id} label="검토하기" stage="검토 중" /><QuickStage id={b.id} label="불참" stage="불참" /></span>
-                </li>
-              );
-            })}</ul>
-          ) : <p className="fd-empty">검토할 새 공고가 없습니다. {hasKey ? "조건에 맞는 공고가 올라오면 여기에 쌓입니다." : "자동 연동 전에는 아래 '공고 직접 등록'으로 넣어 주세요."}</p>}
+          <InboxList items={inboxItems} />
         </Win>
 
         <Win en="DEADLINES" ko="다가오는 마감 · 30일" className="s5">
@@ -119,29 +111,26 @@ export default async function Page() {
           </div>
         </Win>
 
-        <Win en="AUTO" ko="공고 자동 불러오기" className="s6">
-          <ul className="u-soon">
-            <li>{hasKey ? "✅" : "⬜"} 공공데이터포털 인증키 {hasKey ? "연결됨" : "필요 — 아래 순서대로 받아 주세요"}</li>
-            <li>{log ? (log.ok ? "✅" : "⚠️") : "⬜"} 마지막 불러오기: {log ? `${fullKst(log.at)} · ${log.message}` : "아직 없음"}</li>
-          </ul>
-          {!hasKey && (
-            <ol className="u-steps">
-              <li><a href="https://www.data.go.kr" target="_blank" rel="noopener noreferrer">data.go.kr</a> 회원가입 (회사 공용 계정 권장)</li>
-              <li>「조달청_나라장터 입찰공고정보서비스」 활용신청 (보통 바로 승인)</li>
-              <li>같은 방법으로 한국전력공사_전자입찰계약정보 · 한국수자원공사_전자조달 입찰공고 · LH 입찰공고정보도 신청</li>
-              <li>마이페이지 → 인증키의 <b>일반 인증키(Decoding)</b>를 복사해서 알려 주시면 서버에 넣고 연결합니다</li>
-            </ol>
-          )}
+        <Win en="SEARCH" ko="나라장터 공고 검색 · 골라서 받은 공고에 담기" className="s6">
+          <SearchBox ready={hasKey} kinds={watch.kinds} />
+          <div className="u-autost">
+            <span>{hasKey ? "✅ 인증키 연결됨 · 2시간마다 알림 조건으로 자동 불러오기" : "⬜ 공공데이터포털 인증키 필요"}</span>
+            <span>{log ? `${log.ok ? "✅" : "⚠️"} 마지막 불러오기 ${fullKst(log.at).slice(5, 16)} (${log.by || "자동"}) · ${log.message}` : "마지막 불러오기: 아직 없음"}</span>
+          </div>
           <FetchButton ready={hasKey} />
-          <p className="fd-empty">나라장터는 한 번에 최근 7일 공고를 조건(키워드·구분·금액·지역·기관)으로 찾아 '받은 공고'에 넣고, 이미 있는 공고는 일정만 새로 고칩니다. 한수원·도로공사·국방(D2B)은 공개 API가 없어 바로가기와 직접 등록으로 관리합니다.</p>
+          {!hasKey && (
+            <details className="u-fold sm"><summary>인증키 받는 방법</summary>
+              <ol className="u-steps">
+                <li><a href="https://www.data.go.kr" target="_blank" rel="noopener noreferrer">data.go.kr</a> 회원가입 (회사 공용 계정 권장)</li>
+                <li>「조달청_나라장터 입찰공고정보서비스」 활용신청 (보통 바로 승인)</li>
+                <li>한국전력공사_전자입찰계약정보 · 한국수자원공사_전자조달 입찰공고 · LH 입찰공고정보도 신청</li>
+                <li>마이페이지 → 인증키의 <b>일반 인증키(Decoding)</b>를 알려 주시면 서버에 넣습니다</li>
+              </ol>
+            </details>
+          )}
         </Win>
 
-        <Win en="FILTER" ko="알림 조건 · (주)에쓰엔 전동기·발전기 기준" className="s6"><WatchForm w={watch} /></Win>
-
-        <Win en="NEW" ko="공고 직접 등록 · 사이트에서 본 공고 옮겨 적기" className="s12">
-          <span id="new" />
-          <details className="u-fold"><summary>＋ 공고 등록 칸 열기</summary><BidForm owners={OWNERS} /></details>
-        </Win>
+        <Win en="FILTER" ko="알림 조건 · 이 조건에 맞는 공고만 받은 공고에 뜸" className="s6"><WatchForm w={watch} /></Win>
 
         <Win en="HISTORY" ko="(주)에쓰엔 입찰 이력 · 투찰한 공고" className="s12">
           <span id="history" />

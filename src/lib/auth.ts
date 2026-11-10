@@ -3,7 +3,7 @@
  * 역할
  * - 관리자: 모든 기능 + 업로드 삭제 + 사용자 관리
  * - 담당자: 조회, 파일 업로드, 근태 기입, 설정 변경
- * 입찰관리(/bid)는 담당자(윤정아 차장님)와 공유할 예정 — DB 규칙 supabase/migrations/20261110000000_bid_share.sql 적용 후 BID_SHARED를 true로.
+ * 입찰관리(/bid)는 담당자(윤정아 차장님)와 공유 — DB 규칙 supabase/migrations/20261110000000_bid_share.sql (2026-11-10 적용).
  */
 import "server-only";
 import { redirect } from "next/navigation";
@@ -42,7 +42,7 @@ export async function requireUser(): Promise<AppUser> {
 }
 
 /** 입찰관리: 관리자 (+ BID_SHARED면 담당자) */
-export const BID_SHARED = false;
+export const BID_SHARED = true;
 export const canBid = (u: AppUser | null) => !!u && (u.role === "관리자" || (BID_SHARED && u.role === "담당자"));
 export async function requireBidPage(): Promise<AppUser> {
   const u = await requireUser();
