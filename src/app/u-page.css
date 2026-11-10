@@ -155,3 +155,5 @@
 .dm.in .st { color: #b45309; }
 .proof-file { font-size: .74rem; font-weight: 700; color: #0c3994; text-decoration: none; }
 .proof .proof-ok, .proof-ok { color: #1f7a45; font-weight: 700; font-size: .74rem; margin-top: 3px; }
+/* 요약 숫자 줄(.hstats)은 globals.css의 padding !important 때문에 창 제목줄에 위쪽이 가려졌다 → 제목줄 높이만큼 띄운다 */
+@media screen { .u .main .card.hstats { padding: 40px 6px 14px !important; } }
