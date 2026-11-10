@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireBid } from "@/lib/auth";
+
+/** 입찰 대장은 담당자도, 나머지는 관리자만 (담당자는 DB 규칙상 입찰 대장 줄만 건드릴 수 있다) */
+const guardBook = (key: string) => (key === "bids" ? requireBid() : requireAdmin());
 import { readRaw } from "@/lib/excel";
 import { bookOf } from "@/lib/대장/books";
 import { cleanData, type Data, parseGrid } from "@/lib/대장/logic";
@@ -24,7 +27,7 @@ async function saveFiles(id: number, files: File[]) {
 
 /** 적기·고치기 */
 export async function saveLedger(_prev: Res, f: FormData): Promise<Res> {
-  await requireAdmin();
+  await guardBook(String(f.get("book")));
   const book = bookOf(String(f.get("book")));
   if (!book) return { error: "없는 대장입니다." };
   const raw: Data = Object.fromEntries(book.fields.map((x) => [x.k, String(f.get(`f_${x.k}`) ?? "")]));
@@ -42,7 +45,7 @@ export async function saveLedger(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function attachLedger(_prev: Res, f: FormData): Promise<Res> {
-  await requireAdmin();
+  await requireBid();
   const id = Number(f.get("id")), files = filesOf(f);
   if (!id || !files.length) return { error: "파일을 골라 주세요." };
   const bad = badFiles(files);
@@ -53,14 +56,14 @@ export async function attachLedger(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function removeLedgerRow(id: number): Promise<void> {
-  await requireAdmin();
+  await requireBid();
   await store.deleteRow(id);
   revalidatePath("/", "layout");
 }
 
 /** 예전 엑셀 대장 가져오기: 머리글 이름으로 칸을 맞춘다 */
 export async function importLedgerFile(_prev: Res, f: FormData): Promise<Res> {
-  await requireAdmin();
+  await guardBook(String(f.get("book")));
   const book = bookOf(String(f.get("book")));
   const file = filesOf(f)[0];
   if (!book) return { error: "없는 대장입니다." };
@@ -85,7 +88,7 @@ export async function importLedgerFile(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function undoLedgerImport(book: string, batch: string): Promise<void> {
-  await requireAdmin();
+  await guardBook(book);
   await store.undoBatch(book, batch);
   revalidatePath("/", "layout");
 }

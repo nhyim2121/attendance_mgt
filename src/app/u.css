@@ -248,3 +248,18 @@
 }
 }
 @media print { .u-top { display: none; } }
+
+/* 입찰 사이트 바로가기 · 준비 중 목록 */
+@media screen {
+.u-bid-top { margin-bottom: 22px; }
+.u-sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.u-sites a { display: flex; flex-direction: column; gap: 2px; background: #fff; border: 2px solid var(--u-ink); border-radius: 10px; padding: 9px 12px;
+  box-shadow: 3px 3px 0 var(--u-ink); text-decoration: none; color: var(--u-ink); transition: transform .08s, box-shadow .08s, background .15s; }
+.u-sites a:hover { background: #eef3ff; }
+.u-sites a:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--u-ink); }
+.u-sites b { font-size: .95rem; color: var(--navy); }
+.u-sites small { font-size: .72rem; color: var(--u-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.u-soon li { padding: 6px 2px; border-bottom: 1px dashed var(--u-line); font-size: .92rem; }
+.u-soon li:last-child { border: 0; }
+.u-top { justify-content: flex-start; } .u-top .tog { margin-left: auto; } .u-top .srch + .tog { margin-left: 0; }
+}

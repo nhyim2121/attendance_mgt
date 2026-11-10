@@ -3,7 +3,7 @@ import Nav from "@/components/Nav";
 import PageMark from "@/components/PageMark";
 import PrintFit from "@/components/PrintFit";
 import TopBar from "@/components/TopBar";
-import { requireUser } from "@/lib/auth";
+import { canBid, requireUser } from "@/lib/auth";
 import { logout } from "../login/actions";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </svg>
       <nav className="side">
         <a href="/" className="logo" title="통합 대시보드"><img src="/logo.png" alt="주식회사 에쓰엔" /><b>SN</b></a>
-        <Suspense><Nav admin={admin} /></Suspense>
+        <Suspense><Nav admin={admin} bid={canBid(user)} /></Suspense>
         <div className="who">
           <span><b>{user.name}</b> · {user.role}</span>
           <form action={logout}><button>로그아웃</button></form>

@@ -10,7 +10,7 @@ const KEEP = ["month", "from", "to", "dept", "all", "fy", "asof"];
 /** 사이드바 (통합 디자인, 1차 B 남색 + 1차 D 펼침 목록): 통합 대시보드 + 업무 영역.
  *  영역을 누르면 그 영역 대시보드로 가고, 지금 있는 영역만 펼쳐서 [대시보드] + 묶음별 메뉴를 보인다.
  *  사이드바를 접으면(1차 C) 이모지 칸만 남는다. */
-export default function Nav({ admin }: { admin: boolean }) {
+export default function Nav({ admin, bid = false }: { admin: boolean; bid?: boolean }) {
   const path = usePathname();
   const sp = useSearchParams();
   const keep = new URLSearchParams();
@@ -46,6 +46,11 @@ export default function Nav({ admin }: { admin: boolean }) {
           )}
         </div>
       ))}
+      {!admin && bid && (
+        <Link href="/bid" className={`sec${path === "/bid" ? " on" : ""}`} title="입찰관리">
+          <span className="sec-l"><span className="ch">⚖️</span><span className="t">입찰관리</span></span>
+        </Link>
+      )}
       <div className="group">시스템</div>
       <Link href="/users" className={`sec${path === "/users" || path.startsWith("/users/") ? " on" : ""}`} title={admin ? "사용자 관리" : "비밀번호 변경"}>
         <span className="sec-l"><span className="ch">{admin ? "⚙️" : "🔑"}</span><span className="t">{admin ? "사용자 관리" : "비밀번호 변경"}</span></span>

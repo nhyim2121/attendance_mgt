@@ -15,13 +15,45 @@ const book = (key: string): MenuItem => {
 };
 const booksOf = (area: Area, skip: string[] = []) => booksIn(area).filter((b) => !skip.includes(b.key)).map((b) => book(b.key));
 
+/** 총무 묶음: 회사 업무분장·X:\관리팀. 총무 폴더 번호(1~12) 그대로. 아직 화면이 없는 묶음은 '준비 중' 화면으로 간다. */
 const GA_GROUPS: [string, string[]][] = [
-  ["문서", ["meetings"]],
-  ["자산·차량", ["fixtures", "vehicles", "drivelog", "software"]],
-  ["보안·복리", ["visitors", "ppe", "dorm"]],
-  ["사업", ["grants", "bids"]],
+  ["2. 복리 및 후생", ["ppe", "dorm"]],
+  ["3. 보안·전산", ["visitors", "software"]],
+  ["4. 비품관리", ["fixtures"]],
+  ["5. 차량관리", ["vehicles", "drivelog"]],
+  ["6. 출장 및 연수관리", []],
+  ["7. 주주 및 법무관리", []],
+  ["8. 자산관리", []],
+  ["9. 프로젝트 관리", []],
+  ["10. 입찰관리", []],
+  ["11. 국책관리", []],
+  ["12. 지원사업 관리", ["grants"]],
 ];
-const gaListed = GA_GROUPS.flatMap(([, ks]) => ks);
+/** 준비 중인 화면 (총무 분류안 2026-11-10) */
+export const GA_PLAN: Record<string, string[]> = {
+  "1. 문서 및 자료관리": ["문서 보존·폐기, 직인 날인 대장", "각종 규정 (제정·개정 이력, 최신본)", "명함 신청·발주, 인장 관리"],
+  "2. 복리 및 후생": ["경조사 (대상·지원금·화환)", "임직원 선물 (명절·기념일, 수령 확인)", "휴게실·복지공간 (비치품·점검)"],
+  "3. 보안·전산": ["사원증·출입카드", "CCTV·보안시스템 점검", "백신·방화벽·보안점검 기록, 장애·조치", "계정·권한 (ERP·하이웍스·NAS 발급·회수)", "PC·노트북·프린터", "매뉴얼 파일함 (이카운트 ERP 등)"],
+  "4. 비품관리": ["구매 요청", "수리 신청", "전환(담당자 변경) 신청", "폐기"],
+  "5. 차량관리": ["주유·정비·하이패스 비용", "사고·과태료"],
+  "6. 출장 및 연수관리": ["출장 신청 → 일정 → 결과보고 → 비용 정산", "연수·외부교육 참가"],
+  "7. 주주 및 법무관리": ["주주명부·주주총회·이사회", "법인 등기 변경", "계약서 대장 (만기·자동갱신 알림)", "소송·분쟁"],
+  "8. 자산관리": ["토지·건물·설비 (취득·감가·보험)", "시설 수리·임대차", "용역·렌탈 계약 (청소·경비·복합기·정수기)"],
+  "9. 프로젝트 관리": ["수주 등록 (고객·품목·납기)", "출하지시 → 배차 → 입출고 기록 → 납품 완료", "거래명세서 출력 연결"],
+  "11. 국책관리": ["국책과제 (협약·연차·정산·보고서 제출 기한)"],
+  "12. 지원사업 관리": ["신청 중 / 선정·진행 / 완료 / 미선정 (지원사업진행현황.xlsx 칸 맞추기)"],
+};
+const soon = (label: string): MenuItem => ({ href: `/ga/soon?g=${encodeURIComponent(label)}`, label: "준비 중인 화면", desc: GA_PLAN[label]?.join(" · ") });
+const gaGroup = ([label, ks]: [string, string[]]): MenuGroup => ({
+  label,
+  items: [
+    ...(label === "10. 입찰관리" ? [{ href: "/bid", label: "입찰관리", desc: "입찰 사이트 바로가기, 공고·투찰·개찰·제출 마감" }] : []),
+    ...ks.map(book),
+    ...(GA_PLAN[label] ? [soon(label)] : []),
+  ],
+});
+// 입찰 대장은 /bid 화면 안에서 쓴다. 회의록은 1번 묶음에.
+const gaListed = [...GA_GROUPS.flatMap(([, ks]) => ks), "meetings", "bids"];
 const gaRest = booksOf("ga", gaListed);
 
 export const MENU: MenuArea[] = [
@@ -58,13 +90,15 @@ export const MENU: MenuArea[] = [
   {
     key: "ga", label: "총무", en: "ADMIN", color: "#0e7490", desc: "문서·비품·차량·보안·복리후생·지원사업·입찰", dash: "/ga", adminOnly: true,
     groups: [
-      { label: "문서", items: [
-        { href: "/ga/mail", label: "문서 수발 대장", desc: "받은·보낸 공문, 회신 기한" },
+      { label: "1. 문서 및 자료관리", items: [
+        { href: "/ga/mail", label: "문서 수발 대장", desc: "대내외 공문서·우편·팩스, 회신 기한" },
         { href: "/ga/issue", label: "증빙·법인서류 발급", desc: "등기부·납세증명 등 발급 기록" },
         { href: "/ga/certs", label: "공동인증서 관리", desc: "인증서 보관·만료 알림" },
-        ...GA_GROUPS[0][1].map(book),
+        book("meetings"),
+        { href: "/cert?from=ga", label: "지정·인증 (AEO·연구소 등)", desc: "인증 영역에서 관리: AEO·기업부설연구소·병역지정업체·성과공유제·일학습병행" },
+        soon("1. 문서 및 자료관리"),
       ] },
-      ...GA_GROUPS.slice(1).map(([label, ks]) => ({ label, items: ks.map(book) })),
+      ...GA_GROUPS.map(gaGroup),
       ...(gaRest.length ? [{ label: "그 밖", items: gaRest }] : []),
     ],
   },
@@ -92,7 +126,7 @@ const EMOJI: Record<string, string> = {
   "/attendance": "⏰", "/daily": "📅", "/person": "🙋", "/calendar": "🗓️", "/hours": "📊", "/week52": "⏱️", "/monthly": "🧮",
   "/leave": "🏖️", "/leave/status": "📈", "/leave/calendar": "🌴", "/leave/evidence": "📎", "/leave/register": "✍️",
   "/employees": "🪪", "/org": "🌳", "/upload": "💾", "/settings": "⚙️",
-  "/ga/mail": "📨", "/ga/issue": "🧾", "/ga/certs": "🔑", "/cert": "🏅", "/cert#add": "➕", "/users": "⚙️",
+  "/ga/mail": "📨", "/ga/issue": "🧾", "/ga/certs": "🔑", "/bid": "⚖️", "/cert?from=ga": "🏅", "/cert": "🏅", "/cert#add": "➕", "/users": "⚙️",
   training: "🎓", licenses: "📜", meetings: "💬", fixtures: "📦", vehicles: "🚗", drivelog: "🛣️", software: "💿",
   visitors: "🚪", ppe: "🦺", dorm: "🏠", grants: "🎯", bids: "⚖️", checkup: "🩺", wastewater: "💧", inspections: "🔍", tasks: "📝",
 };
@@ -100,7 +134,7 @@ const ICON_EMOJI: Record<string, string> = {
   clock: "⏰", umbrella: "🏖️", mail: "📨", gauge: "⏱️", pie: "📈", car: "🚗", key: "🔑", box: "📦", medal: "🏅",
   calendarStar: "🗓️", calendarCheck: "✅", calendar: "📅", list: "📌", alert: "⚠️", users: "👥",
 };
-export const emojiOf = (k: string) => EMOJI[k] ?? ICON_EMOJI[k] ?? EMOJI[k.split("/").pop() ?? ""] ?? "▫️";
+export const emojiOf = (k: string) => (k.startsWith("/ga/soon") ? "🚧" : undefined) ?? EMOJI[k] ?? ICON_EMOJI[k] ?? EMOJI[k.split("/").pop() ?? ""] ?? "▫️";
 
 const under = (path: string, p: string) => path === p || path.startsWith(`${p}/`);
 /** 이 주소가 속한 영역. 통합 대시보드(/)·사용자 관리는 영역 없음, 나머지 근태 화면은 인사노무. */

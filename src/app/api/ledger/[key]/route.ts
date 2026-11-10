@@ -1,7 +1,7 @@
 /** 업무 대장 엑셀 내려받기. 주소의 거르기는 화면과 같다 (관리자만). */
 import ExcelJS from "exceljs";
 import type { NextRequest } from "next/server";
-import { currentUser } from "@/lib/auth";
+import { canBid, currentUser } from "@/lib/auth";
 import { bookOf } from "@/lib/대장/books";
 import { filterRows } from "@/lib/대장/logic";
 import * as store from "@/lib/대장/store";
@@ -10,8 +10,9 @@ import { loadFiles } from "@/lib/총무/mail";
 export async function GET(req: NextRequest, { params }: { params: Promise<{ key: string }> }) {
   const u = await currentUser();
   if (!u) return new Response("로그인이 필요합니다.", { status: 401 });
-  if (u.role !== "관리자") return new Response("내려받을 수 없습니다.", { status: 403 });
-  const book = bookOf((await params).key);
+  const key = (await params).key;
+  if (u.role !== "관리자" && !(key === "bids" && canBid(u))) return new Response("내려받을 수 없습니다.", { status: 403 });
+  const book = bookOf(key);
   if (!book) return new Response("없는 대장입니다.", { status: 404 });
   const sp = Object.fromEntries(req.nextUrl.searchParams);
   const [all, files] = await Promise.all([store.loadRows(book.key), loadFiles("lg:")]);

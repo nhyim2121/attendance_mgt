@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { hrefWith } from "@/components/Filters";
 import { ParamSelect } from "@/components/ParamControls";
 import { Metric } from "@/components/ui";
-import { requireAdminPage } from "@/lib/auth";
+import { requireAdminPage, requireBidPage } from "@/lib/auth";
 import { type Area, bookHref, bookOf, type Field } from "@/lib/대장/books";
 import { alertsOf, filterRows, isClosed, rowName, type Sp } from "@/lib/대장/logic";
 import * as store from "@/lib/대장/store";
@@ -30,7 +30,7 @@ export function show(f: Field, v: string | undefined): React.ReactNode {
 }
 
 export default async function LedgerView({ area, bookKey, sp }: { area: Area; bookKey: string; sp: Sp }) {
-  await requireAdminPage();
+  await (bookKey === "bids" ? requireBidPage() : requireAdminPage());
   const book = bookOf(bookKey);
   if (!book || book.area !== area) notFound();
   const today = todayKst();

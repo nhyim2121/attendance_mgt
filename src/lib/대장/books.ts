@@ -289,4 +289,5 @@ export const bookOf = (key: string) => BOOKS.find((b) => b.key === key);
 export const booksIn = (area: Area) => BOOKS.filter((b) => b.area === area);
 /** 대장 화면 주소 */
 export const AREA_BASE: Record<Area, string> = { ga: "/ga/b", hr: "/hr/b", ehs: "/ehs/b", misc: "/misc/b" };
-export const bookHref = (b: Book) => `${AREA_BASE[b.area]}/${b.key}`;
+/** 대장 화면 주소. 입찰 대장은 입찰관리 화면(/bid) 안에 있다. */
+export const bookHref = (b: Book) => (b.key === "bids" ? "/bid" : `${AREA_BASE[b.area]}/${b.key}`);

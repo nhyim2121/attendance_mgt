@@ -1,6 +1,6 @@
-/** 총무 첨부 파일 보기·내려받기 (관리자만). PDF·이미지는 브라우저에서 바로 연다. */
+/** 총무 첨부 파일 보기·내려받기 (관리자, 담당자는 입찰 대장 첨부만 — DB 규칙이 거른다). PDF·이미지는 브라우저에서 바로 연다. */
 import type { NextRequest } from "next/server";
-import { currentUser } from "@/lib/auth";
+import { canBid, currentUser } from "@/lib/auth";
 import { loadFileData } from "@/lib/총무/mail";
 
 const INLINE = /^(application\/pdf|image\/(png|jpeg|gif|webp|bmp))$/;
@@ -8,7 +8,7 @@ const INLINE = /^(application\/pdf|image\/(png|jpeg|gif|webp|bmp))$/;
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const u = await currentUser();
   if (!u) return new Response("로그인이 필요합니다.", { status: 401 });
-  if (u.role !== "관리자") return new Response("볼 수 없는 파일입니다.", { status: 403 });
+  if (u.role !== "관리자" && !canBid(u)) return new Response("볼 수 없는 파일입니다.", { status: 403 });
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return new Response("잘못된 주소입니다.", { status: 400 });
   const a = await loadFileData(id);
