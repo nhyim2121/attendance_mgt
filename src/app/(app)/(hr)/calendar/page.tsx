@@ -1,6 +1,7 @@
 /** 근태 캘린더: 출장·교육(부서별 색)·휴일근무·연장근무(이름만)를 달력으로. 같은 날 같은 곳으로 가는 사람은 한 줄로 묶는다. */
 import SubNav from "@/components/인사노무/SubNav";
 import Link from "next/link";
+import PageHead from "@/components/대시/PageHead";
 import { Suspense } from "react";
 import MonthCalendar, { type CalEntry } from "@/components/인사노무/MonthCalendar";
 import { ParamSelect } from "@/components/ParamControls";
@@ -100,16 +101,10 @@ export default async function AttendanceCalendar({ searchParams }: { searchParam
 
   return (
     <>
-      <div className="topbar">
-        <div>
-          <h1>근태 캘린더</h1><Suspense><SubNav group="trip" /></Suspense>
-          <div className="meta">출장·교육(부서별 색)·휴일근무·연장근무 · 하이웍스 근태현황과 일일 근태 보고서를 합친 내용</div>
-        </div>
-        <div className="row noprint">
+      <PageHead href="/calendar" desc={<>출장·교육(부서별 색)·휴일근무·연장근무 · 하이웍스 근태현황과 일일 근태 보고서를 합친 내용</>}>
           <Link className="btn" href="/evidence">출장 증빙</Link>
           <PrintButton />
-        </div>
-      </div>
+      </PageHead><Suspense><SubNav group="trip" /></Suspense>
       <div className="card">
         <div className="card-title noprint" style={{ flexWrap: "wrap" }}>
           <Suspense><ParamSelect name="month" value={month} options={months.map((m) => [m, `${+m.slice(0, 4)}년 ${+m.slice(5)}월`])} /></Suspense>

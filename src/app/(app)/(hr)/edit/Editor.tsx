@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { revertEdits, saveEdits } from "./actions";
 import { Kinds, rowTone } from "./kinds";
+import { AttachInline } from "../evidence/forms";
+import type { Proof } from "@/lib/인사노무/proof";
 
 export interface EditRow {
   day: string;
@@ -26,6 +28,8 @@ export interface EditRow {
   kinds: string[]; // 근태 구분: 휴가·출장 종류 + 휴일근무·연장근무
   holiday: boolean;
   edited: string; // 최근 수정 (수정자 MM-DD HH:MM)
+  proof?: Proof; // 휴일·연장근무 신청서 확인 (2026-11부터)
+  files?: { id: number; fileName: string; type: string }[]; // 그날 첨부 (신청서·증빙)
 }
 
 const COLS: [keyof EditRow, string, string][] = [
@@ -36,7 +40,6 @@ const COLS: [keyof EditRow, string, string][] = [
   ["place", "근무지", ""],
   ["note", "인원", "같이 근무한 직원 ([+ 인원]으로 고르기)"],
   ["work", "업무내용", "조출·휴일근무·출장 등 그날 한 업무. 비우면 하이웍스·보고서의 사유가 회색으로 보입니다"],
-  ["work_ot", "연장 업무", "퇴근 후 연장근무 때 한 업무 (조출과 연장 내용이 다를 때 여기에)"],
 ];
 const typeClass = (k: string, v: string) =>
   (k === "in_type" || k === "out_type") && v ? (v.startsWith("연장") ? " ty-ot" : v.startsWith("휴일") ? " ty-hol" : v.startsWith("조출") ? " ty-early" : "") : "";
@@ -120,13 +123,13 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
           <thead><tr>
             <th>일자</th><th>요일</th><th>상태</th>
             {COLS.map(([k, l, help]) => <th key={k} title={help}>{l}</th>)}
-            <th>최근 수정</th>
+            <th title="신청서·증빙 파일. 휴일·연장근무는 신청서를 첨부하면 바로 인정됩니다">첨부</th>
           </tr></thead>
           <tbody>
             {draft.map((r, i) => (
               <tr key={r.day} className={`${rowTone(r)}${COLS.some(([k]) => changed(i, k)) ? " changed" : ""}`}>
                 <td className="ro">{r.day.slice(5)}</td><td className={`ro${r.holiday ? " hol" : ""}`}>{r.wd}</td>
-                <td className="ro"><Kinds r={r} /></td>
+                <td className="ro"><Kinds r={r} />{rows[i]?.proof?.missing.length ? <div className="proof-miss"><b>미인정</b></div> : rows[i]?.proof?.need.length ? <div className="proof-ok">✅ 인정</div> : null}</td>
                 {COLS.map(([k]) => (
                   <td key={k} style={{ minWidth: k === "place" ? 150 : k === "note" ? 200 : k === "work" || k === "work_ot" ? 200 : 96 }}>
                     <div className={k === "note" ? "row mates-cell" : ""} style={k === "note" ? { gap: 4, flexWrap: "nowrap" } : undefined}>
@@ -151,7 +154,7 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
                     </div>
                   </td>
                 ))}
-                <td className="ro">{r.edited}</td>
+                <td className="ro" title={r.edited ? `최근 수정: ${r.edited}` : undefined}><AttachCell employee={employee} day={r.day} proof={rows[i]?.proof} files={rows[i]?.files ?? []} /></td>
               </tr>
             ))}
           </tbody>
@@ -185,5 +188,20 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
         </details>
       </div>
     </>
+  );
+}
+
+/** 첨부 칸: 그날 첨부한 신청서·증빙 + 바로 첨부. 휴일·연장근무는 신청서가 없으면 '미인정', 첨부하면 바로 인정. */
+function AttachCell({ employee, day, proof, files }: { employee: string; day: string; proof?: Proof; files: { id: number; fileName: string; type: string }[] }) {
+  const miss = proof?.missing ?? [];
+  return (
+    <div className="proof">
+      {files.map((f) => (
+        <a key={f.id} className="proof-file" href={`/api/attachment/${f.id}`} target="_blank" rel="noreferrer" title={`${f.type} · ${f.fileName}`}>📎 {f.type}</a>
+      ))}
+      {miss.map((k) => <span key={k} className="proof-miss"><b>⚠ {k} 신청서 없음</b></span>)}
+      <AttachInline name={employee} type={miss[0] ?? (proof?.need[0] ?? "기타")} from={day} to={day} title={miss[0] ? `${miss[0]} 신청서` : "근태 증빙"}
+        label={miss.length ? "+ 신청서" : "+ 첨부"} />
+    </div>
   );
 }

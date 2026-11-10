@@ -1,4 +1,5 @@
 /** 데이터 관리: [올리기] 캡스 월별 파일 + 근태현황(하이웍스) 파일 저장, [내려받기] 직원별 시트 엑셀·ZIP. */
+import PageHead from "@/components/대시/PageHead";
 import Link from "next/link";
 import type { SearchParams } from "@/lib/인사노무/data";
 import DownloadView from "./DownloadView";
@@ -18,7 +19,7 @@ export default async function UploadPage({ searchParams }: { searchParams: Promi
   for (const k of ["month", "from", "to", "dept", "all", "emps"]) if (typeof sp[k] === "string") keep.set(k, sp[k] as string);
   const tabs = (
     <>
-      <h1>데이터 관리</h1>
+      <PageHead href={"/upload"} />
       <div className="tabs noprint">
         <Link href={`/upload${keep.size ? `?${keep}` : ""}`} className={down ? "" : "on"} scroll={false}>⬆ 올리기</Link>
         <Link href={`/upload?tab=download${keep.size ? `&${keep}` : ""}`} className={down ? "on" : ""} scroll={false}>⬇ 내려받기 (엑셀·ZIP)</Link>

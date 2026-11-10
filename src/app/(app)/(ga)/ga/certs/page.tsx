@@ -1,5 +1,6 @@
 /** 총무 > 인증서 관리: 공동인증서·금융인증서·OTP 등의 보관자·보관 위치·만료일. 만료 60일 전부터 알린다.
  *  인증서 파일·비밀번호는 저장하지 않는다. */
+import PageHead from "@/components/대시/PageHead";
 import Link from "next/link";
 import { Metric } from "@/components/ui";
 import { requireAdminPage } from "@/lib/auth";
@@ -27,8 +28,7 @@ export default async function CertsPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <h1>공동인증서 관리</h1>
-      <p className="caption">회사 인증서가 몇 개이고 누가 어디에 보관하는지, 언제 끝나는지를 한곳에 적어 둡니다. 만료 60일 전부터 주황, 30일 전부터 빨강으로 표시되고 통합 대시보드·총무 홈에도 알림이 뜹니다.</p>
+      <PageHead href={"/ga/certs"} desc={<>회사 인증서가 몇 개이고 누가 어디에 보관하는지, 언제 끝나는지를 한곳에 적어 둡니다. 만료 60일 전부터 주황, 30일 전부터 빨강으로 표시되고 통합 대시보드·총무 홈에도 알림이 뜹니다.</>} />
 
       <div className="metrics">
         <Metric label="사용 중" value={`${active.length}개`} />

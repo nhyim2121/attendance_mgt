@@ -1,4 +1,5 @@
 /** 직원별 근태 > 근태 기입 (/sheets?tab=edit). 예전 [시트·엑셀]은 데이터 관리 > 내려받기로 옮겼다. */
+import PageHead from "@/components/대시/PageHead";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import SubNav from "@/components/인사노무/SubNav";
@@ -14,5 +15,5 @@ export default async function SheetsPage({ searchParams }: { searchParams: Promi
     for (const [k, v] of Object.entries(sp)) if (k !== "tab" && typeof v === "string") q.set(k, v);
     redirect(`/upload?${q}`);
   }
-  return <><h1 className="noprint">직원별 근태</h1><Suspense><SubNav group="staff" /></Suspense><EditView sp={sp} /></>;
+  return <><PageHead href={"/person"} /><Suspense><SubNav group="staff" /></Suspense><EditView sp={sp} /></>;
 }

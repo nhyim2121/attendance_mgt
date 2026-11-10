@@ -7,7 +7,7 @@ import { deleteEvidence, uploadEvidence } from "./actions";
 const ACCEPT = ".pdf,.png,.jpg,.jpeg,.gif,.webp,.bmp,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.eml,.htm,.html,.txt,.zip";
 
 /** 출장 한 건에 붙이는 작은 첨부 버튼 (파일을 고르면 바로 올린다) */
-export function AttachInline({ name, type, from, to, title }: { name: string; type: string; from: string; to: string; title: string }) {
+export function AttachInline({ name, type, from, to, title, label = "+ 신청서 첨부" }: { name: string; type: string; from: string; to: string; title: string; label?: string }) {
   const [r, action, pending] = useActionState(uploadEvidence, null);
   return (
     <form action={action} className="row" style={{ gap: 6 }}>
@@ -15,7 +15,7 @@ export function AttachInline({ name, type, from, to, title }: { name: string; ty
       <input type="hidden" name="from" value={from} /><input type="hidden" name="to" value={to} />
       <input type="hidden" name="title" value={title} />
       <label className={`btn sm${pending ? " busy" : ""}`}>
-        {pending ? "올리는 중…" : "+ 신청서 첨부"}
+        {pending ? "올리는 중…" : label}
         <input type="file" name="file" accept={ACCEPT} multiple hidden onChange={(e) => e.currentTarget.form?.requestSubmit()} />
       </label>
       {r?.error && <span className="red" style={{ fontSize: ".82rem" }}>{r.error}</span>}

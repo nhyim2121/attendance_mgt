@@ -1,4 +1,5 @@
 /** 근무 기준·공휴일 (모든 사용자 공통) */
+import PageHead from "@/components/대시/PageHead";
 import { getHolidays, getRule } from "@/lib/인사노무/data";
 import { hhmm } from "@/lib/time";
 import { HolidayForm, RuleForm } from "./forms";
@@ -9,8 +10,7 @@ export default async function SettingsPage() {
   const [rule, holidays] = await Promise.all([getRule(), getHolidays()]);
   return (
     <>
-      <h1>근무 기준·공휴일</h1>
-      <p className="caption">여기서 바꾼 기준은 모든 담당자에게 똑같이 적용되고, 지각·조퇴 판정과 근무형태 표기에 바로 반영됩니다.</p>
+      <PageHead href={"/settings"} desc={<>여기서 바꾼 기준은 모든 담당자에게 똑같이 적용되고, 지각·조퇴 판정과 근무형태 표기에 바로 반영됩니다.</>} />
       <div className="grid2">
         <div className="card">
           <div className="card-title">근무 기준</div>

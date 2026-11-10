@@ -19,6 +19,7 @@ import { loadBids } from "../총무/bidStore";
 import { currentUser } from "../auth";
 import { coopLeft, isOpen, occurrences, timeText } from "../기타/work";
 import { loadCoops, loadPlans } from "../기타/workStore";
+import { missingProofs } from "../인사노무/proofScan";
 
 export const WEEK_WARN = 48;
 export const WEEK_LIMIT = 52;
@@ -129,15 +130,12 @@ export const todos = cache(async (admin: boolean): Promise<Todo[]> => {
           href: `${bookHref(b)}?edit=${r.id}#form`, left: a.left });
       }
     }
-  } else {
-    // 담당자 계정: 인사노무 대장만
-    const rows = (await ledgerRows()).filter((r) => BOOKS.find((b) => b.key === r.book)?.area === "hr");
-    for (const r of rows) {
-      const b = BOOKS.find((x) => x.key === r.book)!;
-      for (const a of rowAlerts(b, r.data, today)) {
-        out.push({ area: "hr", cat: "기한", icon: bookHref(b), title: `${rowName(b, r.data)} · ${a.label}`, sub: `${b.title} · ${a.day}`, href: `${bookHref(b)}?edit=${r.id}#form`, left: a.left });
-      }
-    }
+  }
+  // 담당자 계정: 대장(급여·노무 등 인사 기밀 포함)은 관리자만 열 수 있어 할 일에도 넣지 않는다.
+  // 신청서 없는 휴일·연장근무 (2026-11부터, 미인정 표시)
+  for (const m of (await missingProofs().catch(() => [])).slice(0, 30)) {
+    out.push({ area: "hr", cat: "인사", icon: "/sheets", title: `${m.emp} ${m.kinds.join("·")} 신청서 없음`, sub: `미인정 · ${m.day}`,
+      href: `/sheets?tab=edit&month=${m.day.slice(0, 7)}&emp=${encodeURIComponent(m.emp)}`, left: null });
   }
   // 기타(내 업무): 기한 있는 업무협조(관리팀 공용) + 7일 안 내 개인일정
   const me = await currentUser();

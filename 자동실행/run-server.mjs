@@ -2,6 +2,7 @@
  *
  * - 이미 8501 포트에서 사이트가 돌고 있으면 아무것도 하지 않고 끝낸다 (중복 실행 방지).
  * - Supabase(Docker)를 켜고, 저장소를 백업한 뒤 사이트를 켠다. 사이트가 멈추면 몇 초 뒤 다시 켠다.
+ * - 10분마다 DB 백업(바뀌었을 때만), 1시간마다 업무 자료 폴더 백업.
  * - 08~20시 2시간마다 입찰 공고 자동 불러오기 (/api/bid/fetch, .env.local BID_CRON_KEY).
  * - 서버 출력: 데이터/logs/server-YYYYMMDD.log, 재시작 기록: 데이터/logs/watchdog.log
  * 실행: node 자동실행/run-server.mjs   (먼저 npm run build)
@@ -55,6 +56,25 @@ function scheduleBidFetch() {
   }, 5 * 60e3);
 }
 
+/** 자동 백업: 사이트가 켜져 있는 동안 10분마다 DB(바뀌었을 때만 새 파일), 1시간마다 업무 자료 폴더 */
+function scheduleBackups() {
+  let busy = false, tick = 0;
+  setInterval(() => {
+    if (busy) return;
+    busy = true;
+    tick++;
+    const jobs = ["node 자동실행/backup-db.mjs", ...(tick % 6 === 0 ? ["node 자동실행/backup-files.mjs"] : [])];
+    const next = () => {
+      const cmd = jobs.shift();
+      if (!cmd) { busy = false; return; }
+      const p = spawn(cmd, { cwd: ROOT, windowsHide: true, shell: true, stdio: "ignore" });
+      p.on("exit", (code) => { if (code) log(`자동 백업 실패 (${cmd}, 코드 ${code})`); next(); });
+      p.on("error", (e) => { log(`자동 백업 실패 (${cmd}): ${e.message}`); next(); });
+    };
+    next();
+  }, 10 * 60e3);
+}
+
 // shell: true에는 명령을 문자열 하나로 넘긴다 (인자 배열을 같이 넘기면 Node가 DEP0190 경고를 띄움)
 const run = (cmd) => spawnSync(cmd, { cwd: ROOT, windowsHide: true, shell: true, encoding: "utf8" });
 
@@ -87,6 +107,7 @@ async function main() {
   }
 
   scheduleBidFetch();
+  scheduleBackups();
   let quickFails = 0;
   for (;;) {
     const started = Date.now();

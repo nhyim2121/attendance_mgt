@@ -1,5 +1,6 @@
 /** 주 52시간 관리: 최근 8주 직원별 주간 실근로시간 (월~일), 초과(52h 넘음)·임박(48h 이상) 표시. */
 import Link from "next/link";
+import PageHead from "@/components/대시/PageHead";
 import { Suspense } from "react";
 import { Ico, Stat } from "@/components/인사노무/HomeKit";
 import { ParamDate } from "@/components/ParamControls";
@@ -16,7 +17,7 @@ const h1 = (x: number) => (x ? (Math.round(x * 10) / 10).toFixed(1) : "");
 export default async function Week52({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const [rule, base] = await Promise.all([getRule(), loadBase()]);
-  if (!base.months.length) return <><h1>주 52시간 관리</h1><NoData /></>;
+  if (!base.months.length) return <><PageHead href={"/week52"} /><NoData /></>;
   const today = todayKst();
   const day = isDateStr(sp.day) ? String(sp.day) : today;
   const lastMon = addDays(day, -weekday(day));
@@ -44,16 +45,10 @@ export default async function Week52({ searchParams }: { searchParams: Promise<S
 
   return (
     <div className="home">
-      <div className="topbar home-top">
-        <div>
-          <h1>주 52시간 관리</h1>
-          <div className="meta">최근 {WEEKS}주 · {dayLabel(mons[0])} ~ {dayLabel(addDays(lastMon, 6))} · 캡스 출퇴근 기준 실근로시간</div>
-        </div>
-        <div className="row noprint">
+      <PageHead href="/week52" desc={<>최근 {WEEKS}주 · {dayLabel(mons[0])} ~ {dayLabel(addDays(lastMon, 6))} · 캡스 출퇴근 기준 실근로시간</>}>
           <Suspense><ParamDate name="day" label="기준일" value={day} /></Suspense>
           <PrintButton className="pill print" label="인쇄" />
-        </div>
-      </div>
+      </PageHead>
       <section className="card hstats">
         <Stat icon="alert" label="이번 주 초과" value={overNow} unit="명" sub={`${LIMIT}시간 넘음`} />
         <Stat icon="week" label="이번 주 임박" value={nearNow} unit="명" sub={`${WARN}~${LIMIT}시간`} />

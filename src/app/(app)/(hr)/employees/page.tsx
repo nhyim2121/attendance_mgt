@@ -1,4 +1,5 @@
 /** 직원 관리: 숫자 카드 · 다가오는 인사 일정 · 직원 목록(검색·부서·재직/퇴사·정렬) + 줄을 누르면 상세 서랍. 출퇴근 집계는 이 명부 기준. */
+import PageHead from "@/components/대시/PageHead";
 import Link from "next/link";
 import CsvButton from "@/components/CsvButton";
 import { requireUser } from "@/lib/auth";
@@ -51,20 +52,13 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="ep">
-      <div className="ep-head">
-        <div>
-          <div className="ep-crumb"><Link href="/">홈</Link> › <Link href="/hr">인사노무</Link> › 인사</div>
-          <h1 className="ep-title">🪪 직원 관리</h1>
-          <p className="ep-desc">직원 명부·입사일·연락처 · 여기 등록된 직원만 출퇴근 집계에 나옵니다 (퇴사일 = 마지막 근무일)</p>
-        </div>
-        <div className="ep-btns noprint">
+      <PageHead href="/employees" desc="직원 명부·입사일·연락처 · 여기 등록된 직원만 출퇴근 집계에 나옵니다 (퇴사일 = 마지막 근무일)">
           <Link href="/employees?new=1" className="ep-btn pri" scroll={false}>＋ 직원 추가</Link>
           <CsvButton name={`직원명부_${today}.csv`} label="엑셀"
             head={["이름", "상태", "부서", "직급", "직책", "입사일", "퇴사일", "근속", "휴대전화", "내선", "이메일", "캡스 이름", "사번", "비고"]}
             rows={emps.map((e) => [e.name, statusLabel(e, today), e.dept, e.rank, e.position, e.joinDate ?? "", e.leaveDate ?? "", extra[e.name].tenure,
               e.phone, e.ext, e.email, e.capsName, e.empId, e.note])} />
-        </div>
-      </div>
+      </PageHead>
       <EmployeeEditor key={openNew ? "new" : "list"} emps={emps} depts={depts} today={today} extra={extra} avatars={avatars}
         admin={admin} openNew={openNew} events={events} fyLabel={`${fy}${policy.fyStartMonth === 1 ? "년" : "회계연도"}`} />
     </div>

@@ -1,4 +1,5 @@
 /** 인증 하나: 기본 정보, 인증서 스캔본, 취득·심사·갱신·변경신고 이력 (관리자만) */
+import PageHead from "@/components/대시/PageHead";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminPage } from "@/lib/auth";
@@ -37,8 +38,7 @@ export default async function CertItemPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <p style={{ margin: 0 }}><Link href="/cert">← 인증 현황</Link></p>
-      <h1>{c.name} <span className="tag" style={{ verticalAlign: "middle" }}>{c.status}</span></h1>
+      <PageHead href="/cert" title={c.name} mark={c.status} desc={<><Link href="/cert">← 인증 현황</Link></>} />
       {alerts.map((a) => (
         <div key={a.kind} className={`msg ${a.level === "d90" ? "warn" : "err"}`}>{a.label} {dayLabel(a.day, true)} ({dday(a.left)})</div>
       ))}

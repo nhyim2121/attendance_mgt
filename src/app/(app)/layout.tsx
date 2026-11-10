@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import AutoDraft from "@/components/AutoDraft";
 import Nav from "@/components/Nav";
 import PageMark from "@/components/PageMark";
 import PrintFit from "@/components/PrintFit";
@@ -27,6 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Suspense><TopBar admin={admin} /></Suspense>
         {children}
       </main>
+      <Suspense><AutoDraft /></Suspense>
       <PrintFit />
       <PageMark />
     </div>

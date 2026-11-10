@@ -1,4 +1,5 @@
 /** 직원 한 명의 출퇴근 흐름, 근태현황 시트, 하이웍스 근태, 원본 기록. */
+import PageHead from "@/components/대시/PageHead";
 import SubNav from "@/components/인사노무/SubNav";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -18,8 +19,8 @@ const TABS = { sheet: "근태현황 시트", hiworks: "하이웍스 근태", raw
 export default async function PersonPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const f = await filteredRecords(sp);
-  if (!f) return <><h1>직원별 근태</h1><Suspense><SubNav group="staff" /></Suspense><NoData /></>;
-  if (!f.records.length) return <><h1>직원별 근태</h1><Suspense><SubNav group="staff" /></Suspense><Filters f={f} /><Msg kind="warn">필터 조건에 맞는 기록이 없습니다.</Msg></>;
+  if (!f) return <><PageHead href={"/person"} /><Suspense><SubNav group="staff" /></Suspense><NoData /></>;
+  if (!f.records.length) return <><PageHead href={"/person"} /><Suspense><SubNav group="staff" /></Suspense><Filters f={f} /><Msg kind="warn">필터 조건에 맞는 기록이 없습니다.</Msg></>;
   const [rule, base] = await Promise.all([getRule(), loadBase()]);
 
   const all = await computeDays(f.records, rule);
@@ -40,7 +41,7 @@ export default async function PersonPage({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <h1>직원별 근태</h1><Suspense><SubNav group="staff" /></Suspense>
+      <PageHead href={"/person"} /><Suspense><SubNav group="staff" /></Suspense>
       <Filters f={f}>
         <Suspense><ParamSelect name="emp" label="직원" value={emp} options={names.map((n) => [n, n])} /></Suspense>
       </Filters>

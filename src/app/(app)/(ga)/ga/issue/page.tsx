@@ -1,4 +1,5 @@
 /** 총무 > 증빙·법인서류 발급 대장: 사업자등록증명·등기부등본·납세증명서 등을 뗄 때마다 한 줄씩 적고 발급본을 붙인다. */
+import PageHead from "@/components/대시/PageHead";
 import Link from "next/link";
 import { Suspense } from "react";
 import { hrefWith } from "@/components/Filters";
@@ -53,8 +54,7 @@ export default async function IssuePage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <h1>증빙·법인서류 발급 대장</h1>
-      <p className="caption">사업자등록증명·등기부등본·납세증명서 같은 서류를 뗄 때마다 한 줄씩 적고, 발급본(PDF)을 붙여 두면 다음에 같은 서류가 필요할 때 바로 찾아 쓸 수 있습니다.</p>
+      <PageHead href={"/ga/issue"} desc={<>사업자등록증명·등기부등본·납세증명서 같은 서류를 뗄 때마다 한 줄씩 적고, 발급본(PDF)을 붙여 두면 다음에 같은 서류가 필요할 때 바로 찾아 쓸 수 있습니다.</>} />
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-title">발급처 바로가기 <span className="muted" style={{ fontWeight: 400 }}>(새 창)</span></div>

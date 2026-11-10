@@ -56,11 +56,34 @@ const gaGroup = ([label, ks]: [string, string[]]): MenuGroup => ({
 const gaListed = [...GA_GROUPS.flatMap(([, ks]) => ks), "meetings", "bids"];
 const gaRest = booksOf("ga", gaListed);
 
+/** 업무분장 묶음별 대시보드 (/hr/g/<slug>) */
+export const HR_DASH: Record<string, { group: string; name: string; en: string; emoji: string }> = {
+  hire: { group: "3-1. 직원채용", name: "직원채용", en: "HIRING", emoji: "🧲" },
+  work: { group: "3-2. 복무 및 근태관리", name: "복무·근태", en: "ATTENDANCE", emoji: "⏰" },
+  leave: { group: "3-2. 휴가·휴직", name: "휴가·휴직", en: "LEAVE", emoji: "🏖️" },
+  pay: { group: "3-3. 급여관리", name: "급여", en: "PAYROLL", emoji: "💰" },
+  labor: { group: "3-4. 노무관리", name: "노무", en: "LABOR", emoji: "⚖️" },
+  org: { group: "3-5. 조직 관리", name: "조직", en: "ORGANIZATION", emoji: "🌳" },
+  people: { group: "3-6. 인사관리", name: "인사", en: "PEOPLE", emoji: "🪪" },
+  edu: { group: "3-7. 교육훈련 관리", name: "교육훈련", en: "TRAINING", emoji: "🎓" },
+};
+/** 이 주소(화면·대장)가 속한 인사노무 업무분장 묶음 */
+export function hrSlugOf(href: string): string | undefined {
+  const g = MENU.find((a) => a.key === "hr")?.groups.find((x) => x.items.some((i) => i.href === href));
+  return g ? Object.keys(HR_DASH).find((k) => HR_DASH[k].group === g.label) : undefined;
+}
+const gdash = (slug: string): MenuItem => ({ href: `/hr/g/${slug}`, label: `${HR_DASH[slug].name} 홈`, desc: `${HR_DASH[slug].group} 한눈에 보기`, exact: true });
+/** 인사노무 묶음: X:\관리팀\3. 인사, 노무 폴더 번호(3-1~3-7). 대장은 관리자만 열린다. */
+const hrBook = (key: string): MenuItem => ({ ...book(key), admin: true });
+const HR_LISTED = ["recruit", "onoff", "contracts", "holidaywork", "flex", "reserve", "leavepromo", "absence", "payroll", "insurance", "labor", "revisions", "certificates", "licenses", "foreign", "programs", "training", "applicants", "comp", "compliance", "council", "agreements", "discipline", "injuries", "appointments", "evaluations", "awards", "trainplan"];
+const hrRest = booksOf("hr", HR_LISTED).map((it) => ({ ...it, admin: true }));
+
 export const MENU: MenuArea[] = [
   {
-    key: "hr", label: "인사노무", en: "HR", color: "#0c3994", desc: "근태(출퇴근·근로시간)와 휴가·연차, 직원·조직도", dash: "/hr", adminOnly: false,
+    key: "hr", label: "인사노무", en: "HR", color: "#0c3994", desc: "채용·근태·휴가·급여·노무·조직·인사·교육 (업무분장 3-1~3-7)", dash: "/hr", adminOnly: false,
     groups: [
-      { label: "근태", items: [
+      { label: "3-1. 직원채용", items: [gdash("hire"), hrBook("recruit"), { ...hrBook("applicants"), also: ["/hr/applicant"] }, hrBook("onoff"), hrBook("contracts")] },
+      { label: "3-2. 복무 및 근태관리", items: [
         { href: "/attendance", label: "근태 홈", desc: "오늘 출근·지각·휴가 한눈에" },
         { href: "/daily", label: "일일 현황", desc: "날짜별 출근·지각·미출근, 근태 보고서" },
         { href: "/person", label: "직원별 근태", desc: "한 사람의 날짜별 출퇴근, 근태 기입", also: ["/sheets", "/edit"] },
@@ -68,19 +91,26 @@ export const MENU: MenuArea[] = [
         { href: "/hours", label: "근로시간 리포트", desc: "부서·월별 근로시간", also: ["/depts"] },
         { href: "/week52", label: "주 52시간 관리", desc: "주간 근로시간 경고" },
         { href: "/monthly", label: "월 근태 집계", desc: "월별 지각·결근·연장 합계" },
+        hrBook("holidaywork"), hrBook("flex"), hrBook("reserve"),
       ] },
-      { label: "휴가", items: [
+      { label: "3-2. 휴가·휴직", items: [ 
         { href: "/leave", label: "휴가 홈", desc: "사용률·다가오는 휴가", exact: true },
         { href: "/leave/status", label: "연차 현황", desc: "직원별 발생·사용·잔여" },
         { href: "/leave/calendar", label: "휴가 캘린더", desc: "달력으로 보는 휴가" },
         { href: "/leave/evidence", label: "신청서 증빙", desc: "휴가 신청서와 증빙 파일" },
         { href: "/leave/register", label: "휴가 등록·설정", desc: "휴가 직접 등록, 연차 기준" },
+        hrBook("leavepromo"), hrBook("absence"),
       ] },
-      { label: "인사", items: [
-        { href: "/employees", label: "직원 관리", desc: "직원 명부·입사일·근무 기준" },
+      { label: "3-3. 급여관리", items: [gdash("pay"), hrBook("payroll"), hrBook("comp"), hrBook("insurance")] },
+      { label: "3-4. 노무관리", items: [gdash("labor"), hrBook("compliance"), hrBook("council"), hrBook("agreements"), hrBook("labor"), hrBook("discipline"), hrBook("injuries")] },
+      { label: "3-5. 조직 관리", items: [gdash("org"), 
+        { href: "/employees", label: "직원 관리", desc: "직원 명부(사원현황)·입사일·근무 기준, 비상연락망" },
         { href: "/org", label: "조직도", desc: "부서·직책 구조" },
-        ...booksOf("hr"),
+        hrBook("revisions"),
       ] },
+      { label: "3-6. 인사관리", items: [gdash("people"), hrBook("appointments"), hrBook("evaluations"), hrBook("awards"), hrBook("certificates"), hrBook("licenses"), hrBook("foreign"), hrBook("programs")] },
+      { label: "3-7. 교육훈련 관리", items: [gdash("edu"), hrBook("trainplan"), hrBook("training")] },
+      ...(hrRest.length ? [{ label: "그 밖", items: hrRest }] : []),
       { label: "관리", items: [
         { href: "/upload", label: "데이터 관리", desc: "캡스·하이웍스 파일 올리기, 내려받기" },
         { href: "/settings", label: "근무 기준·공휴일", desc: "출퇴근 시각·공휴일" },
@@ -141,14 +171,14 @@ const EMOJI: Record<string, string> = {
   "/employees": "🪪", "/org": "🌳", "/upload": "💾", "/settings": "⚙️",
   "/ga/mail": "📨", "/ga/issue": "🧾", "/ga/certs": "🔑", "/bid": "⚖️", "/cert?from=ga": "🏅", "/cert": "🏅", "/cert#add": "➕", "/users": "⚙️",
   "/misc/weekly": "📓", "/misc/coop": "🤝", "/misc/plan": "🧭", "/misc/calendar": "🗓️",
-  training: "🎓", licenses: "📜", meetings: "💬", fixtures: "📦", vehicles: "🚗", drivelog: "🛣️", software: "💿",
+  training: "🎓", licenses: "📜", recruit: "🧲", onoff: "🔁", contracts: "✒️", holidaywork: "🛠️", flex: "🕘", reserve: "🎖️", leavepromo: "📣", absence: "🍼", payroll: "💰", insurance: "🏥", labor: "⚖️", revisions: "📐", certificates: "📃", foreign: "🌏", programs: "🧑‍🎓", applicants: "📇", appointments: "📢", evaluations: "📝", comp: "💵", awards: "🏆", trainplan: "🗓️", council: "🤝", discipline: "🚨", injuries: "🩹", agreements: "✍️", compliance: "✅", meetings: "💬", fixtures: "📦", vehicles: "🚗", drivelog: "🛣️", software: "💿",
   visitors: "🚪", ppe: "🦺", dorm: "🏠", grants: "🎯", bids: "⚖️", checkup: "🩺", wastewater: "💧", inspections: "🔍", tasks: "📝",
 };
 const ICON_EMOJI: Record<string, string> = {
   clock: "⏰", umbrella: "🏖️", mail: "📨", gauge: "⏱️", pie: "📈", car: "🚗", key: "🔑", box: "📦", medal: "🏅",
   calendarStar: "🗓️", calendarCheck: "✅", calendar: "📅", list: "📌", alert: "⚠️", users: "👥",
 };
-export const emojiOf = (k: string) => (k.startsWith("/ga/soon") ? "🚧" : undefined) ?? EMOJI[k] ?? ICON_EMOJI[k] ?? EMOJI[k.split("/").pop() ?? ""] ?? "▫️";
+export const emojiOf = (k: string) => (k.startsWith("/ga/soon") ? "🚧" : k.startsWith("/hr/g/") ? "📊" : undefined) ?? EMOJI[k] ?? ICON_EMOJI[k] ?? EMOJI[k.split("/").pop() ?? ""] ?? "▫️";
 
 const under = (path: string, p: string) => path === p || path.startsWith(`${p}/`);
 /** 이 주소가 속한 영역. 통합 대시보드(/)·사용자 관리는 영역 없음, 나머지 근태 화면은 인사노무. */

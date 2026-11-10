@@ -1,5 +1,6 @@
 /** 휴가 공간의 각 화면: 연차 현황, 신청서 증빙, 현황 보고서, 휴가 등록, 휴가 캘린더, 연차 조정, 연차 기준.
  * 주소는 /leave/<화면> (예: /leave/status). 휴가 홈은 /leave (Home.tsx). */
+import PageHead from "@/components/대시/PageHead";
 import Link from "next/link";
 import { Suspense } from "react";
 import { hrefWith } from "@/components/Filters";
@@ -74,7 +75,7 @@ export default async function LeaveView({ sp, tab: page }: { sp: SearchParams; t
 
   const head = (
     <div className="noprint">
-      <h1>{TABS[page]}</h1>
+      <PageHead href={`/leave/${page}`} title={TABS[page]} />
       {page === "status" && (
         <div className="tabs">
           <Link href={hrefWith(sp, "/leave/status", { view: null, emp: null })} className={tab === "status" ? "on" : ""} scroll={false}>현황표</Link>

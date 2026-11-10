@@ -1,4 +1,5 @@
 /** 부서별 근무: 누가 일찍 출근하고 늦게 퇴근했는지, 며칠 일했는지 부서 단위로 비교한다. */
+import PageHead from "@/components/대시/PageHead";
 import SubNav from "@/components/인사노무/SubNav";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -22,8 +23,8 @@ const clock = (m: number | null) => (m === null ? "-" : m >= 1440 ? `익일 ${hh
 export default async function DeptsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const f = await filteredRecords(sp);
-  if (!f) return <><h1>근로시간 리포트</h1><Suspense><SubNav group="hours" /></Suspense><NoData /></>;
-  if (!f.records.length) return <><h1>근로시간 리포트</h1><Suspense><SubNav group="hours" /></Suspense><Filters f={f} /><Msg kind="warn">필터 조건에 맞는 기록이 없습니다.</Msg></>;
+  if (!f) return <><PageHead href={"/hours"} title="부서별 근로시간" /><Suspense><SubNav group="hours" /></Suspense><NoData /></>;
+  if (!f.records.length) return <><PageHead href={"/hours"} title="부서별 근로시간" /><Suspense><SubNav group="hours" /></Suspense><Filters f={f} /><Msg kind="warn">필터 조건에 맞는 기록이 없습니다.</Msg></>;
   const [rule, base] = await Promise.all([getRule(), loadBase()]);
   const days = await computeDays(f.records, rule);
   const stats = personStats(days, rule);
@@ -36,7 +37,7 @@ export default async function DeptsPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <h1>근로시간 리포트</h1><Suspense><SubNav group="hours" /></Suspense>
+      <PageHead href={"/hours"} title="부서별 근로시간" /><Suspense><SubNav group="hours" /></Suspense>
       <Filters f={f}>
         <span className="seg">
           {Object.entries(SORTS).map(([k, [l]]) => (

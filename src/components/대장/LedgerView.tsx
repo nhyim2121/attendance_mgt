@@ -1,4 +1,8 @@
 /** 업무 대장 공통 화면: 적기·고치기·복사, 거르기·찾기, 만기 알림, 첨부, 엑셀 내려받기·가져오기 */
+import PageHead from "@/components/대시/PageHead";
+import SiteLinks from "@/components/대시/SiteLinks";
+import { hrSlugOf } from "@/lib/대시/menu";
+import { HR_SITES } from "@/lib/인사노무/sites";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -7,6 +11,7 @@ import { ParamSelect } from "@/components/ParamControls";
 import { Metric } from "@/components/ui";
 import { requireAdminPage, requireBidPage } from "@/lib/auth";
 import { type Area, bookHref, bookOf, type Field } from "@/lib/대장/books";
+import { GUIDE } from "@/lib/대장/guide";
 import { alertsOf, filterRows, isClosed, rowName, type Sp } from "@/lib/대장/logic";
 import * as store from "@/lib/대장/store";
 import { loadFiles } from "@/lib/총무/mail";
@@ -60,8 +65,18 @@ export default async function LedgerView({ area, bookKey, sp }: { area: Area; bo
 
   return (
     <>
-      <h1>{book.title}</h1>
-      <p className="caption">{book.desc}{book.folder && <> · 예전 자료: <code>X:\관리팀\{book.folder}</code></>}</p>
+      <PageHead href={bookHref(book)} title={book.title} desc={book.desc} />
+      <div className="u-guide">
+        <b>📘 업무 설명</b>
+        <p>{GUIDE[book.key] ?? book.desc}</p>
+        {(book.fields.some((f) => f.alert) || book.closed) && (
+          <ul>
+            {book.fields.filter((f) => f.alert).map((f) => <li key={f.k}>⏰ <b>{f.label}</b>이(가) {f.alert}일 안으로 다가오면 위쪽과 대시보드 &lsquo;할 일&rsquo;에 알림</li>)}
+            {book.closed && <li>✅ {book.fields.find((f) => f.k === book.closed!.k)?.label ?? "상태"}가 &lsquo;{book.closed.values.join("·")}&rsquo;이면 끝난 일로 보고 알림을 멈춤</li>}
+          </ul>
+        )}
+      </div>
+      {area === "hr" && <SiteLinks sites={HR_SITES[hrSlugOf(path) ?? ""] ?? []} />}
 
       {alerts.length > 0 && (
         <div className="card" style={{ marginBottom: 16 }}>
@@ -122,7 +137,7 @@ export default async function LedgerView({ area, bookKey, sp }: { area: Area; bo
                     const a = al.get(f.k);
                     return (
                       <td key={f.k} style={f.type === "textarea" || f.wide ? { whiteSpace: "pre-line", minWidth: 160 } : f.type === "money" || f.type === "number" ? { textAlign: "right" } : undefined}>
-                        {f.k === book.title1 ? <b>{show(f, r.data[f.k])}</b> : show(f, r.data[f.k])}
+                        {f.k === book.title1 ? (book.detail ? <Link href={`${book.detail}?id=${r.id}`}><b>{show(f, r.data[f.k])}</b> 📄</Link> : <b>{show(f, r.data[f.k])}</b>) : show(f, r.data[f.k])}
                         {a && <div className={a.level === "near" ? "orange" : "red"} style={{ fontSize: ".78rem" }}>{dday(a.left)}</div>}
                       </td>
                     );

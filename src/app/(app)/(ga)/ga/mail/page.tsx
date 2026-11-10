@@ -1,4 +1,5 @@
 /** 총무 > 문서 수발 대장: 공문·우편·등기·팩스·택배를 받거나 보낼 때 한 줄씩 적고 스캔본을 붙인다. */
+import PageHead from "@/components/대시/PageHead";
 import Link from "next/link";
 import { Suspense } from "react";
 import { hrefWith } from "@/components/Filters";
@@ -57,8 +58,7 @@ export default async function MailPage({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <h1>문서 수발 대장</h1>
-      <p className="caption">공문·우편·등기·팩스·택배를 받거나 보낼 때마다 한 줄씩 적습니다. 번호는 해마다 받은 것·보낸 것 따로 자동으로 매겨지고(예: {f.y}-수신-001), 스캔본을 붙여 두면 바로 열어 볼 수 있습니다.</p>
+      <PageHead href={"/ga/mail"} desc={<>공문·우편·등기·팩스·택배를 받거나 보낼 때마다 한 줄씩 적습니다. 번호는 해마다 받은 것·보낸 것 따로 자동으로 매겨지고(예: {f.y}-수신-001), 스캔본을 붙여 두면 바로 열어 볼 수 있습니다.</>} />
 
       <div className="card" id="form">
         <div className="card-title">{editing ? `${mail.mailNo(editing)} 고치기` : copying ? `${mail.mailNo(copying)} 처럼 새로 적기` : "새로 적기"}</div>

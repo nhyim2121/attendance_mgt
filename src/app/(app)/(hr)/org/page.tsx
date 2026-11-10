@@ -1,4 +1,5 @@
 /** 조직도: 용도별 보기(사내용·대외용·비상연락망 …)로 부서·직급·성명·연락처를 골라 보여 주고 인쇄한다. */
+import PageHead from "@/components/대시/PageHead";
 import Link from "next/link";
 import type React from "react";
 import { Suspense } from "react";
@@ -78,8 +79,7 @@ export default async function OrgPage({ searchParams }: { searchParams: Promise<
   return (
     <>
       <div className="noprint">
-        <h1>조직도</h1>
-        <p className="caption">직원 관리의 부서·직급·직책·연락처로 만듭니다. 용도별 보기를 골라 화면으로 보거나 인쇄(PDF 저장)하세요. 순서는 직원 관리의 순서를 따릅니다.</p>
+        <PageHead href={"/org"} desc={<>직원 관리의 부서·직급·직책·연락처로 만듭니다. 용도별 보기를 골라 화면으로 보거나 인쇄(PDF 저장)하세요. 순서는 직원 관리의 순서를 따릅니다.</>} />
         <div className="filters">
           <div className="tabs" style={{ margin: 0, border: 0 }}>
             {views.map((v) => (

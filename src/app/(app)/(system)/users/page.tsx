@@ -1,4 +1,5 @@
 /** 사용자 관리 (관리자): 관리팀 계정 추가·역할 변경·비밀번호 초기화·삭제, 내 비밀번호 변경. */
+import PageHead from "@/components/대시/PageHead";
 import { Table } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -15,7 +16,7 @@ export default async function UsersPage() {
       <MyPassword />
     </div>
   );
-  if (me.role !== "관리자") return <><h1>비밀번호 변경</h1>{mine}</>;
+  if (me.role !== "관리자") return <><PageHead href="/users" title="비밀번호 변경" emoji="🔒" desc="내 계정 비밀번호를 바꿉니다." />{mine}</>;
 
   const admin = createAdminClient();
   const [{ data: users }, { data: legacy }] = await Promise.all([
@@ -28,7 +29,7 @@ export default async function UsersPage() {
   ];
   return (
     <>
-      <h1>사용자 관리</h1>
+      <PageHead href="/users" title="사용자 관리" emoji="⚙️" desc="사이트 계정(관리자·담당자) 만들기·권한, 내 비밀번호 변경" />
       {mine}
       <div className="grid-r" style={{ marginTop: 16 }}>
         <div className="card">

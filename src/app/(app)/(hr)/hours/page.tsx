@@ -1,4 +1,5 @@
 /** 근로시간 리포트 (예전 홈): 기간별 출근/지각/미출근/휴가 카드, 출퇴근 누락, 관리 필요 직원, 근로시간, 휴가 현황. */
+import PageHead from "@/components/대시/PageHead";
 import SubNav from "@/components/인사노무/SubNav";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -19,9 +20,9 @@ const SORTS: Record<string, string> = { overtime: "연장근로", holiday: "휴�
 export default async function HoursPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const f = await filteredRecords(sp);
-  if (!f) return <><h1>근로시간 리포트</h1><Suspense><SubNav group="hours" /></Suspense><NoData /></>;
+  if (!f) return <><PageHead href={"/hours"} /><Suspense><SubNav group="hours" /></Suspense><NoData /></>;
   const [rule, base] = await Promise.all([getRule(), loadBase()]);
-  if (!f.records.length) return <><h1>근로시간 리포트</h1><Suspense><SubNav group="hours" /></Suspense><Filters f={f} /><Msg kind="warn">필터 조건에 맞는 기록이 없습니다.</Msg></>;
+  if (!f.records.length) return <><PageHead href={"/hours"} /><Suspense><SubNav group="hours" /></Suspense><Filters f={f} /><Msg kind="warn">필터 조건에 맞는 기록이 없습니다.</Msg></>;
 
   const rosterNames = base.roster.map((r) => r.name);
   const days = await computeDays(f.records, rule);
@@ -30,7 +31,7 @@ export default async function HoursPage({ searchParams }: { searchParams: Promis
   const workdays = [...new Set(days.filter((d) => !d.holiday).map((d) => d.day))].sort().reverse();
   const emps = new Set(days.map((d) => d.emp)).size;
 
-  if (!workdays.length) return <><h1>근로시간 리포트</h1><Suspense><SubNav group="hours" /></Suspense><Filters f={f} /><Msg kind="info">선택한 기간에 근무일이 없습니다.</Msg></>;
+  if (!workdays.length) return <><PageHead href={"/hours"} /><Suspense><SubNav group="hours" /></Suspense><Filters f={f} /><Msg kind="info">선택한 기간에 근무일이 없습니다.</Msg></>;
   const baseDay = workdays.includes(String(sp.base)) ? String(sp.base) : workdays[0];
   const snap = daySnapshot(days, baseDay);
   const missing = missingRows(days);
@@ -55,10 +56,7 @@ export default async function HoursPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <div className="topbar">
-        <h1>근로시간 리포트</h1><Suspense><SubNav group="hours" /></Suspense>
-        <div className="meta">기간 <b>{label}</b> · 총 직원수: <b>{emps}</b></div>
-      </div>
+      <PageHead href={"/hours"} desc={<>기간 <b>{label}</b> · 총 직원수: <b>{emps}</b></>} /><Suspense><SubNav group="hours" /></Suspense>
       <Filters f={f}>
         <ParamSelect name="base" label="기준일" value={baseDay} options={workdays.map((d) => [d, dayLabelLong(d)])} />
       </Filters>

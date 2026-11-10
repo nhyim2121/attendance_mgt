@@ -1,5 +1,6 @@
 /** 월 근태 집계 (급여 자료): 직원별 근무일·실근로·연장·야간·휴일 시간, 지각·조퇴, 휴가·출장 일수. CSV로 내려받는다. */
 import Link from "next/link";
+import PageHead from "@/components/대시/PageHead";
 import { Suspense } from "react";
 import CsvButton from "@/components/CsvButton";
 import { Ico, Stat } from "@/components/인사노무/HomeKit";
@@ -19,7 +20,7 @@ const f = (x: number) => (x ? String(r1(x)) : "");
 export default async function Monthly({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const [rule, base, policy] = await Promise.all([getRule(), loadBase(), getLeavePolicy()]);
-  if (!base.months.length) return <><h1>월 근태 집계</h1><NoData /></>;
+  if (!base.months.length) return <><PageHead href={"/monthly"} /><NoData /></>;
   const months = base.months.map((m) => m.month).reverse();
   const cur = todayKst().slice(0, 7);
   const month = months.includes(String(sp.month)) ? String(sp.month) : months.includes(cur) ? cur : months[0];
@@ -50,17 +51,11 @@ export default async function Monthly({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="home">
-      <div className="topbar home-top">
-        <div>
-          <h1>월 근태 집계</h1>
-          <div className="meta">{+month.slice(0, 4)}년 {+month.slice(5)}월 · 급여·수당 계산용 직원별 집계 (캡스 출퇴근 + 하이웍스·보고서 근태)</div>
-        </div>
-        <div className="row noprint">
+      <PageHead href="/monthly" desc={<>{+month.slice(0, 4)}년 {+month.slice(5)}월 · 급여·수당 계산용 직원별 집계 (캡스 출퇴근 + 하이웍스·보고서 근태)</>}>
           <Suspense><ParamSelect name="month" label="월" value={month} options={months.map((m) => [m, `${+m.slice(0, 4)}년 ${+m.slice(5)}월`])} /></Suspense>
           <CsvButton name={`월근태집계_${month}.csv`} head={head} rows={csvRows} />
           <PrintButton className="pill print" label="인쇄" />
-        </div>
-      </div>
+      </PageHead>
       <section className="card hstats">
         <Stat icon="people" label="대상" value={rows.length} unit="명" />
         <Stat icon="chart" label="실근로 합계" value={Math.round(tot("hours"))} unit="시간" sub={`1인 평균 ${rows.length ? r1(tot("hours") / rows.length) : 0}시간`} />

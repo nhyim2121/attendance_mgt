@@ -1,4 +1,5 @@
 /** 출장 증빙: 출장·교육·외근마다 하이웍스 전자결재 신청서(PDF·이미지)를 첨부해 근태 확인 때 증빙으로 쓴다. */
+import PageHead from "@/components/대시/PageHead";
 import SubNav from "@/components/인사노무/SubNav";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -36,8 +37,7 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <h1>근태 캘린더</h1><Suspense><SubNav group="trip" /></Suspense>
-      <p className="caption">하이웍스 근태현황·일일 근태 보고서에 올라온 출장·교육·외근마다 전자결재 신청서를 첨부해 두면, 근태를 확인할 때 바로 열어 볼 수 있습니다. 직원별 시트·일일 현황에도 📎로 표시됩니다.</p>
+      <PageHead href={"/calendar"} title="출장 증빙" desc={<>하이웍스 근태현황·일일 근태 보고서에 올라온 출장·교육·외근마다 전자결재 신청서를 첨부해 두면, 근태를 확인할 때 바로 열어 볼 수 있습니다. 직원별 시트·일일 현황에도 📎로 표시됩니다.</>} /><Suspense><SubNav group="trip" /></Suspense>
       <div className="filters">
         <Suspense><ParamSelect name="month" label="월" value={month} options={months.map((m) => [m, `${+m.slice(0, 4)}년 ${+m.slice(5)}월`])} /></Suspense>
         <label className="check">

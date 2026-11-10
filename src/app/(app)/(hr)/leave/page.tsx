@@ -1,5 +1,6 @@
 /** 휴가 홈 대시보드: 요약 띠, 이번 주 휴가, 유형별·월별·부서별 사용, 신청서가 빠진 휴가, 잔여 연차가 많은 직원. */
 import Link from "next/link";
+import PageHead from "@/components/대시/PageHead";
 import { redirect } from "next/navigation";
 import { MonthlyLeaveBars, StatusBars, TwoBars } from "@/components/인사노무/Charts";
 import { Ico, Stat } from "@/components/인사노무/HomeKit";
@@ -90,18 +91,12 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
     <div className="home print-fill">
       {/* 인쇄: 두 장 (위: 요약·이번 주·유형별 / 아래: 월별·부서별·신청서·잔여) — PrintFit이 장마다 맞춘다 */}
       <div className="print-chunk">
-      <div className="topbar home-top">
-        <div>
-          <h1>휴가 대시보드</h1>
-          <div className="meta">{dayLabel(today, true)} · {fyLabel(fy, policy)}{policy.fyStartMonth === 1 ? "" : " 회계연도"} ({fs} ~ {fe})</div>
-        </div>
-        <div className="row noprint">
+      <PageHead href="/leave" desc={<>{dayLabel(today, true)} · {fyLabel(fy, policy)}{policy.fyStartMonth === 1 ? "" : " 회계연도"} ({fs} ~ {fe})</>}>
           <Link className="pill" href="/leave/register">+ 휴가 등록</Link>
           <Link className="pill" href="/leave/calendar">휴가 캘린더</Link>
           <Link className="pill" href="/leave/status?view=summary">현황 보고서</Link>
           <PrintButton className="pill print" label="인쇄" />
-        </div>
-      </div>
+      </PageHead>
 
       <section className="card hstats">
         <Stat icon="beach" label="오늘 휴가자" value={todayNames.length} unit="명"

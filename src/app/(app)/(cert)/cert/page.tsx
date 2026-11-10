@@ -1,4 +1,5 @@
 /** 인증 현황: 회사가 가진 인증·지정·확인을 분류별 카드로 보고, 만료·심사 일정이 다가오면 맨 위에 알린다 (관리자만). */
+import PageHead from "@/components/대시/PageHead";
 import Link from "next/link";
 import { Metric } from "@/components/ui";
 import { requireAdminPage } from "@/lib/auth";
@@ -26,8 +27,7 @@ export default async function CertHome({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <h1>인증 현황</h1>
-      <p className="caption">ISO·벤처·이노비즈·기업부설연구소·AEO 같은 회사 인증과 지정을 한곳에서 봅니다. 유효기간 끝이나 사후심사·보고 일정이 90일 안으로 다가오면 여기와 통합 대시보드에 뜹니다.</p>
+      <PageHead href={"/cert"} desc={<>ISO·벤처·이노비즈·기업부설연구소·AEO 같은 회사 인증과 지정을 한곳에서 봅니다. 유효기간 끝이나 사후심사·보고 일정이 90일 안으로 다가오면 여기와 통합 대시보드에 뜹니다.</>} />
 
       <div className="metrics">
         <Metric label="유효·진행 중" value={`${live.length}개`} />

@@ -1,5 +1,7 @@
 /** 홈 대시보드: 오늘 근무 현황, 부재·이번 주 근무, 어제 근무 현황, 이번 달 근무시간·인력 변동·연차, 부서별 연장·월별 평균. */
 import Link from "next/link";
+import PageHead from "@/components/대시/PageHead";
+import { missingProofs } from "@/lib/인사노무/proofScan";
 import { DeptHeadBars, HOME, HoursArea, HoursBars, JoinLeaveBars, MonthlyCombo, StatusBars } from "@/components/인사노무/Charts";
 import { Ico, Stat } from "@/components/인사노무/HomeKit";
 import PrintButton from "@/components/PrintButton";
@@ -81,7 +83,7 @@ export default async function Home() {
     getRule(), getHolidays(), loadBase(), getLeavePolicy(), store.loadAdjusts(),
     store.getSetting<OrgNode[] | null>("org_nodes", null),
   ]);
-  if (!base.months.length) return <><h1>홈</h1><NoData /></>;
+  if (!base.months.length) return <><PageHead href={"/attendance"} /><NoData /></>;
 
   const today = todayKst();
   const lastDay = base.months[base.months.length - 1].last_day;
@@ -149,23 +151,23 @@ export default async function Home() {
   const soon = base.leaves.filter((l) => l.day > today && l.day <= addDays(today, 14)
     && (isLeaveType(l.type) || ["출장", "교육", "외근"].includes(l.type)));
 
+  const noProof = await missingProofs().catch(() => []);
   return (
     <div className="home">
-      <div className="topbar home-top">
-        <div>
-          <h1>근태 관리 대시보드</h1>
-          <div className="meta">{dayLabel(today, true)} · 
+      <PageHead href="/attendance" desc={<>{dayLabel(today, true)} · 
           업데이트: <b style={{ fontSize: "1rem", color: "var(--violet)" }}>{lastTs ? `${dayLabel(lastDay)} ${tsHM(lastTs)}` : "-"}</b>
-          {holiday && <> · <span style={{ color: "var(--amber)" }}>{holidays[today] ?? "주말"} (휴일)</span></>}
-          </div>
-        </div>
-        <div className="row noprint">
+          {holiday && <> · <span style={{ color: "var(--amber)" }}>{holidays[today] ?? "주말"} (휴일)</span></>}</>}>
           <Link className="pill" href={`/daily?day=${today}`}>일일 현황</Link>
           <Link className="pill" href={`/daily?tab=report&day=${today}`}>근태 보고서</Link>
           <Link className="pill" href="/leave">휴가</Link>
           <PrintButton className="pill print" label="인쇄" />
-        </div>
-      </div>
+      </PageHead>
+      {noProof.length > 0 && (
+        <div className="msg warn">📎 신청서 없는 휴일·연장근무 <b>{noProof.length}건</b>은 <b>미인정</b>으로 표시됩니다 (시간 합계에는 들어감):{" "}
+          {noProof.slice(0, 6).map((m, i) => (
+            <span key={`${m.emp}${m.day}`}>{i ? ", " : ""}<Link href={`/sheets?tab=edit&month=${m.day.slice(0, 7)}&emp=${encodeURIComponent(m.emp)}`}>{m.emp} {+m.day.slice(5, 7)}/{+m.day.slice(8)} {m.kinds.join("·")}</Link></span>
+          ))}{noProof.length > 6 && ` 외 ${noProof.length - 6}건`} · 근태 기입에서 [+ 신청서]로 첨부하면 바로 인정됩니다.</div>
+      )}
       {!hasToday && !holiday && (
         <div className="msg warn">오늘 캡스 기록이 아직 올라오지 않았습니다 (마지막 기록 {lastDay}). 출근·미출근 숫자는 기록을 올리면 맞춰집니다.{" "}
           <Link href="/daily">일일 현황에서 올리기</Link></div>
