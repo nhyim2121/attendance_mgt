@@ -19,7 +19,7 @@ interface RuleSetting {
   label_all: boolean;
 }
 /** 설정 'emp_rules': 직원 이름 -> 근무 요일(월=0)·시각("08:30") 예외 */
-interface EmpRuleSetting { workdays?: number[]; start?: string; end?: string; note?: string }
+interface EmpRuleSetting { workdays?: number[]; start?: string; end?: string; note?: string; noProof?: string[] }
 
 const toMin = (s: string) => +s.slice(0, 2) * 60 + +s.slice(3, 5);
 const toHM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -38,7 +38,7 @@ export const getRule = cache(async (): Promise<WorkRule> => {
   ]);
   // 직원별 예외 (예: 일학습병행 도제 수·목·금 08:30~16:30)
   const byEmp = Object.fromEntries(Object.entries(emp ?? {}).map(([n, e]) => [n, {
-    workdays: e.workdays, start: e.start ? toMin(e.start) : undefined, end: e.end ? toMin(e.end) : undefined, note: e.note,
+    workdays: e.workdays, start: e.start ? toMin(e.start) : undefined, end: e.end ? toMin(e.end) : undefined, note: e.note, noProof: e.noProof,
   }]));
   if (!d) return { ...DEFAULT_RULE, byEmp };
   return {

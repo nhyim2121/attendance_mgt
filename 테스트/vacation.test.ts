@@ -9,6 +9,7 @@ import { employeeRows, SHEET_COLUMNS } from "@/lib/인사노무/splitter";
 import {
   addMonths, annualGrant, DEFAULT_POLICY, expandVacations, fyOf, fyRange, leaveBalances, monthlyGrants, normalizeDay, outingHours,
   type Vacation,
+  leaveMark,
 } from "@/lib/인사노무/vacation";
 import { leave, mini, RULE } from "./helpers";
 
@@ -147,7 +148,7 @@ describe("직원별 시트·증빙", () => {
     const [row] = employeeRows(days, RULE);
     expect(row[SHEET_COLUMNS.indexOf("발생시각")]).toBe("08:20:00");
     expect(row[SHEET_COLUMNS.indexOf("확인")]).toBe("퇴근 기록 없음, 반차");
-    expect(row[SHEET_COLUMNS.indexOf("비고")]).toBe("반차: 오후반차");
+    expect(row[SHEET_COLUMNS.indexOf("비고")]).toBe("오후반차"); // 사유는 비고에
   });
 
   it("출장 묶기: 같은 목적지로 이어지는 날은 한 건", () => {
@@ -183,5 +184,20 @@ describe("휴가 기록 정리 (외출+반차, 30분 단위)", () => {
   it("연차로 올라온 '오후 반차'는 반차, '5/28 반차, 5/29 연차'는 연차", () => {
     expect(norm(L("연차", "오후 반차"))).toEqual([["반차", 0]]);
     expect(norm(L("연차", "개인사유\n5/28(목) 반차, 5/29(금) 연차"))).toEqual([["연차", 0]]);
+  });
+});
+
+describe("휴가 근무형태 표시 (leaveMark)", () => {
+  const S = 8 * 60 + 30, E = 17 * 60 + 30;
+  it("오후 반차는 퇴근 형태에 나가는 시각", () => {
+    expect(leaveMark([{ type: "반차", content: "오후 반차\n13:30~17:30" }], S, E)).toEqual({ inType: "", outType: "반차(13:30)", reason: "오후 반차" });
+  });
+  it("오전 반차는 출근 형태에 들어오는 시각, 시간이 없으면 오전/오후로", () => {
+    expect(leaveMark([{ type: "반차", content: "오전반차" }], S, E).inType).toBe("반차(13:30)");
+    expect(leaveMark([{ type: "반반차", content: "오후 반반차" }], S, E).outType).toBe("반반차(15:30)");
+  });
+  it("외출은 나가는 시각, 연차(종일)는 근무형태 없이 사유만", () => {
+    expect(leaveMark([{ type: "외출", content: "개인 사유\n16:30~17:30" }], S, E).outType).toBe("외출(16:30)");
+    expect(leaveMark([{ type: "연차", content: "개인사유" }], S, E)).toEqual({ inType: "", outType: "", reason: "개인사유" });
   });
 });

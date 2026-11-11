@@ -11,8 +11,9 @@ import { splitReportTypes } from "@/lib/인사노무/daily";
 import { VACATION_TYPES } from "@/lib/인사노무/vacation";
 import * as store from "@/lib/store";
 import { kindsOf, proofOf } from "@/lib/인사노무/proof";
+import { noProofFor } from "@/lib/config";
 import Editor, { type EditRow } from "./Editor";
-import { Kinds, rowTone } from "./kinds";
+import { Kinds, rowTone, kindCls, isLeaveText } from "./kinds";
 
 const C = (name: string) => SHEET_COLUMNS.indexOf(name);
 
@@ -65,8 +66,17 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
       m.set(content, [...new Set([...(m.get(content) ?? []), l.type])]);
       vacBy.set(l.day, m);
     }
-    const vacText = new Map([...vacBy].map(([d, m]) =>
-      [d, [...m].map(([c, ts]) => (c ? `${ts.join(", ")}: ${c}` : ts.join(", "))).join(" / ")]));
+    // 휴가 (2026-11-11): 근태 구분 = 종류만, 근무형태 = 시각(반차(13:30)), 사유 = 업무내용.
+    // 근무지·인원 칸에 들어간 휴가 글(외출, 개인사유, 16:30~17:30 등)은 뺀다
+    const leaveWords = new Map<string, Set<string>>();
+    for (const r of rep) if (r.name === emp && r.section === "근태" && r.day?.startsWith(month) && isLeaveTypes(r.types)) {
+      leaveWords.set(r.day, new Set([...(leaveWords.get(r.day) ?? []), r.title.trim(), r.detail.trim()].filter(Boolean)));
+    }
+    const noLeave = (d: string, v: string) => {
+      const t = v.trim();
+      if (!t || !(vacBy.has(d) || leaveWords.has(d))) return v;
+      return isLeaveText(t) || /^\d{1,2}:\d{2}\s*~\s*\d{1,2}:\d{2}$/.test(t) || leaveWords.get(d)?.has(t) ? "" : v;
+    };
 
     // 일일 근태 보고서에서 그 직원·날짜의 근무지·업무내용·인원 (근태현황 줄, 휴일 근태 줄)
     const fromReport = new Map<string, { place: string; work: string; mates: string[] }>();
@@ -81,6 +91,7 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
       && a.types === b.types && a.title === b.title && a.detail === b.detail && a.note === b.note;
     for (const r of rep.filter((x) => x.name === emp)) {
       if (r.section === "근태" && r.day?.startsWith(month)) {
+        if (isLeaveTypes(r.types)) continue; // 휴가 보고 줄은 근태 구분 칸에만
         add(r.day, r.title.trim(), r.detail.trim(), rep.filter((x) => x.name !== emp && sameAtt(x, r)).map((x) => x.name));
       } else if (r.section === "휴일근무") {
         for (const d of splitReportTypes(r.types).filter((x) => x.startsWith(month))) {
@@ -106,8 +117,9 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
         clock_out: outs?.[C("발생시각")] ?? "", out_type: outs?.[C("근무형태")] ?? "",
         inAuto: ins?.[C("근무형태")] ?? "", outAuto: outs?.[C("근무형태")] ?? "",
         // 근무지·인원·업무내용: 직접 기입한 값 > 일일 근태 보고서에 적은 값 (하이웍스 등 그 밖의 자동 값은 넣지 않음)
-        place: o?.place ?? fromReport.get(d)?.place ?? "", note: o?.note ?? fromReport.get(d)?.mates.join(" ") ?? "",
-        work: o?.work ?? fromReport.get(d)?.work ?? "", work_ot: o?.workOt ?? "",
+        place: noLeave(d, o?.place ?? fromReport.get(d)?.place ?? ""), note: noLeave(d, o?.note ?? fromReport.get(d)?.mates.join(" ") ?? ""),
+        // 업무내용: 직접 적은 값 > 보고서 > 휴가 사유
+        work: o?.work ?? (fromReport.get(d)?.work || dayOf.get(d)?.leaveReason || ""), work_ot: o?.workOt ?? "",
         fromRep: [
           ...(o?.place == null && fromReport.get(d)?.place ? ["place"] : []),
           ...(o?.note == null && fromReport.get(d)?.mates.length ? ["note"] : []),
@@ -120,18 +132,18 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
         edited: o ? `${o.editedBy} ${shortKst(o.editedAt)}` : "",
       };
     }).map((r) => ({
-      ...r, proof: proofOf(emp, r.day, r.kinds, atts),
+      ...r, proof: proofOf(emp, r.day, r.kinds, atts, noProofFor(rule, emp)),
       files: atts.filter((a) => a.name === emp && a.dayFrom <= r.day && a.dayTo >= r.day).map((a) => ({ id: a.id, fileName: a.fileName, type: a.type })),
     }));
 
     // 인쇄·PDF의 근무지·인원·업무내용은 근태 기입에 직접 적은 값만 (일일 근태 보고서·하이웍스 자동 값은 넣지 않음)
     const typed = (d: string) => {
       const o = ov.get(d);
-      return { place: o?.place ?? "", note: o?.note ?? "", work: o?.work ?? "", work_ot: o?.workOt ?? "" };
+      return { place: noLeave(d, o?.place ?? ""), note: noLeave(d, o?.note ?? ""), work: o?.work ?? "", work_ot: o?.workOt ?? "" };
     };
     // 인쇄에는 근무한 날만 (출퇴근 기록이나 근태가 있거나 직접 적은 내용이 있는 날)
     const printRows = rows.filter((r) => r.clock_in || r.clock_out || r.kinds.length || Object.values(typed(r.day)).some(Boolean));
-    return { mine, me, rows, typed, printRows, vacText };
+    return { mine, me, rows, typed, printRows, dayOf };
   };
   const { mine, rows } = build(emp);
   // 여러 명 한꺼번에 인쇄·저장: 고른 직원(주소 pick)마다 한 장씩
@@ -140,7 +152,7 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
 
   /** 인쇄·PDF용 한 장: 입력칸 대신 표 (A4 한 장) */
   const printPage = (emp: string) => {
-    const { mine, me, rows, typed, printRows, vacText } = build(emp);
+    const { mine, me, rows, typed, printRows, dayOf } = build(emp);
     return (
       <div key={emp} className="print-only doc-page edit-print">
         <div className="ep-head">
@@ -171,16 +183,16 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
           <colgroup>
             <col style={{ width: "5.5%" }} /><col style={{ width: "3.5%" }} /><col style={{ width: "11%" }} />
             <col style={{ width: "7.5%" }} /><col style={{ width: "8.5%" }} /><col style={{ width: "7.5%" }} /><col style={{ width: "8.5%" }} />
-            <col style={{ width: "12%" }} /><col style={{ width: "13%" }} /><col style={{ width: "23%" }} />
+            <col style={{ width: "9%" }} /><col style={{ width: "27%" }} /><col style={{ width: "12%" }} />
           </colgroup>
           <thead><tr><th>일자</th><th>요일</th><th>근태 구분</th><th>출근</th><th>출근 형태</th><th>퇴근</th><th>퇴근 형태</th><th>근무지</th><th>인원</th><th>업무내용</th></tr></thead>
           <tbody>{printRows.map((r) => (
-            <tr key={r.day} className={`${rowTone(r)}${r.holiday ? " we" : ""}`}>
+            <tr key={r.day} className={`${rowTone(r)} ${kindCls(r)}${r.holiday ? " we" : ""}`}>
               <td>{+r.day.slice(5, 7)}/{+r.day.slice(8)}</td><td className={r.holiday ? "hol" : ""}>{r.wd}</td><td><Kinds r={r} />{r.proof?.missing.length ? <div className="ep-noproof">신청서 미첨부</div> : null}</td>
               <td>{r.clock_in}</td><td className={tyCls(r.in_type || r.inAuto)}>{shortType(r.in_type || r.inAuto)}</td>
               <td>{r.clock_out}</td><td className={tyCls(r.out_type || r.outAuto)}>{shortType(r.out_type || r.outAuto)}</td>
               <td className="wrap">{typed(r.day).place}</td><td className="wrap">{split(typed(r.day).note).names}</td>
-              <td className="wrap">{vacText.get(r.day) && <div className="ep-vac">{vacText.get(r.day)}</div>}{typed(r.day).work || split(typed(r.day).note).rest}
+              <td className="wrap">{typed(r.day).work || split(typed(r.day).note).rest || dayOf.get(r.day)?.leaveReason}
                 {/* 연장 업무 칸은 없앴으므로, 적어 둔 연장 업무는 업무내용 아래에 붙인다 (업무내용과 같으면 생략) */}
                 {typed(r.day).work_ot && typed(r.day).work_ot !== typed(r.day).work && <div>연장: {typed(r.day).work_ot}</div>}</td>
             </tr>
@@ -223,6 +235,9 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
     </>
   );
 }
+
+/** 보고서 근태 줄의 종류가 모두 휴가인가 (예: '외출', '반차,외출') */
+const isLeaveTypes = (types: string) => !!types.trim() && types.split(/[,\s·/]+/).filter(Boolean).every(isLeaveText);
 
 const tyCls = (v: string) => (v.startsWith("연장") ? "ty-ot" : v.startsWith("휴일") ? "ty-hol" : v.startsWith("조출") ? "ty-early" : "");
 

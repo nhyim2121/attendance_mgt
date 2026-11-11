@@ -5,6 +5,7 @@ import { isHoliday } from "./analytics";
 import { computeDays, getHolidays, getRecords, getRule } from "./data";
 import { kindsOf, PROOF_FROM, proofOf } from "./proof";
 import { employeeRows, SHEET_COLUMNS } from "./splitter";
+import { noProofFor } from "../config";
 import * as store from "../store";
 import { addDays, todayKst } from "../time";
 
@@ -27,7 +28,7 @@ export const missingProofs = cache(async (): Promise<Missing[]> => {
       const r = sheet.filter((x) => x[C("발생일자")] === d.day);
       const ins = r.find((x) => x[C("모드")] === "출근"), outs = r.find((x) => x[C("모드")] === "퇴근");
       const kinds = kindsOf(d, outs?.[C("근무형태")] ?? "", isHoliday(d.day, rule, holidays, emp), ins?.[C("근무형태")] ?? "");
-      const p = proofOf(emp, d.day, kinds, atts);
+      const p = proofOf(emp, d.day, kinds, atts, noProofFor(rule, emp));
       if (p.missing.length) out.push({ emp, day: d.day, kinds: p.missing });
     }
   }

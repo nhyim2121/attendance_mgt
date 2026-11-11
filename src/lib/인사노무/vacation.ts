@@ -354,3 +354,41 @@ export function vacationDays(v: Pick<Vacation, "type" | "startDay" | "endDay">, 
   if (v.type === "외출") return p.outingDeduct ? outingHours(content) / p.outingHoursPerDay : 0;
   return n * (DEDUCT_TYPES.has(v.type) ? LEAVE_DAY_VALUE[v.type] ?? 0 : 0);
 }
+
+/** 부분 휴가 표시 순서 (같은 날 여러 개면 앞의 것으로 근무형태를 적는다) */
+const PART_ORDER = ["반차", "반반차", "외출", "공가", "병가", "경조휴가", "연차", "월차"];
+const toHM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+/** 근태 기입·시트용 휴가 표시 (2026-11-11 사용자 결정)
+ * - 근태 구분에는 종류만 (예: 연차).
+ * - 시간이 있는 휴가는 근무형태에 몇 시인지: 늦게 오면 출근 형태 '반차(13:30)' (들어오는 시각),
+ *   일찍 가거나 중간에 나가면 퇴근 형태 '반차(13:30)' (나가는 시각). 시간이 안 적힌 반차·반반차는 오전/오후 글로 하이웍스 시간대를 쓴다.
+ * - 사유(시간을 뺀 내용)는 업무내용(시트는 비고)에.
+ * workStart·workEnd = 그 직원의 출근·퇴근 기준(분). */
+export function leaveMark(leaves: { type: string; content: string }[], workStart: number, workEnd: number):
+  { inType: string; outType: string; reason: string } {
+  const reasons: string[] = [];
+  let best: { type: string; a: number; b: number } | null = null;
+  for (const l of leaves) {
+    if (!VACATION_TYPES.includes(l.type) && l.type !== "포상") continue;
+    const content = String(l.content ?? "");
+    const lines = content.split("\n").map((x) => x.replace(new RegExp(TIME_SPAN.source, "g"), "").trim())
+      .filter((x) => x && x !== l.type);
+    for (const x of lines) if (!reasons.includes(x)) reasons.push(x);
+    let spans = [...content.matchAll(new RegExp(TIME_SPAN.source, "g"))].map((m) => [hm(+m[1], +m[2]), hm(+m[3], +m[4])] as [number, number]);
+    if (!spans.length && HALF_WINDOWS[l.type]) { // 시간 없이 '오전/오후 반차'만 적힌 경우
+      const w = /오전/.test(content) ? HALF_WINDOWS[l.type][0] : /오후/.test(content) ? HALF_WINDOWS[l.type][1] : null;
+      if (w) spans = [w];
+    }
+    if (!spans.length) continue;
+    const a = Math.min(...spans.map((s) => s[0])), b = Math.max(...spans.map((s) => s[1]));
+    const rank = (t: string) => (PART_ORDER.indexOf(t) + 1 || 99);
+    if (!best || rank(l.type) < rank(best.type)) best = { type: l.type, a, b };
+  }
+  let inType = "", outType = "";
+  if (best && !(best.a <= workStart && best.b >= workEnd)) { // 하루 종일이면 근무형태에 적지 않음
+    if (best.a <= workStart) inType = `${best.type}(${toHM(best.b)})`;
+    else outType = `${best.type}(${toHM(best.a)})`;
+  }
+  return { inType, outType, reason: reasons.join(" / ") };
+}

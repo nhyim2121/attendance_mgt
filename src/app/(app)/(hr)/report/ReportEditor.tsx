@@ -472,11 +472,12 @@ export default function ReportEditor(p: Props) {
 // title = 장소(출장·교육·휴일연장) 또는 사유(휴가류), detail = 내용 또는 시간('HH:MM~HH:MM')
 const catOf = attCat;
 const PLACES = ["1공장", "2공장", "출장"];
-const TIME = /^(\d{1,2}:\d{2})\s*~\s*(\d{1,2}:\d{2})$/;
 // 30분 단위 시각 07:00 ~ 22:00
 const SLOTS = Array.from({ length: 31 }, (_, i) => `${String(7 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 
-function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
+function Labeled({ label, children, group }: { label: string; children: React.ReactNode; group?: boolean }) {
+  // 선택칸이 여러 개면 <label>로 감싸지 않음 (클릭이 첫 칸으로 넘어가 목록이 안 뜸)
+  if (group) return <div className="gf"><span>{label}</span>{children}</div>;
   return <label className="gf"><span>{label}</span>{children}</label>;
 }
 
@@ -506,8 +507,9 @@ function GroupFields({ g, setG }: { g: { id: number; types: string; title: strin
   if (cat === "special") return <><td>{none}</td><td><div className="gf-two">{title("구분 사유", "예: 본인 결혼, 예비군, 진단명")}{detail("비고", "예: 증빙 제출 예정")}</div></td></>;
   if (cat === "leave") {
     const unit = leaveUnit(g.types);
-    const m = TIME.exec(g.detail.trim());
-    const [st, et] = m ? [m[1].padStart(5, "0"), m[2].padStart(5, "0")] : ["", ""];
+    // 시작만 고른 상태('09:00~')도 읽음
+    const m = /^(\d{1,2}:\d{2})?\s*~\s*(\d{1,2}:\d{2})?$/.exec(g.detail.trim());
+    const [st, et] = m ? [(m[1] ?? "").padStart(m[1] ? 5 : 0, "0"), (m[2] ?? "").padStart(m[2] ? 5 : 0, "0")] : ["", ""];
     const sel = (v: string, on: (x: string) => void, opts = SLOTS) => (
       <select value={v} onChange={(e) => on(e.target.value)} style={{ width: 92 }}>
         <option value="">--:--</option>{opts.map((t) => <option key={t}>{t}</option>)}
@@ -532,7 +534,7 @@ function GroupFields({ g, setG }: { g: { id: number; types: string; title: strin
       <td>{none}</td>
       <td><div className="gf-two">
         {title("사유", "예: 개인사유, 병원")}
-        <Labeled label={unit === "day" ? "기간" : unit === "free" ? "시간 (30분 단위)" : `시간 (${unit}시간)`}>{timeBox}</Labeled>
+        <Labeled label={unit === "day" ? "기간" : unit === "free" ? "시간 (30분 단위)" : `시간 (${unit}시간)`} group>{timeBox}</Labeled>
       </div></td>
     </>;
   }

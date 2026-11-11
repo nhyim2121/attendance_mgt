@@ -7,7 +7,8 @@ import { hrefWith } from "@/components/Filters";
 import { ParamSelect } from "@/components/ParamControls";
 import FileLink from "@/components/FileLink";
 import { Metric } from "@/components/ui";
-import { loadBase, type SearchParams } from "@/lib/인사노무/data";
+import { getRule, loadBase, type SearchParams } from "@/lib/인사노무/data";
+import { noProofFor } from "@/lib/config";
 import { attachmentsFor, groupTrips } from "@/lib/인사노무/evidence";
 import * as store from "@/lib/store";
 import { addDays, dayLabel, daysInMonth, todayKst } from "@/lib/time";
@@ -29,9 +30,11 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
   const deptOf = new Map(base.employees.map((e) => [e.name, e.dept]));
   const trips = groupTrips(base.leaves.filter((l) => l.day >= from && l.day <= to));
   const atts = (await store.loadAttachments(addDays(from, -40), addDays(to, 40))).filter((a) => !VACATION_TYPES.includes(a.type));
-  const rows = trips.map((t) => ({ t, files: attachmentsFor(atts, t.name, t.from, t.to) }));
-  const done = rows.filter((r) => r.files.length).length;
-  const shown = only ? rows.filter((r) => !r.files.length) : rows;
+  // 신청서가 필요 없는 직원·근태 (직원별 기준 noProof, 예: 김환복 출장)는 '증빙 없음'으로 세지 않는다
+  const rule = await getRule();
+  const rows = trips.map((t) => ({ t, files: attachmentsFor(atts, t.name, t.from, t.to), exempt: noProofFor(rule, t.name).includes(t.type) }));
+  const done = rows.filter((r) => r.files.length || r.exempt).length;
+  const shown = only ? rows.filter((r) => !r.files.length && !r.exempt) : rows;
   const linked = new Set(rows.flatMap((r) => r.files.map((f) => f.id)));
   const loose = atts.filter((a) => a.dayFrom <= to && a.dayTo >= from && !linked.has(a.id));
 
@@ -48,7 +51,7 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
       </div>
       <div className="metrics">
         <Metric label="출장·교육·외근" value={`${trips.length}건`} />
-        <Metric label="증빙 첨부" value={`${done}건`} />
+        <Metric label="증빙 첨부·불필요" value={`${done}건`} />
         <Metric label="증빙 없음" value={<span className={trips.length - done ? "red" : ""}>{trips.length - done}건</span>} />
       </div>
 
@@ -56,15 +59,15 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th>기간</th><th>직원</th><th>부서</th><th>근태</th><th>목적지·사유</th><th>증빙</th><th /></tr></thead>
           <tbody>
-            {shown.map(({ t, files }) => (
-              <tr key={`${t.name}|${t.type}|${t.from}`} className={files.length ? "" : "nofile"}>
+            {shown.map(({ t, files, exempt }) => (
+              <tr key={`${t.name}|${t.type}|${t.from}`} className={files.length || exempt ? "" : "nofile"}>
                 <td>{t.from === t.to ? dayLabel(t.from) : `${dayLabel(t.from)} ~ ${dayLabel(t.to)}`}{t.days.length > 1 && <span className="muted"> ({t.days.length}일)</span>}</td>
                 <td>{t.name}</td><td>{deptOf.get(t.name) ?? t.dept}</td>
                 <td><span className={`tag t-${t.type}`}>{t.type}</span></td>
                 <td style={{ whiteSpace: "normal", minWidth: 200 }}><b>{t.title}</b>{t.detail && <div className="muted">{t.detail}</div>}</td>
                 <td style={{ whiteSpace: "normal" }}>
                   {files.length ? files.map((a) => <div key={a.id} className="row" style={{ gap: 4 }}><FileLink a={a} /><DeleteEvidence id={a.id} /></div>)
-                    : <span className="red">없음</span>}
+                    : exempt ? <span className="muted">신청 불필요</span> : <span className="red">없음</span>}
                 </td>
                 <td><AttachInline name={t.name} type={t.type} from={t.from} to={t.to} title={t.title} /></td>
               </tr>

@@ -102,7 +102,11 @@ describe("직원별 시트", () => {
     rows = employeeRows(d.filter((x) => x.emp === "가나다"), RULE);
     expect(col(rows.filter((r) => r[1] === "2026-09-02"), "근무형태")).toEqual(["", "연장(19:00)"]); // 평범한 출근은 비워 둠
     expect(col(rows.filter((r) => r[1] === "2026-09-05"), "근무형태")).toEqual(["휴일(08:30)", "휴일(15:00)"]);
-    expect(col(rows.filter((r) => r[1] === "2026-09-04"), "비고")[0].startsWith("반반차")).toBe(true);
+    // 휴가: 확인 칸엔 종류만, 시각은 근무형태 (오전 반반차 08:30~10:30 -> 출근 형태 '반반차(10:30)'), 사유는 비고
+    const d4 = rows.filter((r) => r[1] === "2026-09-04");
+    expect(col(d4, "근무형태")[0]).toBe("반반차(10:30)");
+    expect(col(d4, "비고")[0]).toBe("개인사유");
+    expect(col(d4, "확인")[0]).toBe("반반차");
   });
 
   it("시트 이름 규칙", () => {

@@ -22,6 +22,10 @@ export const SUMMARY_COLUMNS = ["직원", "부서", "출근일수", "평균출�
   "기록 없음", "태그 누락", "휴일근무", "휴가사용(일)", "출장·교육"];
 export const EXCEPTION_COLUMNS = ["부서", "직원", "일자", "요일", "구분", "출근", "퇴근", "근태"];
 const PLACE_TYPES = new Set(["출장", "외근", "교육"]);
+/** 휴가 종류: 시간은 근무형태에, 사유는 비고에 (근무지에는 넣지 않음) */
+const LEAVE_TYPES = new Set(["연차", "월차", "반차", "반반차", "외출", "공가", "경조휴가", "병가", "포상"]);
+const LEAVE_TEXT = /^(연차|월차|반차|반반차|외출|공가|경조|병가|포상)/;
+const TIME_RANGE = /^\d{1,2}:\d{2}\s*~\s*\d{1,2}:\d{2}$/;
 // 관리팀이 확인해야 하는 상태
 const EXCEPTION_STATUSES = new Set(["지각", "조퇴", "지각·조퇴", "기록 없음", "출근 기록 없음", "퇴근 기록 없음"]);
 
@@ -88,15 +92,23 @@ export function employeeRows(days: DayRow[], rule: WorkRule): SheetRow[] {
     const content = d.leaveContent;
     const place = types.some((t) => PLACE_TYPES.has(t) || t === "휴일근무") ? oneLine(content.split("\n")[0]) : "";
     const mates = d.mates.replaceAll(", ", "\n");
-    const otherTypes = types.filter((t) => !PLACE_TYPES.has(t) && t !== "휴일근무");
-    const leaveNote = otherTypes.length
+    const leaveTypes = types.filter((t) => LEAVE_TYPES.has(t));
+    const otherTypes = types.filter((t) => !PLACE_TYPES.has(t) && t !== "휴일근무" && !LEAVE_TYPES.has(t)); // 연장근무 등
+    const otherNote = otherTypes.length
       ? content ? `${otherTypes.join(", ")}: ${oneLine(content)}` : otherTypes.join(", ")
       : "";
-    const note = mates || leaveNote;
+    // 휴가: 확인 칸에는 종류만, 시간은 근무형태('반차(13:30)'), 사유는 비고에
+    const note = mates || [otherNote, d.leaveReason].filter(Boolean).join(" / ");
     const check = verdict(d);
     check.push(...types.filter((t) => !check.includes(t) && t !== "휴일근무"));
     const checkText = check.join(", ");
-    const ovPlace = d.ovPlace, ovNote = d.ovNote;
+    // 휴가 날 근무지에 적힌 휴가 글(외출, 개인사유, 16:30~17:30 등)은 뺀다 (사유는 비고로)
+    const noLeave = (v: string | null) => {
+      if (v === null || !leaveTypes.length) return v;
+      const t = v.trim();
+      return t && (LEAVE_TEXT.test(t) || TIME_RANGE.test(t) || content.includes(t)) ? "" : v;
+    };
+    const ovPlace = noLeave(d.ovPlace), ovNote = d.ovNote;
 
     if (d.status === "기록 없음") { // 기록이 전혀 없는 날: 날짜·요일과 사유만 적는다
       out.push([d.wd, d.day, "", "", "", "", "", ovPlace ?? "", ovNote ?? "", checkText]);
@@ -120,7 +132,8 @@ export function employeeRows(days: DayRow[], rule: WorkRule): SheetRow[] {
         const m = /~\s*(\d{1,2}):(\d{2})/.exec(content);
         if (m) wt = `연장(${m[1].padStart(2, "0")}:${m[2]})`;
       }
-      if (wt === null) wt = rawWt || workTypeLabel(kind, t, d.holiday, filled, ruleFor(rule, d.emp)); // 직원별 근무 기준 반영
+      // 직접 고친 값 > 휴가 시각(반차(13:30)) > 캡스 원본 > 자동 (직원별 근무 기준 반영)
+      if (wt === null) wt = (kind === "출근" ? d.leaveIn : d.leaveOut) || rawWt || workTypeLabel(kind, t, d.holiday, filled, ruleFor(rule, d.emp));
       out.push([d.wd, d.day, tsTime(t), name, wt, kind, auth, ovPlace ?? (rawPlace || place),
         ovNote ?? (rawNote || note), checkText]);
     }

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { revertEdits, saveEdits } from "./actions";
-import { Kinds, rowTone } from "./kinds";
+import { Kinds, rowTone, kindCls } from "./kinds";
 import { AttachInline } from "../evidence/forms";
 import type { Proof } from "@/lib/인사노무/proof";
 
@@ -25,6 +25,7 @@ export interface EditRow {
   inAuto: string; // 자동 계산된 출근 근무형태 (인쇄에만 씀)
   fromRep?: string[]; // 일일 근태 보고서에서 가져온 칸 (파란 글씨)
   outAuto: string; // 자동 계산된 퇴근 근무형태 (인쇄에만 씀)
+  leaveInfo?: string; // 휴가 사유·시간 (근태 구분 칸에만)
   kinds: string[]; // 근태 구분: 휴가·출장 종류 + 휴일근무·연장근무
   holiday: boolean;
   edited: string; // 최근 수정 (수정자 MM-DD HH:MM)
@@ -42,7 +43,7 @@ const COLS: [keyof EditRow, string, string][] = [
   ["work", "업무내용", "조출·휴일근무·출장 등 그날 한 업무. 비우면 하이웍스·보고서의 사유가 회색으로 보입니다"],
 ];
 const typeClass = (k: string, v: string) =>
-  (k === "in_type" || k === "out_type") && v ? (v.startsWith("연장") ? " ty-ot" : v.startsWith("휴일") ? " ty-hol" : v.startsWith("조출") ? " ty-early" : "") : "";
+  (k === "in_type" || k === "out_type") && v ? (v.startsWith("연장") ? " ty-ot" : v.startsWith("휴일") || v.startsWith("특근") ? " ty-hol" : v.startsWith("조출") ? " ty-early" : "") : "";
 const TIME_RE = /^$|^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 /** 비고(인원) 칸의 낱말 중 직원 이름 */
 const splitNote = (s: string) => s.split(/[\s,·/]+/).map((x) => x.trim()).filter(Boolean);
@@ -68,6 +69,9 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
   const bad = draft.flatMap((r) => (["clock_in", "clock_out"] as const).filter((k) => !TIME_RE.test(r[k].trim()))
     .map((k) => `${r.day} ${r[k]}`));
   const edited = rows.filter((r) => r.edited);
+  // 오늘 줄 표시 (브라우저에서만 계산: 서버와 날짜가 달라 화면이 어긋나지 않게)
+  const [today, setToday] = useState("");
+  useEffect(() => setToday(new Date().toLocaleDateString("sv-SE")), []);
 
   const set = (i: number, k: keyof EditRow, v: string) => setDraft((d) => d.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
   // 인원 체크: 비고 칸의 이름 목록에 넣고 뺀다 (이름이 아닌 글은 그대로 둔다)
@@ -119,27 +123,39 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
       {msg?.error && <div className="msg err">{msg.error}</div>}
       {bad.length > 0 && <div className="msg err">시각 형식이 맞지 않습니다 (HH:MM): {bad.join(", ")}</div>}
       <div className="tbl-wrap">
-        <table className="tbl edit">
-          <thead><tr>
-            <th>일자</th><th>요일</th><th>상태</th>
-            {COLS.map(([k, l, help]) => <th key={k} title={help}>{l}</th>)}
-            <th title="신청서·증빙 파일. 휴일·연장근무는 신청서를 첨부하면 바로 인정됩니다">첨부</th>
-          </tr></thead>
+        <table className="tbl edit ed2">
+          <thead>
+            <tr>
+              <th rowSpan={2} className="c-day">일자</th><th rowSpan={2} className="c-st">상태</th>
+              <th colSpan={2} className="grp g-in">출근</th><th colSpan={2} className="grp g-out">퇴근</th>
+              {COLS.slice(4).map(([k, l, help]) => <th key={k} rowSpan={2} title={help}>{l}</th>)}
+              <th rowSpan={2} className="c-att" title="신청서·증빙 파일. 휴일·연장근무는 신청서를 첨부하면 바로 인정됩니다">첨부</th>
+            </tr>
+            <tr>
+              {COLS.slice(0, 4).map(([k, l, help]) => <th key={k} className={`sub${k === "clock_out" ? " g-start" : ""}`} title={help}>{l.replace(/^(출근|퇴근) /, "")}</th>)}
+            </tr>
+          </thead>
           <tbody>
             {draft.map((r, i) => (
-              <tr key={r.day} className={`${rowTone(r)}${COLS.some(([k]) => changed(i, k)) ? " changed" : ""}`}>
-                <td className="ro">{r.day.slice(5)}</td><td className={`ro${r.holiday ? " hol" : ""}`}>{r.wd}</td>
-                <td className="ro"><Kinds r={r} />{rows[i]?.proof?.missing.length ? <div className="proof-miss"><b>미인정</b></div> : rows[i]?.proof?.need.length ? <div className="proof-ok">✅ 인정</div> : null}</td>
+              <tr key={r.day} className={`${rowTone(r)} ${kindCls(r)}${COLS.some(([k]) => changed(i, k)) ? " changed" : ""}${r.day === today ? " today" : ""}${r.wd === "월" && i > 0 ? " ed-wk" : ""}`}>
+                <td className={`c-day${r.wd === "일" || r.holiday ? " sun" : r.wd === "토" ? " sat" : ""}`}>
+                  <b>{Number(r.day.slice(8))}</b><span>{r.wd}</span>
+                </td>
+                <td className="c-st">
+                  <div className="st-line"><Kinds r={r} />
+                    {rows[i]?.proof?.missing.length ? <span className="st-proof miss">미인정</span> : rows[i]?.proof?.need.length ? <span className="st-proof ok" title="신청서 확인됨">✓ 인정</span> : null}
+                  </div>
+                </td>
                 {COLS.map(([k]) => (
-                  <td key={k} style={{ minWidth: k === "place" ? 150 : k === "note" ? 200 : k === "work" || k === "work_ot" ? 200 : 96 }}>
-                    <div className={k === "note" ? "row mates-cell" : ""} style={k === "note" ? { gap: 4, flexWrap: "nowrap" } : undefined}>
+                  <td key={k} className={`c-${k}${k === "clock_out" ? " g-start" : ""}`}>
+                    <div className={k === "note" ? "row mates-cell" : ""} style={k === "note" ? { gap: 2, flexWrap: "nowrap" } : undefined}>
                       <input type="text" value={String(r[k])} onChange={(e) => set(i, k, e.target.value)}
                         placeholder="" /* 입력칸에는 직접 입력한 값만 (자동 값은 인쇄에만) */
                         title={r.fromRep?.includes(k) && !changed(i, k) ? "일일 근태 보고서에서 가져온 값 (고쳐 쓰면 근태 기입 값으로 저장)" : undefined}
                         className={`${(k === "clock_in" || k === "clock_out") && !TIME_RE.test(String(r[k]).trim()) ? "bad" : ""}${typeClass(k, String(r[k]))}${r.fromRep?.includes(k) && !changed(i, k) ? " from-rep" : ""}`} />
                       {k === "note" && staff.length > 0 && (
                         <details className="pop">
-                          <summary className="btn sm" title="같이 연장·휴일·출장 근무한 직원 고르기">+ 인원</summary>
+                          <summary className="ed-icon" title="같이 연장·휴일·출장 근무한 직원 고르기">＋</summary>
                           <div className="pop-body mates-pop">
                             <b>{r.day} ({r.wd}) 같이 근무한 직원</b>
                             <p className="caption" style={{ margin: "2px 0 8px" }}>고른 직원의 같은 날에도 근무지와 인원이 함께 저장됩니다.</p>
@@ -154,7 +170,7 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
                     </div>
                   </td>
                 ))}
-                <td className="ro" title={r.edited ? `최근 수정: ${r.edited}` : undefined}><AttachCell employee={employee} day={r.day} proof={rows[i]?.proof} files={rows[i]?.files ?? []} /></td>
+                <td className="c-att" title={r.edited ? `최근 수정: ${r.edited}` : undefined}><AttachCell employee={employee} day={r.day} proof={rows[i]?.proof} files={rows[i]?.files ?? []} /></td>
               </tr>
             ))}
           </tbody>
@@ -201,7 +217,7 @@ function AttachCell({ employee, day, proof, files }: { employee: string; day: st
       ))}
       {miss.map((k) => <span key={k} className="proof-miss"><b>⚠ {k} 신청서 없음</b></span>)}
       <AttachInline name={employee} type={miss[0] ?? (proof?.need[0] ?? "기타")} from={day} to={day} title={miss[0] ? `${miss[0]} 신청서` : "근태 증빙"}
-        label={miss.length ? "+ 신청서" : "+ 첨부"} />
+        label={miss.length ? "+ 신청서" : "＋"} />
     </div>
   );
 }

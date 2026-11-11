@@ -4,6 +4,7 @@ import {
 } from "../config";
 import type { Leave } from "./hiworks";
 import type { CapsRecord } from "./loader";
+import { leaveMark } from "./vacation";
 import {
   addDays, type DateStr, hhmm, minutesOf, parseClock, type Ts, ts, weekday, weekdayKr,
 } from "../time";
@@ -37,6 +38,9 @@ export interface DayRow {
   tags: number;
   leave: string; // 근태 유형 ', '로 연결
   leaveContent: string;
+  leaveIn: string; // 휴가 출근 형태 (예: 오전 반차 -> '반차(13:30)')
+  leaveOut: string; // 휴가 퇴근 형태 (예: 오후 반차 -> '반차(13:30)', 외출 -> '외출(16:30)')
+  leaveReason: string; // 휴가 사유 (시간 뺀 내용, 업무내용·비고에)
   mates: string; // 같은 출장·교육·휴일근무 일행
   leaveDays: number;
   late: boolean;
@@ -138,7 +142,7 @@ function companions(leaves: Leave[]): Map<string, string[]> {
 
 function emptyDay(emp: string, dept: string, day: DateStr): DayRow {
   return {
-    emp, dept, day, wd: "", holiday: false, in: null, out: null, stayH: null, tags: 0, leave: "", leaveContent: "",
+    emp, dept, day, wd: "", holiday: false, in: null, out: null, stayH: null, tags: 0, leave: "", leaveContent: "", leaveIn: "", leaveOut: "", leaveReason: "",
     mates: "", leaveDays: 0, late: false, early: false, status: "", inRec: null, outRec: null, inSrc: "", outSrc: "",
     lastTag: null, ovInType: null, ovOutType: null, ovPlace: null, ovNote: null, editedBy: "",
   };
@@ -234,6 +238,8 @@ export function buildDays(
       r.leave = types.join(", ");
       r.leaveContent = unique(g.map((l) => l.content).filter(Boolean)).join(" / ");
       r.leaveDays = types.reduce((s, t) => s + (LEAVE_DAY_VALUE[t] ?? 0), 0);
+      const lm = leaveMark(g, er.start, er.end);
+      [r.leaveIn, r.leaveOut, r.leaveReason] = [lm.inType, lm.outType, lm.reason];
     }
     r.mates = (mates.get(`${nameOf.get(r.emp) ?? r.emp}|${r.day}`) ?? []).join(", ");
 

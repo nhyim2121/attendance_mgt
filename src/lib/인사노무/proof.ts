@@ -13,9 +13,9 @@ interface Att { id: number; name: string; dayFrom: string; dayTo: string; type: 
 /** 그날 신청서가 필요한 근무 종류 */
 export const needProof = (kinds: string[], day: string) => (day >= PROOF_FROM ? PROOF_KINDS.filter((k) => kinds.includes(k)) : []);
 
-/** 그날·그 직원의 신청서 확인 결과 */
-export function proofOf(name: string, day: string, kinds: string[], atts: Att[]): Proof {
-  const need = needProof(kinds, day);
+/** 그날·그 직원의 신청서 확인 결과. exempt = 그 직원이 신청서 없이 인정되는 근태 (직원별 기준 noProof) */
+export function proofOf(name: string, day: string, kinds: string[], atts: Att[], exempt: string[] = []): Proof {
+  const need = needProof(kinds, day).filter((k) => !exempt.includes(k));
   const files = atts.filter((a) => a.name === name && a.dayFrom <= day && a.dayTo >= day && (PROOF_KINDS as readonly string[]).includes(a.type))
     .map((a) => ({ id: a.id, fileName: a.fileName, type: a.type }));
   const ok = need.filter((k) => files.some((f) => f.type === k));

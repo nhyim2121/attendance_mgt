@@ -64,7 +64,12 @@ export interface WorkRule {
 }
 
 /** 직원 한 명의 근무 기준 예외. 비운 항목은 회사 기준을 따른다. */
-export interface EmpRule { workdays?: number[]; start?: number; end?: number; note?: string }
+export interface EmpRule {
+  workdays?: number[]; start?: number; end?: number; note?: string;
+  noProof?: string[]; // 신청서·증빙이 필요 없는 근태 (예: 일용직과 같은 김환복 = 연장근무·출장)
+}
+/** 그 직원이 신청서 없이 인정되는 근태 종류 */
+export const noProofFor = (rule: WorkRule, emp?: string): string[] => (emp ? rule.byEmp?.[emp]?.noProof ?? [] : []);
 
 /** 그 직원에게 적용할 근무 기준 (직원별 예외가 없으면 회사 기준 그대로). */
 export function ruleFor(rule: WorkRule, emp?: string): WorkRule {
