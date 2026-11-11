@@ -127,6 +127,32 @@ export function Leaves({ items, today }: { items: { day: string; name: string; t
   );
 }
 
+/** 이번 주 휴가·출장을 주간 달력(월~금, 주말에 있으면 토·일도)으로: 날짜 칸마다 사람·종류 */
+export function WeekLeaves({ items, today }: { items: { day: string; name: string; type: string }[]; today: string }) {
+  const t = new Date(`${today}T00:00:00Z`);
+  const mon = new Date(t.getTime() - ((t.getUTCDay() + 6) % 7) * 864e5);
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const all = Array.from({ length: 7 }, (_, i) => iso(new Date(mon.getTime() + i * 864e5)));
+  const days = all.filter((d, i) => i < 5 || items.some((l) => l.day === d));
+  const tone = (ty: string) => (ty.includes("반") ? "b" : ["출장", "교육", "외근"].includes(ty) ? "v" : ty === "외출" ? "o" : "g");
+  return (
+    <div className="u-wkc" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
+      {days.map((d) => {
+        const mine = items.filter((l) => l.day === d);
+        return (
+          <div key={d} className={`u-wkc-d${d === today ? " on" : d < today ? " past" : ""}`}>
+            <div className="u-wkc-h"><span>{WEEK[new Date(`${d}T00:00:00Z`).getUTCDay()]}</span><b>{+d.slice(8)}</b>
+              {mine.length > 0 && <em>{mine.length}</em>}</div>
+            {mine.length ? (
+              <ul>{mine.map((l, i) => <li key={i}><span>{l.name}</span><Tag tone={tone(l.type)}>{l.type}</Tag></li>)}</ul>
+            ) : <p className="u-wkc-none">-</p>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** 다가오는 일정 (이번 주 뒤의 기한) */
 export interface SchedItem { day: string; title: string; sub: string; href: string; left: number; area: MenuArea }
 export function Schedule({ items }: { items: SchedItem[] }) {

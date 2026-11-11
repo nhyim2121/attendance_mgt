@@ -1,9 +1,9 @@
-/** 통합 대시보드 (통합 디자인): 남색 배너·숫자 카드 · 시계 / 이번 주 할 일 / 빠른 추가 · 할 일 4칸 / 메모 / 바로가기
- *  · 전체 메뉴 · 부서별 인원·근로시간 그래프 · 이번 주 휴가 / 다가오는 일정 */
+/** 통합 대시보드 (통합 디자인): 남색 배너·숫자 카드 · 시계+할 일 4칸 / 이번 주 할 일 · 메모 / 바로가기 / 부서별 인원
+ *  · 이번 주 휴가·출장(주간 달력) · 다가오는 일정 · 전체 메뉴. 빠른 추가·월별 근로시간 그래프는 뺐다 (2026-11-12) */
 import Link from "next/link";
 import { Clock, LinksCard, MemoCard, Todo4Card, TodoCard } from "@/components/대시/client";
 import { nextOf, noteOf, schedOf, splitTodos, weekStrip } from "@/components/대시/common";
-import { Bars, Card, Hello, HoursLine, type KpiProps, Kpis, Leaves, MenuLists, QuickAdd, Schedule, Win } from "@/components/대시/parts";
+import { Bars, Card, Hello, type KpiProps, Kpis, MenuLists, Schedule, WeekLeaves, Win } from "@/components/대시/parts";
 import { toViews } from "@/components/대시/views";
 import { readableAreas, requireUser } from "@/lib/auth";
 import { ddayText, hrSnap, todos, WEEK_WARN } from "@/lib/대시/data";
@@ -38,9 +38,6 @@ export default async function HubPage({ searchParams }: { searchParams: Promise<
       { label: "연차 사용률", n: hr.usedRate, unit: "%", sub: `잔여 ${hr.remain}일`, icon: "pie", color: "#0e7490", href: "/leave/status" },
     ]),
   ];
-  const quick: [string, string][] = admin
-    ? [["/leave/register", "🏖️ 휴가 등록"], ["/ga/mail#form", "📨 받은 공문 등록"], ["/ga/b/fixtures#form", "📦 비품 추가"], ["/ga/b/drivelog#form", "🛣️ 차량 운행 기록"], ["/misc/b/tasks#form", "📝 진행 건 추가"]]
-    : [["/leave/register", "🏖️ 휴가 등록"], ["/sheets?tab=edit", "🙋 근태 기입"], ["/employees", "🪪 직원 추가"]];
   const strip = weekStrip(today, (d) => hr.weekLeaves.filter((l) => l.day === d).length);
 
   return (
@@ -48,18 +45,19 @@ export default async function HubPage({ searchParams }: { searchParams: Promise<
       {denied && <div className="msg warn">이 계정은 그 업무 영역을 볼 권한이 없습니다. 필요하면 관리자에게 권한을 요청하세요.</div>}
       <Hello today={today} name={user.name} todo={week.length} note={noteOf(week)} />
       <Kpis items={kpis} />
+      {/* 배치 (2026-11-12): 왼쪽 시계 + 할 일 4칸, 오른쪽 할 일 목록 / 메모·링크·부서별 인원 / 이번 주 휴가·출장 주간 달력 / 일정 / 전체 메뉴 */}
       <div className="u-grid">
-        <Clock strip={strip} stripLabel="이번 주 휴가·출장 (명)" bar={hr.ok ? { label: "오늘 출근", n: hr.present, of: hr.staff } : undefined} next={nextOf(week)} />
+        <div className="s6 u-col">
+          <Clock strip={strip} stripLabel="이번 주 휴가·출장 (명)" bar={hr.ok ? { label: "오늘 출근", n: hr.present, of: hr.staff } : undefined} next={nextOf(week)} />
+          <Todo4Card items={t4} />
+        </div>
         <TodoCard items={toViews(week)} />
-        <QuickAdd items={quick} className="s3" />
-        <Todo4Card items={t4} />
         <MemoCard items={memos} />
         <LinksCard scope="all" links={links} />
+        <Card en="TEAM" title="부서별 인원" more={["조직도", "/org"]} className="s6"><Bars data={hr.depts.map((d) => ({ label: d.dept, n: d.n }))} /></Card>
+        <Card en="LEAVE" title="이번 주 휴가·출장" more={["캘린더", "/leave/calendar"]} className="s12"><WeekLeaves items={hr.weekLeaves} today={today} /></Card>
+        <Card en="SCHEDULE" title="다가오는 일정 · 8~90일" className="s12"><Schedule items={schedOf(later, today)} /></Card>
         <Win en="MENU" ko="업무 영역 전체 메뉴" className="s12"><MenuLists areas={menuFor(admin, areas)} /></Win>
-        <Card en="TEAM" title="부서별 인원" more={["조직도", "/org"]} className="s5"><Bars data={hr.depts.map((d) => ({ label: d.dept, n: d.n }))} /></Card>
-        <Card en="HOURS" title="월별 1인 평균 주 근로시간" more={["리포트", "/hours"]} className="s7"><HoursLine data={hr.monthly} /></Card>
-        <Card en="LEAVE" title="이번 주 휴가·출장" more={["캘린더", "/leave/calendar"]} className="s4"><Leaves items={hr.weekLeaves} today={today} /></Card>
-        <Card en="SCHEDULE" title="다가오는 일정 · 8~90일" className="s8"><Schedule items={schedOf(later, today)} /></Card>
       </div>
       {!hr.ok && <p className="fd-empty">캡스 기록이 아직 없습니다. <Link href="/upload">데이터 관리</Link>에서 올리면 근태 숫자가 채워집니다.</p>}
     </div>

@@ -331,3 +331,24 @@
 .tnav-area.wide > .tnav-drop { width: min(760px, 92vw); max-height: 78vh; columns: 3 200px; column-gap: 8px; }
 .tnav-area.wide > .tnav-drop > .grp { break-inside: avoid; }
 .tnav-area.wide > .tnav-drop > a.dash { column-span: all; }
+
+/* 통합 대시보드 (2026-11-12): 시계 밑에 할 일 4칸을 쌓는 칸 */
+.u-grid > .u-col { display: flex; flex-direction: column; gap: var(--u-gap); min-width: 0; }
+.u-grid > .u-col > .uw { flex: none; }
+.u-grid > .u-col > .uw:last-child { flex: 1; }
+/* 이번 주 휴가·출장: 주간 달력 */
+.u-wkc { display: grid; gap: 8px; }
+.u-wkc-d { border: 1.5px solid var(--u-line); border-radius: 10px; background: #fff; min-height: 120px; display: flex; flex-direction: column; overflow: hidden; }
+.u-wkc-d.past { opacity: .55; }
+.u-wkc-d.on { border-color: var(--navy); box-shadow: 0 0 0 2px rgba(12,57,148,.15); }
+.u-wkc-h { display: flex; align-items: baseline; gap: 6px; padding: 6px 10px; background: #f1f4fa; border-bottom: 1px solid var(--u-line); }
+.u-wkc-d.on .u-wkc-h { background: var(--navy); color: #fff; }
+.u-wkc-h span { font-size: .78rem; font-weight: 700; }
+.u-wkc-h b { font-size: 1.1rem; font-weight: 800; }
+.u-wkc-h em { margin-left: auto; font-style: normal; font-size: .72rem; font-weight: 800; background: var(--u-ink); color: #fff; border-radius: 99px; padding: 0 7px; }
+.u-wkc-d.on .u-wkc-h em { background: #fff; color: var(--navy); }
+.u-wkc-d ul { list-style: none; margin: 0; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
+.u-wkc-d li { display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: .84rem; }
+.u-wkc-d li span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.u-wkc-none { margin: auto; color: #b7bfcc; font-size: .9rem; }
+@media (max-width: 760px) { .u-wkc { grid-template-columns: 1fr !important; } .u-wkc-d { min-height: 0; } }
