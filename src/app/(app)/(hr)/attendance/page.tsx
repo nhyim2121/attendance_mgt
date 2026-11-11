@@ -1,4 +1,4 @@
-/** 홈 대시보드: 오늘 근무 현황, 부재·이번 주 근무, 어제 근무 현황, 이번 달 근무시간·인력 변동·연차, 부서별 연장·월별 평균. */
+/** 홈 대시보드: 오늘 근무 현황, 어제 근무 현황·다가오는 휴가, 이번 주 근무·부서별 연장, 이번 달 근무시간·인력 변동·연차, 부서별 연장·월별 평균. */
 import Link from "next/link";
 import PageHead from "@/components/대시/PageHead";
 import { missingProofs } from "@/lib/인사노무/proofScan";
@@ -335,15 +335,6 @@ export default async function Home() {
 
         <div className="stack">
           <section className="card">
-            <div className="card-title">부재 현황</div>
-            <div className="tiles2">
-              <Tile label="외부근무자" n={by("출장·교육").length}
-                people={by("출장·교육").map((b) => [b.emp, b.leaveContent || b.leave])} href="/evidence" />
-              <Tile label="휴가자" n={by("휴가").length} people={by("휴가").map((b) => [b.emp, b.leave])} href="/leave" />
-            </div>
-          </section>
-
-          <section className="card">
             <div className="card-title">이번 주 근무 <span className="muted" style={{ fontWeight: 400 }}>{dayLabel(monday)} ~</span></div>
             <div className="tiles2">
               <Tile label={`초과자 (${WEEK_LIMIT}h↑)`} n={over.length} warn />
@@ -361,6 +352,11 @@ export default async function Home() {
             </details>
             <div className="sub-title" style={{ marginTop: 16 }}>요일별 평균 근무시간 <span className="muted">({+month.slice(5)}월, 1인)</span></div>
             <HoursArea data={wdAvg} x="wd" color={HOME.navy} />
+          </section>
+
+          <section className="card">
+            <div className="card-title">이번 달 평균 연장근무시간 <span className="muted" style={{ fontWeight: 400 }}>(부서별 1인, 휴일근로 포함)</span></div>
+            {deptOt.length ? <HoursBars data={deptOt} x="dept" /> : <Empty />}
           </section>
 
         </div>
@@ -422,10 +418,6 @@ export default async function Home() {
         </section>
       </div>
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <div className="card-title">이번 달 평균 연장근무시간 <span className="muted" style={{ fontWeight: 400 }}>(부서별 1인, 휴일근로 포함)</span></div>
-        {deptOt.length ? <HoursBars data={deptOt} x="dept" /> : <Empty />}
-      </section>
       <p className="caption" style={{ marginTop: 10 }}>
         근무시간 = 퇴근 − 출근(평일 {hhmm(rule.start)} 이전은 {hhmm(rule.start)}) − 휴게. 연장 = 평일 {hhmm(rule.end)} + {rule.overtimeMin}분 이후 퇴근한 날의 초과분,
         야간 = 22:00~06:00. 이번 주 초과자는 주 {WEEK_LIMIT}시간 기준. 기간별 상세는 <Link href="/hours">근로시간 리포트</Link>.
