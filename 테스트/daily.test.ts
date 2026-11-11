@@ -59,15 +59,16 @@ describe("일일 근태현황 보고서", () => {
   });
 
   it("요약 카드와 표", () => {
-    expect(reportCounts(rows())).toEqual({ 휴가: 2, 외출: 0, "출장·교육": 2, "휴일·연장": 1 });
+    expect(reportCounts(rows())).toEqual({ 휴가: 2, 출장: 2, 교육: 0, 외근: 0, "휴일·연장": 1 });
     const html = renderReportHtml(DAY, rows());
     for (const text of ["2026년 10월 26일(월) 근태현황", "근태 현황", "휴가 일정", "휴일·연장", "일학습병행(도제)",
       "10/24(토)", "김포발전소", "신품 전동기 납품", "10/30(금)"]) expect(html).toContain(text);
     expect(html.split("김포발전소").length - 1).toBe(1); // 같은 출장은 한 줄로 묶음
-    expect(html).toContain("생산팀</div><div"); // 묶인 줄에 부서 둘 (생산팀·영업팀)
+    expect(html).toMatch(/생산팀<\/span> .*<br><span[^>]*>영업팀/); // 묶인 출장 줄에 부서 둘 (생산팀·영업팀)
     expect(html.indexOf("사아자")).toBeLessThan(html.indexOf("차카타"));
     expect(html).toContain("DAILY ATTENDANCE REPORT"); // 남색 머리띠
-    expect(html).toContain("width:25%"); // 한 줄 요약 (4칸)
+    expect(html).toContain("width:20%"); // 한 줄 요약 (5칸)
+    expect(html).not.toContain(">교육</td>"); // 없는 종류 칸은 그리지 않음
     expect(html).not.toContain("display:grid"); // 메일에서 깨지는 CSS 안 씀
     expect(summaryText(rows())).toBe("연차 1, 반차 1, 출장 2");
   });
