@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
-import { escapeHtml, parseAttValue, prefillFromLeaves, renderReportHtml, type ReportRow } from "@/lib/인사노무/daily";
+import { escapeHtml, parseAttValue, parsePlan, prefillFromLeaves, renderReportHtml, type ReportRow } from "@/lib/인사노무/daily";
 import { isHoliday } from "@/lib/인사노무/analytics";
 import { getHolidays, getRule, loadBase } from "@/lib/인사노무/data";
 import { friendlyError, loadMailConfig, parseAddresses, sendMail } from "@/lib/mailer";
@@ -105,13 +105,17 @@ async function spreadRanges(day: string, rows: Row[], user: string): Promise<num
     for (let d = a; d <= b; d = addDays(d, 1)) {
       if (d === day || isHoliday(d, rule, holidays)) continue;
       if (!targets.has(d)) targets.set(d, []);
-      targets.get(d)!.push(r);
+      // 날짜별 일정표가 있으면 그날의 근무장소·목적으로
+      const day1 = parsePlan(r.note)?.[d];
+      targets.get(d)!.push(day1 ? { ...r, title: day1[0], detail: day1[1] } : r);
     }
   }
   for (const [d, add] of targets) {
     const cur = (await store.loadReportRows(d)).map(({ day: _x, ...r }) => r as Row);
     // 같은 사람·근태·근무지 줄은 새 내용으로 바꾼다
-    const same = (x: Row, y: Row) => x.section === "근태" && x.name === y.name && x.types === y.types && x.title === y.title;
+    // (일정표가 있는 줄은 근무장소가 날마다 달라도 같은 기간이면 같은 줄로 본다)
+    const same = (x: Row, y: Row) => x.section === "근태" && x.name === y.name && x.types === y.types
+      && (x.title === y.title || (x.value === y.value && (!!parsePlan(x.note) || !!parsePlan(y.note))));
     const keep = cur.filter((x) => !add.some((y) => same(x, y)));
     const ord = keep.filter((x) => x.section === "근태").length;
     await store.saveReport(d, [...keep, ...add.map((r, i) => ({ ...r, ord: ord + i + 1 }))], user);

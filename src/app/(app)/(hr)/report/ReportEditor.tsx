@@ -4,7 +4,7 @@ import { toBlob, toPng } from "html-to-image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
-  addWorkHours, attCat, attValue, isOtRow, isPartialSchedule, otUntil, parseAttValue, LEAVE_TYPES, leaveUnit, renderReportHtml, type ReportRow, returnDays, SCHEDULE_TYPES, scheduleText, splitReportTypes,
+  addWorkHours, attCat, attValue, isOtRow, isPartialSchedule, otUntil, parseAttValue, parsePlan, planNote, LEAVE_TYPES, leaveUnit, renderReportHtml, type ReportRow, returnDays, SCHEDULE_TYPES, scheduleText, splitReportTypes,
   tidySchedule, timeLabel,
 } from "@/lib/인사노무/daily";
 import { addDays, dayLabel, isDateStr, weekday } from "@/lib/time";
@@ -53,7 +53,7 @@ function toGroups(rows: ReportRow[]): Group[] {
     const types = splitReportTypes(r.types).join(",");
     const k = [splitReportTypes(r.types).sort().join(","), r.title.trim(), r.detail.trim(), r.value].join("\u0000"); // 비고 칸은 없앰 (2026-11-11)
     const v = parseAttValue(r.value ?? "");
-    const g = m.get(k) ?? newGroup({ types, title: r.title, detail: r.detail, note: "", from: v.from, to: v.to, until: v.until });
+    const g = m.get(k) ?? newGroup({ types, title: r.title, detail: r.detail, note: parsePlan(r.note) ? r.note : "", from: v.from, to: v.to, until: v.until });
     if (r.name && !g.names.includes(r.name)) g.names.push(r.name);
     m.set(k, g);
   }
@@ -139,11 +139,14 @@ export default function ReportEditor(p: Props) {
   // 부서·직급을 비우면 명단의 부서, 최근 직급으로 채운다
   const final = useMemo(() => {
     const ord: Record<string, number> = {};
-    const att: ReportRow[] = groups.flatMap((g) => g.names.map((n) => ({
-      ...blank("근태"), name: n, dept: info.get(n)?.dept ?? "", rank: info.get(n)?.rank ?? "",
-      types: g.types, title: g.title, detail: g.detail, note: g.note,
-      value: attValue(g.from, g.to, ""),
-    })));
+    const att: ReportRow[] = groups.flatMap((g) => {
+      const today = parsePlan(g.note)?.[p.day]; // 날짜별 일정표: 보고일의 근무장소·목적
+      return g.names.map((n) => ({
+        ...blank("근태"), name: n, dept: info.get(n)?.dept ?? "", rank: info.get(n)?.rank ?? "",
+        types: g.types, title: today ? today[0] : g.title, detail: today ? today[1] : g.detail, note: g.note,
+        value: attValue(g.from, g.to, ""),
+      }));
+    });
     const hw: ReportRow[] = hgroups.flatMap((g) => g.names.map((n) => ({
       ...blank("휴일근무"), name: n, dept: hinfo.get(n)?.dept ?? "", rank: hinfo.get(n)?.rank ?? "",
       types: g.types, title: hTitle(g), note: g.note, value: g.kind === "연장" ? (g.until ? `연장|~${g.until}` : "연장") : "",
@@ -292,6 +295,14 @@ export default function ReportEditor(p: Props) {
             {groups.length === 0 && <p className="caption" style={{ margin: "6px 2px" }}>아직 근태가 없습니다. 아래 [+ 근태 추가]를 누르세요.</p>}
             {groups.map((g, n) => {
               const cur = splitReportTypes(g.types);
+              // 연속 출장·교육·외근: 기간 안 근무일마다 근무장소를 따로 적을 수 있다
+              const cat = catOf(g.types);
+              const gFrom = g.from || p.day, gTo = g.to || gFrom;
+              const planDays: string[] = [];
+              for (let d = gFrom; d <= gTo && planDays.length < 31; d = addDays(d, 1)) if (isWorkday(d) || d === p.day) planDays.push(d);
+              const multi = (cat === "trip" || cat === "edu" || cat === "work") && planDays.length > 1;
+              const plan = parsePlan(g.note);
+              const planOn = multi && !!plan;
               return (
                 <div key={g.id} className={`rg-card${!cur.length && g.names.length ? " warn" : ""}`}>
                   <div className="rg-head">
@@ -323,8 +334,41 @@ export default function ReportEditor(p: Props) {
                           onChange={(e) => setG(g.id, { from: g.from || p.day, to: e.target.value })} />
                       </span>
                     </div>
-                    {cur.length ? <GroupFields g={g} setG={setG} /> : <div className="rg-cell rg-hint">위에서 근태 종류를 고르면 장소·사유 칸이 나옵니다.</div>}
+                    {!cur.length ? <div className="rg-cell rg-hint">위에서 근태 종류를 고르면 장소·사유 칸이 나옵니다.</div>
+                      : !planOn ? <GroupFields g={g} setG={setG} />
+                      : <div className="rg-cell rg-hint" style={{ alignSelf: "flex-end" }}>근무장소·목적은 아래 날짜별 일정에 적습니다.</div>}
+                    {multi && (
+                      <div className="rg-cell" style={{ alignSelf: "flex-end" }}>
+                        <button type="button" className={`rg-t${planOn ? " on" : ""}`} title="연속 출장 중 날짜마다 근무장소가 다를 때"
+                          onClick={() => {
+                            if (planOn) { // 끄면 보고일 내용만 남긴다
+                              const t = plan![p.day] ?? Object.values(plan!)[0] ?? [g.title, g.detail];
+                              setG(g.id, { note: "", title: t[0], detail: t[1] });
+                            } else setG(g.id, { note: planNote(Object.fromEntries(planDays.map((d) => [d, [g.title, g.detail]]))) });
+                          }}>날짜마다 근무지 다름</button>
+                      </div>
+                    )}
                   </div>
+                  {planOn && (
+                    <div className="rg-plan">
+                      <div className="rg-plan-h"><span>날짜</span><span>{cat === "edu" ? "교육장소" : "근무장소"}</span><span>{cat === "edu" ? "교육목적/내용" : "목적/작업내용"}</span></div>
+                      {planDays.map((d) => {
+                        const v = plan![d] ?? ["", ""];
+                        const put = (k: 0 | 1, x: string) => {
+                          const nv: [string, string] = k === 0 ? [x, v[1]] : [v[0], x];
+                          setG(g.id, { note: planNote({ ...plan!, [d]: nv }) });
+                        };
+                        return (
+                          <div key={d} className={`rg-plan-r${d === p.day ? " today" : ""}`}>
+                            <b>{dayLabel(d)}{d === p.day && <small> 보고일</small>}</b>
+                            <input type="text" value={v[0]} placeholder="예: 군산자원회수시설" onChange={(e) => put(0, e.target.value)} />
+                            <input type="text" value={v[1]} placeholder="예: 회사소개" onChange={(e) => put(1, e.target.value)} />
+                          </div>
+                        );
+                      })}
+                      <span className="caption" style={{ margin: 0 }}>저장하면 기간 안의 근무일 보고서마다 그날의 장소·내용으로 들어갑니다. 휴일은 빠집니다.</span>
+                    </div>
+                  )}
                 </div>
               );
             })}

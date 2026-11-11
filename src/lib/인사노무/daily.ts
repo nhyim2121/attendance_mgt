@@ -47,6 +47,24 @@ export function splitReportTypes(v: string | string[] | null | undefined): strin
 export const isOtRow = (r: Pick<ReportRow, "section" | "value">) => r.section === "휴일근무" && String(r.value ?? "").startsWith("연장");
 export const otUntil = (r: Pick<ReportRow, "value">) => /~(\d{2}:\d{2})/.exec(String(r.value ?? ""))?.[1] ?? "";
 
+/** 연속 출장·교육·외근에서 날짜마다 근무지가 다를 때의 일정표. 근태현황 줄의 note(비고 칸은 안 씀)에 넣어 둔다.
+ *  형식: '#일정' + JSON [[날짜, 근무장소, 목적/작업내용], ...] */
+const PLAN_MARK = "#일정";
+export type DayPlan = Record<string, [string, string]>;
+export function parsePlan(note: string | null | undefined): DayPlan | null {
+  const s = String(note ?? "");
+  if (!s.startsWith(PLAN_MARK)) return null;
+  try {
+    const out: DayPlan = {};
+    for (const x of JSON.parse(s.slice(PLAN_MARK.length)) as unknown[]) {
+      if (Array.isArray(x) && isDateStr(x[0])) out[x[0]] = [String(x[1] ?? ""), String(x[2] ?? "")];
+    }
+    return out;
+  } catch { return null; }
+}
+export const planNote = (plan: DayPlan): string =>
+  PLAN_MARK + JSON.stringify(Object.keys(plan).sort().map((d) => [d, plan[d][0], plan[d][1]]));
+
 /** 보고서 행 -> 하이웍스 근태와 같은 형식 (근태 판정·직원별 시트에 쓰임). */
 export function reportToLeaves(rows: ReportRow[]): Leave[] {
   const out: Leave[] = [];
@@ -54,7 +72,7 @@ export function reportToLeaves(rows: ReportRow[]): Leave[] {
     // 연장근무 신청 시각(value '~HH:MM')은 내용 끝에 '~20:00'으로 붙여 직원별 근태 퇴근 근무형태 '연장(20:00)'이 되게 한다
     const until = r.section === "근태" && splitReportTypes(r.types).includes("연장근무") ? parseAttValue(r.value).until : "";
     const content = [r.title, r.detail, until ? `~${until}` : ""].filter(Boolean).join("\n");
-    const base = { name: r.name, dept: r.dept, rank: r.rank, content, note: r.note ?? "", sheet: "사이트" };
+    const base = { name: r.name, dept: r.dept, rank: r.rank, content, note: parsePlan(r.note) ? "" : r.note ?? "", sheet: "사이트" };
     if (r.section === "근태") {
       for (const t of splitReportTypes(r.types)) out.push({ ...base, day: r.day!, type: t });
     } else if (r.section === "휴일근무") {
