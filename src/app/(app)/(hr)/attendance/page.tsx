@@ -317,6 +317,19 @@ export default async function Home() {
                 )))}</tbody></table>
             ) : <Empty />}
           </section>
+
+          <section className="card">
+            <div className="card-title">다가오는 휴가·출장 <span className="muted" style={{ fontWeight: 400 }}>2주</span></div>
+            {soon.length ? (
+              <table className="list-table"><tbody>
+                {soon.slice(0, 10).map((l, i) => (
+                  <tr key={i}><td className="dt">{dayLabel(l.day)}</td><td>{l.name}</td>
+                    <td><span className={`tag t-${l.type}`}>{l.type}</span></td></tr>
+                ))}
+              </tbody></table>
+            ) : <Empty />}
+            {soon.length > 10 && <p className="caption">외 {soon.length - 10}건 · <Link href="/leave/calendar">휴가 캘린더</Link></p>}
+          </section>
         </div>
 
         <div className="stack">
@@ -349,18 +362,6 @@ export default async function Home() {
             <HoursArea data={wdAvg} x="wd" color={HOME.navy} />
           </section>
 
-          <section className="card">
-            <div className="card-title">다가오는 휴가·출장 <span className="muted" style={{ fontWeight: 400 }}>2주</span></div>
-            {soon.length ? (
-              <table className="list-table"><tbody>
-                {soon.slice(0, 10).map((l, i) => (
-                  <tr key={i}><td className="dt">{dayLabel(l.day)}</td><td>{l.name}</td>
-                    <td><span className={`tag t-${l.type}`}>{l.type}</span></td></tr>
-                ))}
-              </tbody></table>
-            ) : <Empty />}
-            {soon.length > 10 && <p className="caption">외 {soon.length - 10}건 · <Link href="/leave/calendar">휴가 캘린더</Link></p>}
-          </section>
         </div>
       </div>
 
