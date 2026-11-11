@@ -18,6 +18,7 @@ interface Props {
   hasPrev: boolean;
   names: string[];
   apprentices: string[]; // 일학습병행(도제) 학생: 직원 관리에서 직급 '도제'(또는 부서 일학습·도제)인 재직자
+  apprHistory: { day: string; name: string; value: string }[]; // 다른 날 보고서의 도제 출근일 (누적 출근 일수 계산용)
   deptOf: Record<string, string>;
   ranks: Record<string, string>;
   holidayDates: string[]; // 휴일 근태 표에 기본으로 보일 날짜 (직전 주말·최근 공휴일)
@@ -121,7 +122,20 @@ const TABS: [string, string][] = [["근태", "근태현황"], ["도제", "일학
 export default function ReportEditor(p: Props) {
   const router = useRouter();
   // 근태현황 밖의 탭. 예전 휴가일정 줄은 사람·종류·시간별 한 줄로 정리해서 연다
-  const [rows, setRows] = useState<ReportRow[]>(() => tidySchedule(p.saved.filter((r) => !GROUPED(r.section)), p.day));
+  const [rows, setRows] = useState<ReportRow[]>(() => normDoje(tidySchedule(p.saved.filter((r) => !GROUPED(r.section)), p.day), p.day));
+  // 학생별 다른 날 출근일 (누적 출근 일수)
+  const apprDone = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const h of p.apprHistory) {
+      const s = m.get(h.name) ?? new Set<string>();
+      for (const x of h.value.split(",")) { const d = toDate(x, h.day); if (d) s.add(d); }
+      m.set(h.name, s);
+    }
+    return m;
+  }, [p.apprHistory]);
+  const [vert, setVert] = useState(false); // 입력 카드 세로 보기
+  useEffect(() => { try { setVert(localStorage.getItem("rg-vert") === "1"); } catch { /* 저장소 막힘 */ } }, []);
+  const toggleVert = () => setVert((v) => { try { localStorage.setItem("rg-vert", v ? "0" : "1"); } catch { /* */ } return !v; });
   const [hgroups, setHGroups] = useState<HGroup[]>(() => loadCards(p.saved, p.day).hgroups);
   const hset = useMemo(() => new Set(p.holidays), [p.holidays]);
   const isWorkday = (d: string) => weekday(d) < 5 && !hset.has(d);
@@ -168,7 +182,12 @@ export default function ReportEditor(p: Props) {
   }, [rows, groups, hgroups, info, hinfo, p.deptOf, p.ranks]);
   // 자동 저장: 마지막으로 저장한 내용(baseline)과 다르면 입력을 멈추고 1.5초 뒤 저장한다 (화면은 그대로 둔다)
   const [baseline, setBaseline] = useState<string | null>(null);
-  useEffect(() => { setBaseline((b) => b ?? norm(final)); }, [final]);
+  // 저장된 도제 줄의 남은 비고를 열면서 비웠으면 그 내용이 저장되도록 기준을 비워 둔다 (자동 저장)
+  const dojeFixed = useRef(p.isSaved && p.saved.some((r) => r.section === "도제" && r.value.trim() && r.value.trim() !== "-" && splitDojeNote(r.note, p.day).from));
+  useEffect(() => {
+    if (dojeFixed.current) { dojeFixed.current = false; setBaseline(""); return; }
+    setBaseline((b) => b ?? norm(final));
+  }, [final]);
   const [savedOnce, setSavedOnce] = useState(p.isSaved);
   const [autoAt, setAutoAt] = useState("");
   const dirty = baseline !== null && norm(final) !== baseline;
@@ -218,7 +237,7 @@ export default function ReportEditor(p: Props) {
   useEffect(() => {
     if (!reload.current) return;
     reload.current = false;
-    setRows(tidySchedule(p.saved.filter((r) => !GROUPED(r.section)), p.day));
+    setRows(normDoje(tidySchedule(p.saved.filter((r) => !GROUPED(r.section)), p.day), p.day));
     const c = loadCards(p.saved, p.day);
     setGroups(c.groups);
     setHGroups(c.hgroups);
@@ -298,15 +317,22 @@ export default function ReportEditor(p: Props) {
           onClick={() => autoLoad(false)}>다시 불러오기</button>
       </div>
 
-      <div className="card">
-        <div className="tabs">
-          {TABS.map(([k, l]) => (
-            <button key={k} className={k === tab ? "on" : ""} onClick={() => setTab(k)}>
-              {l} ({k === "근태" ? groups.reduce((t, g) => t + g.names.length, 0)
-                : k === "휴일근무" ? hgroups.reduce((t, g) => t + g.names.length, 0)
-                : rows.filter((r) => r.section === k && r.name).length})
-            </button>
-          ))}
+      <div className={`card${vert ? " rg-vert" : ""}`}>
+        <div className="row" style={{ alignItems: "flex-start", gap: 8 }}>
+          <div className="tabs">
+            {TABS.map(([k, l]) => (
+              <button key={k} className={k === tab ? "on" : ""} onClick={() => setTab(k)}>
+                {l} ({k === "근태" ? groups.reduce((t, g) => t + g.names.length, 0)
+                  : k === "휴일근무" ? hgroups.reduce((t, g) => t + g.names.length, 0)
+                  : rows.filter((r) => r.section === k && r.name).length})
+              </button>
+            ))}
+          </div>
+          <div className="spacer" />
+          <div className="rg-view" role="group" aria-label="입력칸 배치">
+            <button type="button" className={vert ? "" : "on"} onClick={() => vert && toggleVert()} title="입력칸을 옆으로 나란히">가로 보기</button>
+            <button type="button" className={vert ? "on" : ""} onClick={() => !vert && toggleVert()} title="입력칸을 위에서 아래로 한 줄씩">세로 보기</button>
+          </div>
         </div>
         {tab === "근태" && (
           <div className="rg-list">
@@ -556,10 +582,15 @@ export default function ReportEditor(p: Props) {
               const absent = r.value.trim() === "-";
               const picked = absent ? [] : r.value.split(",").map((x) => toDate(x, p.day)).filter(Boolean);
               const legacyVal = !absent && !picked.length && r.value.trim();
+              // 출근한 날을 고르면 비고(해당 없음 때 적은 사유·기간)는 비운다
               const toggleDay = (d: string) => {
                 const next = (picked.includes(d) ? picked.filter((x) => x !== d) : [...picked, d]).sort();
-                set(i, { value: next.map((x) => dayLabel(x)).join(", ") });
+                set(i, { value: next.map((x) => dayLabel(x)).join(", "), ...(next.length ? { note: "" } : {}) });
               };
+              // 누적 출근 일수: 다른 날 보고서의 출근일 + 이 카드에서 고른 날 (같은 날은 한 번만)
+              const went = new Set([...(apprDone.get(r.name) ?? []), ...picked]);
+              const mon = p.day.slice(0, 7);
+              const wentMon = [...went].filter((d) => d.startsWith(mon)).length;
               const nt = splitDojeNote(r.note, p.day);
               const setNote = (x: Partial<typeof nt>) => {
                 const v = { ...nt, ...x };
@@ -574,6 +605,10 @@ export default function ReportEditor(p: Props) {
                     {nameSelect(i, r, p.apprentices)}
                     {meta.length > 0 && <span className="rg-meta">{meta.map((x) => <span key={x} className="rg-tag">{x}</span>)}</span>}
                     <div className="rg-types" />
+                    {r.name && (
+                      <span className="rg-count" title="저장된 보고서에 출근일로 적힌 날 + 이 보고서에서 고른 날">
+                        누적 출근 <b>{went.size}</b>일<small> · {+mon.slice(5)}월 {wentMon}일</small></span>
+                    )}
                     <button type="button" className="rg-del" onClick={() => remove(i)} title="이 학생 줄 삭제">삭제</button>
                   </div>
                   <div className="rg-body">
@@ -702,6 +737,10 @@ const SLOTS = Array.from({ length: 31 }, (_, i) => `${String(7 + Math.floor(i / 
 const OT_SLOTS = Array.from({ length: 13 }, (_, i) => `${String(18 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 /** 일학습병행(도제) 근무 기준: 매주 수·목·금 08:30~16:30 (설정 emp_rules와 같게) */
 const APPR_DAYS = [2, 3, 4]; // 월=0
+/** 출근일이 있는 도제 줄에 남아 있는 '사유(기간)' 비고는 비운다 (해당 없음 때 적은 내용) */
+function normDoje(rows: ReportRow[], day: string): ReportRow[] {
+  return rows.map((r) => (r.section === "도제" && r.value.trim() && r.value.trim() !== "-" && splitDojeNote(r.note, day).from ? { ...r, note: "" } : r));
+}
 /** 지난 보고서에서 가져온 도제 줄: 이번 주가 아닌 출근일은 비우고, 이미 끝난 '해당 없음' 기간은 처음 상태로 */
 function carryDoje(rows: ReportRow[], day: string): ReportRow[] {
   const week = apprWeekOf(day);
@@ -711,7 +750,7 @@ function carryDoje(rows: ReportRow[], day: string): ReportRow[] {
       return nt.to && nt.to < day ? { ...r, value: "", note: "" } : r;
     }
     const ds = r.value.split(",").map((x) => toDate(x, day)).filter((d) => week.includes(d));
-    return { ...r, value: ds.map((d) => dayLabel(d)).join(", "), note: ds.length ? r.note : "" };
+    return { ...r, value: ds.map((d) => dayLabel(d)).join(", "), note: ds.length && !splitDojeNote(r.note, day).from ? r.note : "" };
   });
 }
 /** 보고일이 든 주의 수·목·금 (주말이면 다음 주) */

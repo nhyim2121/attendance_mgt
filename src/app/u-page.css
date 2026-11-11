@@ -217,6 +217,27 @@
 .rg-plan-r.today input { border-color: #9db4e3; }
 .rg-plan-r input { width: 100%; min-width: 0; }
 @media (max-width: 640px) { .rg-plan-h { display: none; } .rg-plan-r { grid-template-columns: 1fr; } }
+.rg-count { align-self: center; white-space: nowrap; font-size: .8rem; color: #3b4a6b; background: #eef7f1; border: 1px solid #d5ecdc; border-radius: 999px; padding: 3px 10px; }
+.rg-count b { color: #1f8a3b; font-size: .92rem; }
+.rg-count small { color: #7a8396; }
+/* 가로/세로 보기 전환 */
+.rg-view { display: inline-flex; border: 1px solid #dfe5f0; border-radius: 8px; overflow: hidden; margin-top: 4px; }
+.rg-view button { background: #fff; border: 0; padding: 5px 12px; font-size: .8rem; color: #5b6578; cursor: pointer; }
+.rg-view button + button { border-left: 1px solid #dfe5f0; }
+.rg-view button.on { background: #0c3994; color: #fff; font-weight: 700; }
+/* 세로 보기: 칸마다 한 줄 (왼쪽 이름표 / 오른쪽 입력) */
+.rg-vert .rg-types { flex-direction: column; align-items: flex-start; gap: 6px; }
+.rg-vert .rg-body { flex-direction: column; align-items: stretch; gap: 8px; }
+.rg-vert .rg-body > .rg-cell { display: grid; grid-template-columns: 130px minmax(0, 1fr); align-items: center; column-gap: 12px; flex: none !important; min-width: 0 !important; max-width: none; }
+.rg-vert .rg-body > .rg-cell > :not(.rg-lbl) { justify-self: start; }
+.rg-vert .rg-body > .rg-cell > input[type="text"] { width: min(100%, 460px) !important; }
+.rg-vert .rg-body > .rg-cell:not(:has(> .rg-lbl)) { display: block; }
+.rg-vert .rg-body > .rg-cell.rg-hint { display: block; }
+.rg-vert .gf { display: grid; grid-template-columns: 130px minmax(0, 1fr); align-items: center; column-gap: 12px; }
+.rg-vert .gf > :not(span) { justify-self: start; max-width: 460px; width: 100%; }
+.rg-vert .gf-two { flex-direction: column; gap: 8px; }
+.rg-vert .rg-cell[style*="align-self"] { align-self: stretch !important; }
+@media (max-width: 640px) { .rg-vert .rg-body > .rg-cell, .rg-vert .gf { grid-template-columns: 1fr; } }
 .rg-sep { width: 1px; align-self: stretch; background: #e1e7f0; margin: 2px 4px; }
 .rg-t.rg-none.on { background: #8a6d3b; border-color: #8a6d3b; }
 .rg-absent { margin-top: 10px; padding: 10px 12px; background: #fbf8f2; border: 1px solid #efe5d3; border-radius: 10px; }
