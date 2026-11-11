@@ -20,14 +20,6 @@ export const HR_SITES: Record<string, Site[]> = {
     { name: "고용24 (모성보호)", url: "https://www.work24.go.kr/", sub: "출산전후·육아휴직 급여 확인서" },
     { name: "4대보험 정보연계센터", url: "https://www.4insure.or.kr/", sub: "휴직·복직 신고" },
   ],
-  pay: [
-    { name: "홈택스", url: "https://www.hometax.go.kr/", sub: "원천세 신고·지급명세서·연말정산" },
-    { name: "4대보험 정보연계센터", url: "https://www.4insure.or.kr/", sub: "보수 변경·정산" },
-    { name: "국민연금 EDI", url: "https://edi.nps.or.kr/", sub: "연금 신고·고지" },
-    { name: "건강보험 EDI", url: "https://edi.nhis.or.kr/", sub: "건강보험 신고·고지" },
-    { name: "고용·산재 토탈서비스", url: "https://total.comwel.or.kr/", sub: "고용·산재보험 신고" },
-    { name: "최저임금위원회", url: "https://www.minimumwage.go.kr/", sub: "올해 최저임금" },
-  ],
   labor: [
     { name: "노동포털 (민원)", url: "https://labor.moel.go.kr/", sub: "취업규칙 신고·각종 노동 민원" },
     { name: "고용노동부", url: "https://www.moel.go.kr/", sub: "법령·지침·질의회시" },

@@ -30,11 +30,8 @@ const GA_GROUPS: [string, string[]][] = [
   ["4. 비품관리", ["fixtures"]],
   ["5. 차량관리", ["vehicles", "drivelog"]],
   ["6. 출장 및 연수관리", []],
-  ["7. 주주 및 법무관리", []],
-  ["8. 자산관리", []],
   ["9. 프로젝트 관리", []],
   ["10. 입찰관리", []],
-  ["11. 국책관리", []],
   ["12. 지원사업 관리", ["grants"]],
 ];
 /** 준비 중인 화면 (총무 분류안 2026-11-10) */
@@ -44,10 +41,7 @@ export const GA_PLAN: Record<string, string[]> = {
   "4. 비품관리": ["구매 요청", "수리 신청", "전환(담당자 변경) 신청", "폐기"],
   "5. 차량관리": ["주유·정비·하이패스 비용", "사고·과태료"],
   "6. 출장 및 연수관리": ["출장 신청 → 일정 → 결과보고 → 비용 정산", "연수·외부교육 참가"],
-  "7. 주주 및 법무관리": ["주주명부·주주총회·이사회", "법인 등기 변경", "계약서 대장 (만기·자동갱신 알림)", "소송·분쟁"],
-  "8. 자산관리": ["토지·건물·설비 (취득·감가·보험)", "시설 수리·임대차", "용역·렌탈 계약 (청소·경비·복합기·정수기)"],
   "9. 프로젝트 관리": ["수주 등록 (고객·품목·납기)", "출하지시 → 배차 → 입출고 기록 → 납품 완료", "거래명세서 출력 연결"],
-  "11. 국책관리": ["국책과제 (협약·연차·정산·보고서 제출 기한)"],
   "12. 지원사업 관리": ["신청 중 / 선정·진행 / 완료 / 미선정 (지원사업진행현황.xlsx 칸 맞추기)"],
 };
 const soon = (label: string): MenuItem => ({ href: `/ga/soon?g=${encodeURIComponent(label)}`, label: "준비 중인 화면", desc: GA_PLAN[label]?.join(" · ") });
@@ -69,7 +63,6 @@ export const HR_DASH: Record<string, { group: string; name: string; en: string; 
   hire: { group: "3-1. 직원채용", name: "직원채용", en: "HIRING", emoji: "🧲" },
   work: { group: "3-2. 복무 및 근태관리", name: "복무·근태", en: "ATTENDANCE", emoji: "⏰" },
   leave: { group: "3-2. 휴가·휴직", name: "휴가·휴직", en: "LEAVE", emoji: "🏖️" },
-  pay: { group: "3-3. 급여관리", name: "급여", en: "PAYROLL", emoji: "💰" },
   labor: { group: "3-4. 노무관리", name: "노무", en: "LABOR", emoji: "⚖️" },
   org: { group: "3-5. 조직 관리", name: "조직", en: "ORGANIZATION", emoji: "🌳" },
   people: { group: "3-6. 인사관리", name: "인사", en: "PEOPLE", emoji: "🪪" },
@@ -83,7 +76,7 @@ export function hrSlugOf(href: string): string | undefined {
 const gdash = (slug: string): MenuItem => ({ href: `/hr/g/${slug}`, label: `${HR_DASH[slug].name} 홈`, desc: `${HR_DASH[slug].group} 한눈에 보기`, exact: true });
 /** 인사노무 묶음: X:\관리팀\3. 인사, 노무 폴더 번호(3-1~3-7). 대장은 관리자만 열린다. */
 const hrBook = (key: string): MenuItem => ({ ...book(key), admin: true });
-const HR_LISTED = ["recruit", "onoff", "contracts", "holidaywork", "flex", "reserve", "leavepromo", "absence", "payroll", "insurance", "labor", "revisions", "certificates", "licenses", "foreign", "programs", "training", "applicants", "comp", "compliance", "council", "agreements", "discipline", "injuries", "appointments", "evaluations", "awards", "trainplan"];
+const HR_LISTED = ["recruit", "onoff", "contracts", "holidaywork", "flex", "reserve", "leavepromo", "absence", "labor", "revisions", "certificates", "licenses", "foreign", "programs", "training", "applicants", "compliance", "council", "agreements", "discipline", "injuries", "appointments", "evaluations", "awards", "trainplan"];
 const hrRest = booksOf("hr", HR_LISTED).map((it) => ({ ...it, admin: true }));
 
 export const MENU: MenuArea[] = [
@@ -110,7 +103,6 @@ export const MENU: MenuArea[] = [
         { href: "/leave/register", label: "휴가 등록·설정", desc: "휴가 직접 등록, 연차 기준" },
         hrBook("leavepromo"), hrBook("absence"),
       ] },
-      { label: "3-3. 급여관리", items: [gdash("pay"), hrBook("payroll"), hrBook("comp"), hrBook("insurance")] },
       { label: "3-4. 노무관리", items: [gdash("labor"), hrBook("compliance"), hrBook("council"), hrBook("agreements"), hrBook("labor"), hrBook("discipline"), hrBook("injuries")] },
       { label: "3-5. 조직 관리", items: [gdash("org"), 
         { href: "/employees", label: "직원 관리", desc: "직원 명부(사원현황)·입사일·근무 기준, 비상연락망" },
@@ -190,7 +182,7 @@ const EMOJI: Record<string, string> = {
   "/employees": "🪪", "/org": "🌳", "/upload": "💾", "/settings": "⚙️",
   "/ga/mail": "📨", "/ga/issue": "🧾", "/ga/certs": "🔑", "/bid": "⚖️", "/cert?from=ga": "🏅", "/cert": "🏅", "/cert#add": "➕", "/users": "⚙️",
   "/misc/weekly": "📓", "/misc/coop": "🤝", "/misc/plan": "🧭", "/misc/calendar": "🗓️",
-  training: "🎓", licenses: "📜", recruit: "🧲", onoff: "🔁", contracts: "✒️", holidaywork: "🛠️", flex: "🕘", reserve: "🎖️", leavepromo: "📣", absence: "🍼", payroll: "💰", insurance: "🏥", labor: "⚖️", revisions: "📐", certificates: "📃", foreign: "🌏", programs: "🧑‍🎓", applicants: "📇", appointments: "📢", evaluations: "📝", comp: "💵", awards: "🏆", trainplan: "🗓️", council: "🤝", discipline: "🚨", injuries: "🩹", agreements: "✍️", compliance: "✅", meetings: "💬", fixtures: "📦", vehicles: "🚗", drivelog: "🛣️", software: "💿",
+  training: "🎓", licenses: "📜", recruit: "🧲", onoff: "🔁", contracts: "✒️", holidaywork: "🛠️", flex: "🕘", reserve: "🎖️", leavepromo: "📣", absence: "🍼", labor: "⚖️", revisions: "📐", certificates: "📃", foreign: "🌏", programs: "🧑‍🎓", applicants: "📇", appointments: "📢", evaluations: "📝", awards: "🏆", trainplan: "🗓️", council: "🤝", discipline: "🚨", injuries: "🩹", agreements: "✍️", compliance: "✅", meetings: "💬", fixtures: "📦", vehicles: "🚗", drivelog: "🛣️", software: "💿",
   itassets: "🖥️", helpdesk: "🛠️", itdispose: "🗑️", itcontracts: "🌐", accounts: "🔐", accessreview: "🔎", seccheck: "🛡️", incidents: "🚨", pledges: "✍️", media: "💽", privacy: "🔏", privdestroy: "🧯", itedu: "🎓", backups: "💾", cctv: "📹", idcards: "🪪", itroutine: "🔁",
   visitors: "🚪", ppe: "🦺", dorm: "🏠", grants: "🎯", bids: "⚖️", checkup: "🩺", wastewater: "💧", inspections: "🔍", tasks: "📝",
 };

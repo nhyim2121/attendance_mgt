@@ -28,13 +28,6 @@ const HR: DutyGroup[] = [
     { task: "연차사용촉진 1차·2차 통보", cycle: "매년", note: "만료 6개월 전·2개월 전" },
     { task: "휴직자 복직 예정일·고용센터 급여 신청 확인", cycle: "변경 때" },
   ] },
-  { no: "3-3", name: "급여관리", emoji: "💰", desc: "급여 마감·원천세·4대보험·연말정산", books: ["payroll", "comp", "insurance"], duties: [
-    { task: "급여 마감 (근태·수당 반영), 급여명세서 교부", cycle: "매월" },
-    { task: "원천세 신고·납부", cycle: "매월", note: "다음 달 10일" },
-    { task: "4대보험 보수 변경·고지 확인", cycle: "매월" },
-    { task: "연말정산 자료 수집·지급명세서 제출", cycle: "매년", note: "1~3월" },
-    { task: "연봉 계약·인상 반영, 최저임금 점검", cycle: "매년" },
-  ] },
   { no: "3-4", name: "노무관리", emoji: "⚖️", desc: "노사협의회·법정 의무·근로자대표 합의·고충·징계·산재", books: ["compliance", "council", "agreements", "labor", "discipline", "injuries"], duties: [
     { task: "노사협의회 정기회의·회의록 게시", cycle: "분기" },
     { task: "법정 의무 교육 (성희롱 예방·장애인 인식개선·퇴직연금)", cycle: "매년" },
@@ -94,16 +87,6 @@ const GA: DutyGroup[] = [
   { no: "6", name: "출장 및 연수관리", emoji: "✈️", desc: "출장 신청·결과보고·비용 정산", books: [], links: [["출장 증빙", "/evidence"]], duties: [
     { task: "출장 신청 확인, 결과보고·비용 정산", cycle: "변경 때" },
   ] },
-  { no: "7", name: "주주 및 법무관리", emoji: "🏛️", desc: "주주총회·이사회, 등기 변경, 계약서", books: [], duties: [
-    { task: "정기 주주총회·이사회 의사록", cycle: "매년", note: "결산 후 3월" },
-    { task: "임원 변경·본점 이전 등 법인 등기", cycle: "변경 때", note: "변경 후 2주 안" },
-    { task: "계약서 만기·자동갱신 확인", cycle: "분기" },
-  ] },
-  { no: "8", name: "자산관리", emoji: "🏭", desc: "토지·건물·설비, 시설 수리, 용역·렌탈 계약", books: [], duties: [
-    { task: "화재·재산 보험 갱신", cycle: "매년" },
-    { task: "청소·경비·복합기·정수기 렌탈 계약 갱신", cycle: "매년" },
-    { task: "시설 수리 요청 처리", cycle: "수시" },
-  ] },
   { no: "9", name: "프로젝트 관리", emoji: "🚚", desc: "수주·출하지시·배차·입출고", books: [], duties: [
     { task: "출하지시 → 배차 → 입출고 기록 → 납품 완료 확인", cycle: "수시" },
     { task: "거래명세서 출력", cycle: "수시" },
@@ -112,9 +95,6 @@ const GA: DutyGroup[] = [
     { task: "나라장터 등 공고 확인", cycle: "매일" },
     { task: "참가 서류 준비·투찰, 개찰 결과 기록", cycle: "변경 때" },
     { task: "입찰 참가자격 등록 정보 갱신", cycle: "매년" },
-  ] },
-  { no: "11", name: "국책관리", emoji: "🧪", desc: "국책과제 협약·연차·정산·보고서", books: [], duties: [
-    { task: "과제 연차 보고서·정산 제출 기한 관리", cycle: "매년" },
   ] },
   { no: "12", name: "지원사업 관리", emoji: "🎯", desc: "지원사업 신청·선정·진행·완료", books: ["grants"], duties: [
     { task: "기업마당 등 지원사업 공고 확인", cycle: "매주" },
