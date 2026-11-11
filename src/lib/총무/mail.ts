@@ -243,3 +243,14 @@ export function filterMails(list: Mail[], f: MailFilter): Mail[] {
     && (!f.open || x.status === "처리 중")
     && (!q || [mailNo(x), x.party, x.title, x.refNo, x.route, x.note].some((s) => s.toLowerCase().includes(q))));
 }
+
+/** 첨부의 ref 바꾸기 (예: 지원사업 자료 이름을 고칠 때 파일도 따라가게) */
+export async function moveFiles(fromRef: string, toRef: string): Promise<void> {
+  const sb = await createClient();
+  check(await sb.from("ga_files").update({ ref: toRef }).eq("ref", fromRef), "첨부 옮기기");
+}
+/** ref가 정확히 같은 첨부 지우기 */
+export async function deleteFilesOf(ref: string): Promise<void> {
+  const sb = await createClient();
+  check(await sb.from("ga_files").delete().eq("ref", ref), "첨부 삭제");
+}

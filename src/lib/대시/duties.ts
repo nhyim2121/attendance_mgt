@@ -96,7 +96,7 @@ const GA: DutyGroup[] = [
     { task: "참가 서류 준비·투찰, 개찰 결과 기록", cycle: "변경 때" },
     { task: "입찰 참가자격 등록 정보 갱신", cycle: "매년" },
   ] },
-  { no: "12", name: "지원사업 관리", emoji: "🎯", desc: "지원사업 신청·선정·진행·완료", books: ["grants"], duties: [
+  { no: "12", name: "지원사업 관리", emoji: "🎯", desc: "지원사업 신청·선정·진행·완료", books: ["grants"], links: [["지원사업 관리", "/ga/grants"]], duties: [
     { task: "기업마당 등 지원사업 공고 확인", cycle: "매주" },
     { task: "신청서 제출, 선정 사업 진행·결과보고·정산", cycle: "변경 때" },
   ] },

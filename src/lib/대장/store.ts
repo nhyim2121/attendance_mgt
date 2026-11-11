@@ -46,6 +46,7 @@ export async function saveRow(book: string, id: number, data: Data, day: string 
 export async function deleteRow(id: number): Promise<void> {
   const sb = await createClient();
   check(await sb.from("ga_files").delete().eq("ref", rowRef(id)), "첨부 삭제");
+  check(await sb.from("ga_files").delete().like("ref", `${rowRef(id)}/%`), "단계별 첨부 삭제"); // 지원사업 단계별 서류
   check(await sb.from("ledger_rows").delete().eq("id", id), "대장 줄 삭제");
 }
 

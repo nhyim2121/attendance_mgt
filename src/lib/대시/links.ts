@@ -1,9 +1,10 @@
 /** 대시보드마다 따로 두는 바로가기 모음 (settings 표, 키 dash_links:<대시보드>). 처음엔 아래 기본 목록. 서버 전용. */
 import "server-only";
 import { getSetting, setSetting } from "../store";
+import { GRANT_LINKS } from "../총무/grants";
 
 export type Link = { group: string; name: string; url: string };
-export const SCOPES = ["all", "hr", "ga", "ehs", "it", "cert", "misc"] as const;
+export const SCOPES = ["all", "hr", "ga", "ehs", "it", "cert", "misc", "grants"] as const;
 export type Scope = (typeof SCOPES)[number];
 
 const L = (group: string, name: string, url: string): Link => ({ group, name, url });
@@ -20,6 +21,7 @@ const DEFAULT: Record<Scope, Link[]> = {
     L("업무", "하이웍스 관리자", "https://office.hiworks.com"), L("업무", "이카운트 ERP", "https://login.ecount.com")],
   cert: [L("확인·인증", "벤처확인시스템", "https://www.smes.go.kr/venturein"), L("확인·인증", "이노비즈", "https://www.innobiz.net"), L("연구소", "한국산업기술진흥협회", "https://www.koita.or.kr")],
   misc: [L("업무", "하이웍스", "https://office.hiworks.com")],
+  grants: GRANT_LINKS,
 };
 
 export const isScope = (s: string): s is Scope => (SCOPES as readonly string[]).includes(s);
