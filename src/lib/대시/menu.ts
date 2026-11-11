@@ -25,7 +25,7 @@ const booksOf = (area: Area, skip: string[] = []) => booksIn(area).filter((b) =>
 
 /** 총무 묶음: 회사 업무분장·X:\관리팀\1. 총무 폴더 번호(1~12) 그대로. 아직 화면이 없는 묶음은 '준비 중' 화면으로 간다. */
 const GA_GROUPS: [string, string[]][] = [
-  ["2. 복리 및 후생", ["ppe", "dorm"]],
+  ["2. 복리 및 후생", ["dorm"]],
   ["3. 보안·전산", []],
   ["4. 비품관리", ["fixtures"]],
   ["5. 차량관리", ["vehicles", "drivelog"]],
@@ -47,6 +47,7 @@ const soon = (label: string): MenuItem => ({ href: `/ga/soon?g=${encodeURICompon
 const gaGroup = ([label, ks]: [string, string[]]): MenuGroup => ({
   label,
   items: [
+    ...(label === "2. 복리 및 후생" ? [{ href: "/ga/ppe", label: "보호구·피복 관리", desc: "현장직·연구소·일용직 개인별 지급 현황, 교체 시기, 일괄 지급, 재고", also: ["/ga/b/ppe", "/ga/b/ppepeople", "/ga/b/ppestock"] }] : []),
     ...(label === "12. 지원사업 관리" ? [{ href: "/ga/grants", label: "지원사업 관리", desc: "신청중·선정·완료 폴더별 정리, 사업 기간·다음 할 일, 지원사업 사이트 바로가기" }] : []),
     ...(label === "10. 입찰관리" ? [{ href: "/bid", label: "입찰관리", desc: "입찰 사이트 바로가기, 공고·투찰·개찰·제출 마감" }] : []),
     ...(label === "3. 보안·전산" ? [{ href: "/it?from=ga", label: "보안전산 영역", desc: "보안전산(IT) 영역에서 관리: 전산장비·계정·보안점검·개인정보·백업·방문자·CCTV" }] : []),
@@ -55,7 +56,7 @@ const gaGroup = ([label, ks]: [string, string[]]): MenuGroup => ({
   ],
 });
 // 입찰 대장은 /bid 화면 안에서 쓴다. 회의록은 1번 묶음에.
-const gaListed = [...GA_GROUPS.flatMap(([, ks]) => ks), "meetings", "bids", "grants"];
+const gaListed = [...GA_GROUPS.flatMap(([, ks]) => ks), "meetings", "bids", "grants", "ppe", "ppepeople", "ppestock"];
 const gaRest = booksOf("ga", gaListed);
 
 /** 업무분장 묶음별 대시보드 (/hr/g/<slug>) */
@@ -181,7 +182,7 @@ const EMOJI: Record<string, string> = {
   "/attendance": "⏰", "/daily": "📅", "/person": "🙋", "/calendar": "🗓️", "/hours": "📊", "/week52": "⏱️", "/monthly": "🧮",
   "/leave": "🏖️", "/leave/status": "📈", "/leave/calendar": "🌴", "/leave/evidence": "📎", "/leave/register": "✍️",
   "/employees": "🪪", "/org": "🌳", "/jobs": "📑", "/upload": "💾", "/settings": "⚙️",
-  "/ga/mail": "📨", "/ga/issue": "🧾", "/ga/certs": "🔑", "/ga/grants": "🎯", "/bid": "⚖️", "/cert?from=ga": "🏅", "/cert": "🏅", "/cert#add": "➕", "/users": "⚙️",
+  "/ga/mail": "📨", "/ga/issue": "🧾", "/ga/certs": "🔑", "/ga/grants": "🎯", "/ga/ppe": "🦺", "/bid": "⚖️", "/cert?from=ga": "🏅", "/cert": "🏅", "/cert#add": "➕", "/users": "⚙️",
   "/misc/weekly": "📓", "/misc/coop": "🤝", "/misc/plan": "🧭", "/misc/calendar": "🗓️",
   training: "🎓", licenses: "📜", recruit: "🧲", onoff: "🔁", contracts: "✒️", holidaywork: "🛠️", flex: "🕘", reserve: "🎖️", leavepromo: "📣", absence: "🍼", labor: "⚖️", revisions: "📐", certificates: "📃", foreign: "🌏", programs: "🧑‍🎓", applicants: "📇", appointments: "📢", evaluations: "📝", awards: "🏆", trainplan: "🗓️", council: "🤝", discipline: "🚨", injuries: "🩹", agreements: "✍️", compliance: "✅", meetings: "💬", fixtures: "📦", vehicles: "🚗", drivelog: "🛣️", software: "💿",
   itassets: "🖥️", helpdesk: "🛠️", itdispose: "🗑️", itcontracts: "🌐", accounts: "🔐", accessreview: "🔎", seccheck: "🛡️", incidents: "🚨", pledges: "✍️", media: "💽", privacy: "🔏", privdestroy: "🧯", itedu: "🎓", backups: "💾", cctv: "📹", idcards: "🪪", itroutine: "🔁",

@@ -9,6 +9,7 @@
  *  - alert: 날짜 칸이 오늘부터 n일 안이면 알림 (닫힌 줄 제외)
  *  - aliases: 예전 엑셀 머리글 다른 이름
  */
+import { GIVE_KINDS, PPE_GROUPS, PPE_ITEMS } from "../총무/ppe";
 export type FieldType = "text" | "textarea" | "number" | "money" | "date" | "time" | "select" | "suggest" | "emp";
 export interface Field {
   k: string; label: string; type: FieldType; options?: string[]; req?: boolean; hide?: boolean; wide?: boolean;
@@ -133,15 +134,48 @@ export const BOOKS: Book[] = [
     ],
   },
   {
-    key: "ppe", area: "ga", title: "보호구·피복 지급대장", desc: "직원별 안전화·작업복·보호구 지급", folder: "1. 총무\\2. 복리 및 후생\\2-1. 피복 및 보호구",
-    day: "day", title1: "item", filters: ["item"],
+    key: "ppe", area: "ga", title: "보호구·피복 지급 기록", desc: "한 줄 = 한 사람에게 한 품목 지급·반납 (개인별 현황·재고 계산의 바탕)", folder: "1. 총무\\2. 복리 및 후생\\2-1. 피복 및 보호구",
+    day: "day", title1: "item", filters: ["item", "group", "kind", "sign"],
     fields: [
       { k: "day", label: "지급일", type: "date", req: true },
-      직원("emp", "받은 직원"),
-      { k: "item", label: "품목", type: "suggest", req: true, options: ["안전화", "안전모", "작업복(하계)", "작업복(동계)", "방한복", "안전장갑", "보안경", "귀마개", "방진마스크", "안전대"] },
-      { k: "size", label: "규격·사이즈", type: "text" },
+      { ...직원("emp", "받은 사람"), req: true, aliases: ["받은 직원", "성명", "이름"] },
+      { k: "group", label: "구분", type: "select", options: PPE_GROUPS },
+      { k: "kind", label: "지급 사유", type: "select", options: [...GIVE_KINDS], aliases: ["구분"] },
+      { k: "item", label: "품목", type: "suggest", req: true, options: PPE_ITEMS.map((i) => i.name) },
+      { k: "size", label: "규격·사이즈", type: "text", aliases: ["사이즈", "규격"] },
       { k: "qty", label: "수량", type: "number" },
-      { k: "sign", label: "수령 서명", type: "select", options: ["받음", "안 받음"] },
+      { k: "sign", label: "수령 확인", type: "select", options: ["받음", "안 받음"], aliases: ["수령 서명", "서명"] },
+      { k: "signHow", label: "서명 방법", type: "select", options: ["전자서명", "종이 서명"], hide: true },
+      { k: "signAt", label: "서명 일시", type: "text", hide: true },
+      { k: "note", label: "비고", type: "text", hide: true, aliases: ["사유"] },
+    ],
+  },
+  {
+    key: "ppepeople", area: "ga", title: "보호구 사이즈·일용직 명단", desc: "개인별 상의·하의·안전화 사이즈, 일용직 이름·업체·투입 기간", folder: "1. 총무\\2. 복리 및 후생\\2-1. 피복 및 보호구",
+    day: "start", title1: "name", filters: ["group"],
+    fields: [
+      { k: "name", label: "이름", type: "emp", req: true, aliases: ["성명"] },
+      { k: "group", label: "구분", type: "select", options: PPE_GROUPS },
+      { k: "dept", label: "소속·업체", type: "text", placeholder: "일용직은 업체·인력사무소" },
+      { k: "top", label: "상의", type: "suggest", options: ["90", "95", "100", "105", "110", "115", "120"] },
+      { k: "bottom", label: "하의", type: "suggest", options: ["28", "30", "32", "34", "36", "38", "40"] },
+      { k: "shoe", label: "안전화(mm)", type: "suggest", options: ["240", "245", "250", "255", "260", "265", "270", "275", "280", "285", "290"], aliases: ["안전화", "신발"] },
+      { k: "start", label: "투입일", type: "date" },
+      { k: "end", label: "종료일", type: "date" },
+      { k: "note", label: "메모", type: "text", hide: true },
+    ],
+  },
+  {
+    key: "ppestock", area: "ga", title: "보호구·피복 입고 기록", desc: "구매·입고 수량, KCs 인증번호 (재고 = 입고 − 지급)", folder: "1. 총무\\2. 복리 및 후생\\2-1. 피복 및 보호구",
+    day: "day", title1: "item", filters: ["item"],
+    fields: [
+      { k: "day", label: "입고일", type: "date", req: true, aliases: ["구입일", "구매일"] },
+      { k: "item", label: "품목", type: "suggest", req: true, options: PPE_ITEMS.map((i) => i.name) },
+      { k: "size", label: "규격·사이즈", type: "text", aliases: ["사이즈"] },
+      { k: "qty", label: "수량", type: "number", req: true },
+      { k: "vendor", label: "구입처", type: "text" },
+      { k: "price", label: "금액", type: "money" },
+      { k: "kcs", label: "안전인증번호", type: "text", hide: true, aliases: ["KCs", "인증번호"] },
       { k: "note", label: "비고", type: "text", hide: true },
     ],
   },

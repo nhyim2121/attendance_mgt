@@ -1287,3 +1287,96 @@ table.tbl.jd-guide td { font-size: .84rem; white-space: normal; }
   .jd-t th, .jd-t td { padding: 3px 6px; }
   .jd-t th, .jd-t tr.sec th, .jd-t tr.hd th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ---------------------------------------------------------------- 보호구·피복 관리 (/ga/ppe) */
+.pp-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; align-items: center; }
+.pp-tabs a { padding: 7px 14px; border-radius: 999px; background: #fff; border: 1.5px solid #dbe1ec; color: #334155; font-weight: 700; font-size: .88rem; text-decoration: none; }
+.pp-tabs a.on { background: #0f2a5c; border-color: #0f2a5c; color: #fff; }
+.pp-tabs .pp-tabs-sp { flex: 1; }
+.pp-tabs .pp-tabs-sp ~ a { font-weight: 500; font-size: .8rem; padding: 5px 10px; color: #64748b; }
+.pp-cards { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .pp-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.pp-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 1000px) { .pp-two { grid-template-columns: 1fr; } }
+.pp-season { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border-radius: 10px; background: #f1f5f9; border: 1.5px dashed #94a3b8; font-size: .9rem; }
+.pp-season.now { background: #fff7ed; border-color: #f97316; }
+.pp-season span { color: #475569; }
+.pp-cell { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.15; padding: 2px 7px; border-radius: 6px; font-size: .8rem; font-weight: 700; white-space: nowrap; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-style: normal; }
+.pp-cell small { font-size: .68rem; font-weight: 600; }
+.pp-cell i { font-style: normal; font-size: .7rem; margin-left: 2px; color: #b45309; }
+.pp-cell.soon { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+.pp-cell.late { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+.pp-cell.none { background: #fff; color: #dc2626; border: 1px dashed #f87171; }
+.pp-na { color: #cbd5e1; text-align: center; }
+.pp-legend { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-left: auto; font-size: .76rem; color: #64748b; }
+.pp-legend i { font-style: normal; }
+.pp-seg { display: inline-flex; border: 1.5px solid #dbe1ec; border-radius: 8px; overflow: hidden; }
+.pp-seg a { padding: 5px 12px; font-size: .85rem; color: #334155; text-decoration: none; background: #fff; }
+.pp-seg a + a { border-left: 1px solid #dbe1ec; }
+.pp-seg a.on { background: #0f2a5c; color: #fff; font-weight: 700; }
+.pp-matrix td, .pp-matrix th { text-align: center; }
+.pp-matrix td:nth-child(2), .pp-matrix td:nth-child(3) { text-align: left; }
+.pp-mini td { vertical-align: middle; }
+.pp-list { list-style: none; margin: 0; padding: 0; }
+.pp-list li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid #eef0f4; font-size: .88rem; }
+.pp-bar { height: 8px; background: #eef2f7; border-radius: 4px; overflow: hidden; min-width: 70px; }
+.pp-bar i { display: block; height: 100%; border-radius: 4px; }
+.pp-rate small { color: #64748b; font-size: .74rem; }
+.pp-form { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-end; }
+.pp-form label { display: flex; flex-direction: column; gap: 3px; font-size: .78rem; color: #4b5563; min-width: 110px; flex: 1 1 110px; }
+.pp-form label.grow { flex: 3 1 200px; }
+.pp-form input, .pp-form select { padding: 6px 8px; border: 1px solid #d6dce8; border-radius: 7px; font: inherit; font-size: .88rem; background: #f8fafc; }
+.pp-form .pp-who { flex-basis: 100%; font-size: .92rem; }
+.pp-size { width: 90px; padding: 4px 6px; border: 1px solid #d6dce8; border-radius: 6px; }
+.pp-give tr.inactive td { opacity: .55; }
+.pp-sign { border: 1px solid #d6dce8; background: #fff; border-radius: 6px; padding: 2px 8px; font-size: .78rem; cursor: pointer; color: #b45309; }
+.pp-sign.on { background: #ecfdf5; border-color: #a7f3d0; color: #047857; font-weight: 700; }
+.pp-law { margin: 0; padding-left: 18px; font-size: .88rem; line-height: 1.7; }
+.print-only-cell, .print-only-row { display: none; }
+@media print {
+  .pp-noprint { display: none !important; }
+  .print-only-cell { display: table-cell; min-width: 90px; }
+  .print-only-row { display: table-row; }
+  .pp-sheet-h { text-align: center; font-size: 1.3rem; margin: 0 0 10px; }
+  .pp-sheet-info th { background: #f1f5f9; }
+  .pp-hist td, .pp-hist th { border: 1px solid #94a3b8 !important; padding: 6px !important; }
+  .pp .uw-tb { display: none; }
+}
+/* 보호구: 부서별 직원 동그라미 */
+.pp-dept { margin-top: 16px; padding: 12px 14px 14px; border: 1.5px solid #e5e7eb; border-left: 5px solid var(--c); border-radius: 12px; background: #fff; }
+.pp-dept h4 { margin: 0 0 12px; display: flex; gap: 8px; align-items: center; font-size: 1rem; color: #0f172a; }
+.pp-dept h4 small { color: #64748b; font-weight: 500; font-size: .8rem; }
+.pp-circles { display: flex; flex-wrap: wrap; gap: 16px 14px; }
+.pp-person { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 86px; text-decoration: none; color: inherit; }
+.pp-avatar { position: relative; width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--c) 10%, #fff); color: #0f172a; font-weight: 800; font-size: .92rem; letter-spacing: -.02em;
+  border: 4px solid #22c55e; box-shadow: 0 2px 6px rgba(15,23,42,.08); transition: transform .12s, box-shadow .12s; }
+.pp-person:hover .pp-avatar { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(15,23,42,.16); }
+.pp-person.soon .pp-avatar { border-color: #f59e0b; }
+.pp-person.bad .pp-avatar { border-color: #ef4444; }
+.pp-person.off .pp-avatar { border-color: #cbd5e1; border-style: dashed; background: #f1f5f9; color: #94a3b8; }
+.pp-person small { font-size: .74rem; color: #475569; white-space: nowrap; }
+.pp-person.off small { color: #94a3b8; }
+.pp-person em { font-style: normal; font-size: .7rem; color: #94a3b8; }
+.pp-badge { position: absolute; top: -6px; right: -8px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; font-size: .72rem; line-height: 22px; text-align: center; color: #fff; border: 2px solid #fff; }
+.pp-badge.bad { background: #ef4444; }
+.pp-badge.soon { background: #f59e0b; }
+.pp-badge.sign { top: auto; bottom: -6px; right: -12px; background: #0e7490; }
+.pp-ring-key { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 3px solid #22c55e; vertical-align: -2px; }
+.pp-ring-key.soon { border-color: #f59e0b; } .pp-ring-key.bad { border-color: #ef4444; } .pp-ring-key.off { border: 3px dashed #cbd5e1; }
+/* 보호구: 전자서명 */
+.pp-signpad { display: flex; flex-direction: column; gap: 10px; }
+.pp-sign-rows { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 10px; background: #f8fafc; border-radius: 8px; font-size: .88rem; }
+.pp-agree { font-size: .9rem; line-height: 1.5; align-items: flex-start; }
+.pp-canvas-wrap { position: relative; }
+.pp-canvas { display: block; width: 100%; max-width: 640px; height: 200px; border: 2px dashed #94a3b8; border-radius: 10px; background: #fff; touch-action: none; cursor: crosshair; }
+.pp-canvas-hint { position: absolute; left: 0; top: 0; width: 100%; max-width: 640px; height: 200px; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 1.1rem; pointer-events: none; }
+.pp-signcell { min-width: 120px; }
+.pp-signimg { display: block; height: 38px; max-width: 130px; object-fit: contain; }
+.pp-signat { display: block; font-size: .68rem; color: #94a3b8; }
+.pp-paper { font-size: .78rem; color: #047857; font-weight: 700; }
+.pp-nosign { font-size: .78rem; color: #b45309; }
+@media print {
+  .pp-signimg { height: 30px; }
+  .pp-hist tr.editing td { background: none !important; }
+}
