@@ -489,21 +489,53 @@ export default function ReportEditor(p: Props) {
         {tab === "도제" && (
           <div className="rg-list">
             {idx.length === 0 && <p className="caption" style={{ margin: "6px 2px" }}>아직 도제 학생 줄이 없습니다. 아래 [+ 학생 추가]를 누르거나, [전일 보고서에서 도제·휴가일정 가져오기]를 누르세요.</p>}
-            {idx.map(([r, i], n) => (
-              <div key={i} className="rg-card">
-                <div className="rg-head">
-                  <span className="rg-no">{n + 1}</span>
-                  {nameSelect(i, r, p.apprentices)}
-                  <span className="rg-meta">{[r.dept || p.deptOf[r.name], r.rank || p.ranks[r.name]].filter(Boolean).join(" · ")}</span>
-                  <div className="rg-types" />
-                  <button type="button" className="rg-del" onClick={() => remove(i)} title="이 학생 줄 삭제">삭제</button>
+            {idx.map(([r, i], n) => {
+              const done = toDate(r.value, p.day);
+              const nt = splitDojeNote(r.note, p.day);
+              const setNote = (x: Partial<typeof nt>) => {
+                const v = { ...nt, ...x };
+                set(i, { note: joinDojeNote(v.reason, v.from, v.to) });
+              };
+              const days = nt.from && nt.to ? Math.round((Date.parse(nt.to) - Date.parse(nt.from)) / 864e5) + 1 : 0;
+              const meta = [r.dept || p.deptOf[r.name], r.rank || p.ranks[r.name]].filter(Boolean);
+              return (
+                <div key={i} className="rg-card">
+                  <div className="rg-head">
+                    <span className="rg-no">{n + 1}</span>
+                    {nameSelect(i, r, p.apprentices)}
+                    {meta.length > 0 && <span className="rg-meta">{meta.map((x) => <span key={x} className="rg-tag">{x}</span>)}</span>}
+                    <div className="rg-types" />
+                    <button type="button" className="rg-del" onClick={() => remove(i)} title="이 학생 줄 삭제">삭제</button>
+                  </div>
+                  <div className="rg-body">
+                    <div className="rg-cell"><span className="rg-lbl">출근 완료일</span>
+                      <span className="row" style={{ gap: 4, flexWrap: "nowrap" }}>
+                        <input type="date" value={done} style={{ width: 140 }}
+                          onChange={(e) => set(i, { value: e.target.value ? dayLabel(e.target.value) : "" })} />
+                        <button type="button" className={`rg-t${r.value.trim() === "-" ? " on" : ""}`} title="출근 완료 해당 없음"
+                          onClick={() => set(i, { value: r.value.trim() === "-" ? "" : "-" })}>해당 없음</button>
+                      </span>
+                      {!done && r.value.trim() && r.value.trim() !== "-" && <span className="rg-hint" style={{ alignSelf: "flex-start" }}>예전 입력: {r.value}</span>}
+                    </div>
+                    <label className="rg-cell"><span className="rg-lbl">사유</span>
+                      <input type="text" value={nt.reason} placeholder="예: 외부평가 준비기간" style={{ width: 200 }}
+                        onChange={(e) => setNote({ reason: e.target.value })} /></label>
+                    <div className="rg-cell"><span className="rg-lbl">기간</span>
+                      <span className="row" style={{ gap: 4, flexWrap: "nowrap" }}>
+                        <input type="date" value={nt.from} style={{ width: 132 }}
+                          onChange={(e) => setNote({ from: e.target.value, to: nt.to && nt.to >= e.target.value ? nt.to : e.target.value })} />
+                        <span className="muted">~</span>
+                        <input type="date" value={nt.to} min={nt.from || undefined} style={{ width: 132 }}
+                          onChange={(e) => setNote({ to: e.target.value, from: nt.from || e.target.value })} />
+                        {days > 0 && <span className="rg-auto">{days}일</span>}
+                      </span>
+                    </div>
+                    <div className="rg-cell" style={{ flex: 1, minWidth: 180 }}><span className="rg-lbl">보고서 비고 (자동)</span>
+                      <span className="rg-auto" style={{ fontWeight: 600 }}>{r.note.trim() || "-"}</span></div>
+                  </div>
                 </div>
-                <div className="rg-body">
-                  <label className="rg-cell"><span className="rg-lbl">출근 완료</span>{text(i, "value", "예: 10/23(금) 또는 -", 150)}</label>
-                  <label className="rg-cell" style={{ flex: 1 }}><span className="rg-lbl">비고</span>{text(i, "note", "예: 외부평가 준비기간(11/11~11/27)", 320)}</label>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
         <div className="row" style={{ marginTop: 8 }}>
@@ -516,6 +548,7 @@ export default function ReportEditor(p: Props) {
           <span className="caption" style={{ margin: 0 }}>
             {tab === "근태" && "근태 한 건마다 카드 한 장입니다. 종류를 누르고, 같은 출장·휴가에 해당하는 사람은 [+ 인원]으로 고르세요. 기간을 정하면 그 기간의 다른 근무일 보고서에도 같은 줄이 들어갑니다. 부서·직급은 직원 명부에서 자동으로 채웁니다."}
             {tab === "휴가일정" && "한 사람의 휴가 한 건마다 카드 한 장: 종류를 누르고 날짜를 여러 개 넣으세요. 출근 예정은 자동으로 계산됩니다."}
+            {tab === "도제" && "학생 한 명마다 카드 한 장: 출근 완료일은 달력에서 고르고(없으면 [해당 없음]), 사유와 기간을 넣으면 보고서 비고가 '사유(기간)'으로 자동으로 만들어집니다."}
             {tab === "휴일근무" && "작업 한 건마다 카드 한 장: 휴일근무·연장근무를 고르고 날짜를 누르세요. 같이 일한 사람은 [+ 인원]으로 고릅니다. 연장 신청 시각은 직원별 근태의 퇴근 근무형태로 들어갑니다."}
           </span>
         </div>
@@ -588,6 +621,33 @@ const PLACES = ["1공장", "2공장", "출장"];
 const SLOTS = Array.from({ length: 31 }, (_, i) => `${String(7 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 // 연장근무 신청 시각: 18:00 ~ 24:00, 30분 단위
 const OT_SLOTS = Array.from({ length: 13 }, (_, i) => `${String(18 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
+/** 보고일 기준으로 연도를 붙여 'M/D' 글자를 날짜로 (반년 넘게 앞이면 지난해로 본다) */
+function mdToDate(m: number, d: number, base: string, after = ""): string {
+  const y = Number(base.slice(0, 4));
+  const pad = (x: number) => String(x).padStart(2, "0");
+  let s = `${y}-${pad(m)}-${pad(d)}`;
+  if (after) { if (s < after) s = `${y + 1}-${pad(m)}-${pad(d)}`; }
+  else if (Date.parse(s) - Date.parse(base) > 183 * 864e5) s = `${y - 1}-${pad(m)}-${pad(d)}`;
+  return isDateStr(s) ? s : "";
+}
+/** '10/23(금)' 같은 출근 완료 글자 → 날짜 (못 읽으면 빈 값) */
+function toDate(v: string, base: string): string {
+  const m = /^\s*(\d{1,2})\/(\d{1,2})/.exec(v);
+  return m ? mdToDate(+m[1], +m[2], base) : "";
+}
+const md = (d: string) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
+/** 도제 비고 '사유(11/11~11/27)' ↔ 사유·기간 */
+function splitDojeNote(note: string, base: string): { reason: string; from: string; to: string } {
+  const m = /^(.*?)\s*\((\d{1,2})\/(\d{1,2})\s*~\s*(\d{1,2})\/(\d{1,2})\)\s*$/.exec(note);
+  if (!m) return { reason: note, from: "", to: "" };
+  const from = mdToDate(+m[2], +m[3], base);
+  return { reason: m[1], from, to: from ? mdToDate(+m[4], +m[5], base, from) : "" };
+}
+function joinDojeNote(reason: string, from: string, to: string): string {
+  const per = from ? `(${md(from)}~${md(to || from)})` : "";
+  return `${reason.trim()}${per}`;
+}
+
 const slotSel = (v: string, on: (x: string) => void, opts = SLOTS) => (
   <select value={v} onChange={(e) => on(e.target.value)} style={{ width: 92 }}>
     <option value="">--:--</option>{opts.map((t) => <option key={t}>{t}</option>)}
