@@ -1272,6 +1272,7 @@ html[data-print="port"] .edit-print .ep-tbl { table-layout: fixed; }
 .jd-empty { height: 4.5em; }
 .jd-basics { display: flex; flex-wrap: wrap; gap: 2px 14px; } /* td 안의 div에 (td에 flex를 주면 표 줄 높이가 깨져 아래 줄과 겹친다) */
 .jd-basics span { white-space: nowrap; }
+.jd-src { margin: 4px 0 0; font-size: .72rem; color: var(--muted); }
 .jd-foot { display: flex; gap: 22px; align-items: baseline; margin-top: 10px; font-size: .84rem; color: var(--ink-2); }
 .jd-foot b { margin-left: auto; font-size: 1rem; color: #0a2b70; }
 @media print {

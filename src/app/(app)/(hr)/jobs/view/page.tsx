@@ -3,7 +3,7 @@ import Link from "next/link";
 import PageHead from "@/components/대시/PageHead";
 import PrintButton from "@/components/PrintButton";
 import { requireAdminPage } from "@/lib/auth";
-import { BASICS, blankJob, type JobDesc, shareSum } from "@/lib/인사노무/jobdesc";
+import { BASICS, blankJob, type JobDesc, NCS_SOURCE, shareSum } from "@/lib/인사노무/jobdesc";
 import { loadJobs, loadUnits, peopleOf, type Unit, unitLabel } from "@/lib/인사노무/jobdescData";
 import * as store from "@/lib/store";
 
@@ -20,8 +20,10 @@ function Sheet({ j, units, company, blank }: { j: JobDesc; units: Unit[]; compan
         <tbody>
           <tr className="sec"><th colSpan={4}>1. 직무 확인</th></tr>
           <tr><th>직무명</th><td><b>{j.name}</b></td><th>소속</th><td>{unitLabel(j, units)}</td></tr>
-          <tr><th>담당자</th><td>{peopleOf(j, units).join(", ")}</td><th>대상 직급</th><td>{j.grade}</td></tr>
-          <tr><th>보고 대상</th><td>{j.reportTo}</td><th>NCS 분류</th><td className="sm">{j.ncs}</td></tr>
+          <tr><th>담당자</th><td colSpan={3}>{peopleOf(j, units).join(", ")}</td></tr>
+          <tr><th>보고 대상</th><td>{j.reportTo}</td><th>대상 직급</th><td>{j.grade}</td></tr>
+          <tr><th>NCS 분류</th><td colSpan={3} className="sm">{j.ncs}</td></tr>
+          <tr><th>NCS 능력단위</th><td colSpan={3} className="sm">{j.ncsUnits.join(" · ")}</td></tr>
           <tr className="sec"><th colSpan={4}>2. 직무 개요</th></tr>
           <tr><th>직무 목적</th><td colSpan={3} className="tall">{j.purpose}</td></tr>
           <tr><th>책임과 권한</th><td colSpan={3} className="tall">{j.authority}</td></tr>
@@ -58,6 +60,7 @@ function Sheet({ j, units, company, blank }: { j: JobDesc; units: Unit[]; compan
         <span>작성·개정일 {j.updated || "20   .    .    ."}</span><span>작성자 {j.writer || "            "}</span>
         <span>확인 ____________ (서명)</span><b>{company}</b>
       </div>
+      {!blank && <p className="jd-src">{NCS_SOURCE}. 업무·필요 지식·기술·태도·비중은 회사 업무(홈페이지 snco.co.kr 사업·공정 소개) 기준.</p>}
     </div>
   );
 }

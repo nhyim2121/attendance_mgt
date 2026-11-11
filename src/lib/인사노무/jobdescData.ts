@@ -3,12 +3,12 @@ import "server-only";
 import ExcelJS from "exceljs";
 import * as store from "../store";
 import { todayKst } from "../time";
-import { BASICS, JD_EXAMPLES, JD_SKIP_UNITS, type JobDesc, shareSum } from "./jobdesc";
+import { BASICS, JD_EXAMPLES, JD_SKIP_UNITS, NCS_SOURCE, type JobDesc, shareSum } from "./jobdesc";
 import { buildOrg, defaultNodes, type OrgBox, type OrgNode } from "./org";
 
 export async function loadJobs(): Promise<{ jobs: JobDesc[]; saved: boolean }> {
   const saved = await store.getSetting<JobDesc[] | null>("job_descs", null);
-  return saved ? { jobs: saved, saved: true } : { jobs: JD_EXAMPLES, saved: false };
+  return saved ? { jobs: saved.map((j) => ({ ...j, ncsUnits: j.ncsUnits ?? [] })), saved: true } : { jobs: JD_EXAMPLES, saved: false };
 }
 export const saveJobs = (jobs: JobDesc[]) => store.setSetting("job_descs", jobs);
 
@@ -82,7 +82,8 @@ export async function buildJobsXlsx(jobs: JobDesc[], units: Unit[]): Promise<Uin
     ws.addRow([]);
     sec("1. 직무 확인");
     line("직무명", j.name); line("소속", unitLabel(j, units)); line("담당자", peopleOf(j, units).join(", "));
-    line("대상 직급", j.grade); line("보고 대상", j.reportTo); line("NCS 분류", j.ncs);
+    line("대상 직급", j.grade); line("보고 대상", j.reportTo); line("NCS 분류", j.ncs, 30);
+    line("NCS 능력단위", j.ncsUnits.join(", "), 15 * Math.max(2, Math.ceil(j.ncsUnits.length / 3)) + 4);
     sec("2. 직무 개요");
     line("직무 목적", j.purpose, 34); line("책임과 권한", j.authority, 30);
     sec("3. 주요 업무");
@@ -108,6 +109,7 @@ export async function buildJobsXlsx(jobs: JobDesc[], units: Unit[]): Promise<Uin
     ws.addRow([]);
     const f = ws.addRow([`작성·개정일 ${j.updated || "        .    .    ."}`, "", `작성자 ${j.writer || ""}`, "", ""]);
     f.font = { color: { argb: "FF6B7280" } };
+    ws.addRow([NCS_SOURCE]).font = { color: { argb: "FF6B7280" }, size: 8 };
     ws.addRow([company]).font = { bold: true };
   }
   return new Uint8Array(await wb.xlsx.writeBuffer());

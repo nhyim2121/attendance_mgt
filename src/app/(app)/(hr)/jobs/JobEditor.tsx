@@ -7,13 +7,13 @@ import { BASICS, CYCLES, type JobDesc, type JobTask, shareSum } from "@/lib/인�
 import { saveJob } from "./actions";
 
 type Unit = { id: string; path: string; people: string[] };
-type ListKey = "knowledge" | "skills" | "attitudes" | "licenses" | "kpis" | "training";
+type ListKey = "ncsUnits" | "knowledge" | "skills" | "attitudes" | "licenses" | "kpis" | "training";
 
 export default function JobEditor({ job, units, isNew }: { job: JobDesc; units: Unit[]; isNew: boolean }) {
   const router = useRouter();
   const [j, setJ] = useState<JobDesc>(job);
   const [lists, setLists] = useState<Record<ListKey, string>>(() => ({
-    knowledge: job.knowledge.join("\n"), skills: job.skills.join("\n"), attitudes: job.attitudes.join("\n"),
+    ncsUnits: job.ncsUnits.join("\n"), knowledge: job.knowledge.join("\n"), skills: job.skills.join("\n"), attitudes: job.attitudes.join("\n"),
     licenses: job.licenses.join("\n"), kpis: job.kpis.join("\n"), training: job.training.join("\n"),
   }));
   const [msg, setMsg] = useState("");
@@ -24,7 +24,7 @@ export default function JobEditor({ job, units, isNew }: { job: JobDesc; units: 
 
   const save = (go: "stay" | "view") => start(async () => {
     const split = (s: string) => s.split("\n").map((x) => x.trim()).filter(Boolean);
-    const r = await saveJob({ ...j, knowledge: split(lists.knowledge), skills: split(lists.skills), attitudes: split(lists.attitudes),
+    const r = await saveJob({ ...j, ncsUnits: split(lists.ncsUnits), knowledge: split(lists.knowledge), skills: split(lists.skills), attitudes: split(lists.attitudes),
       licenses: split(lists.licenses), kpis: split(lists.kpis), training: split(lists.training) });
     if (r.error) { setMsg(r.error); return; }
     if (go === "view") router.push(`/jobs/view?id=${r.id}`);
@@ -54,8 +54,11 @@ export default function JobEditor({ job, units, isNew }: { job: JobDesc; units: 
           {text("name", "직무명 *", "예: 조립")}
           {text("grade", "대상 직급", "예: 사원~과장")}
           {text("reportTo", "보고 대상", "예: 생산팀장")}
-          {text("ncs", "NCS 분류", "예: 15.기계 > 03.기계조립·관리 > 기계조립", true)}
+          {text("ncs", "NCS 분류", "예: 19.전기·전자 > 01.전기 > 05.전기기기제작 > 02.전기기기제작 (19010502)", true)}
         </div>
+        <div className="jd-f wide"><span>NCS 능력단위 <small>(한 줄에 하나, &quot;번호 이름&quot; — <a href="https://www.ncs.go.kr" target="_blank" rel="noreferrer">ncs.go.kr</a>에서 찾기)</small></span>
+          <textarea rows={4} value={lists.ncsUnits} onChange={(e) => setLists((x) => ({ ...x, ncsUnits: e.target.value }))}
+            placeholder={"1901050203 전기기기 권선 작업\n1901050204 전기기기 함침 건조 작업"} /></div>
         <div className="jd-f wide"><span>소속 (조직도 상자) — 고르면 담당자가 자동으로 이어집니다</span>
           <div className="jd-units">
             {units.map((u) => (
