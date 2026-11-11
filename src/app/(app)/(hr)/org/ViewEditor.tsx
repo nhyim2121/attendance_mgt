@@ -151,7 +151,8 @@ export function FitPrint({ children }: { children: ReactNode }) {
         if (natural()[0] * z > W) { size(card, row); break; }
       }
       el.style.zoom = String(z);
-      for (; row < 16; row += 0.25) {
+      // 전화번호 등 연락처를 빼면 줄이 한 줄이라 낮아진다: 줄 간격을 넉넉히 늘려서라도 세로를 채운다 (연락처 넣었을 때와 같은 상자 크기)
+      for (; row < 40; row += 0.25) {
         size(card, row + 0.25);
         if (high() > H) { size(card, row); break; }
       }
