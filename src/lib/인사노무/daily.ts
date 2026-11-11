@@ -47,7 +47,9 @@ export function splitReportTypes(v: string | string[] | null | undefined): strin
 export function reportToLeaves(rows: ReportRow[]): Leave[] {
   const out: Leave[] = [];
   for (const r of rows) {
-    const content = [r.title, r.detail].filter(Boolean).join("\n");
+    // 연장근무 신청 시각(value '~HH:MM')은 내용 끝에 '~20:00'으로 붙여 직원별 근태 퇴근 근무형태 '연장(20:00)'이 되게 한다
+    const until = r.section === "근태" && splitReportTypes(r.types).includes("연장근무") ? parseAttValue(r.value).until : "";
+    const content = [r.title, r.detail, until ? `~${until}` : ""].filter(Boolean).join("\n");
     const base = { name: r.name, dept: r.dept, rank: r.rank, content, note: r.note ?? "", sheet: "사이트" };
     if (r.section === "근태") {
       for (const t of splitReportTypes(r.types)) out.push({ ...base, day: r.day!, type: t });
@@ -166,10 +168,6 @@ export const attValue = (from: string, to: string, until: string) =>
 
 function attText(r: ReportRow): string {
   const cat = attCat(r.types);
-  const until = parseAttValue(r.value).until;
-  if (cat === "work" && until && splitReportTypes(r.types).includes("연장근무")) {
-    return twoLine(r.title, [r.detail.trim(), `연장 ${until}까지`].filter(Boolean).join(" · "));
-  }
   if (cat === "leave") {
     const unit = leaveUnit(r.types);
     const time = unit === "day" ? "종일 (1일)" : timeLabel(r.detail);

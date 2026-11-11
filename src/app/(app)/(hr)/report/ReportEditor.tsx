@@ -310,7 +310,7 @@ export default function ReportEditor(p: Props) {
                   </div>
                   {cur.includes("연장근무") && (
                     <div className="rg-ot">
-                      <label className="rg-cell"><span className="rg-lbl">연장 신청 (몇 시까지)</span>
+                      <label className="rg-cell"><span className="rg-lbl" title="직원별 근태의 퇴근 근무형태가 연장(이 시각)으로 들어갑니다">연장 신청 (몇 시까지)</span>
                         <select value={g.until} onChange={(e) => setG(g.id, { until: e.target.value })} style={{ width: 110 }}>
                           <option value="">선택</option>{OT_SLOTS.map((t) => <option key={t}>{t}</option>)}
                         </select></label>
@@ -335,7 +335,7 @@ export default function ReportEditor(p: Props) {
                     </div>
                   )}
                   {cur.length > 0 && g.names.length > 0 && (
-                    <div className="rg-out">보고서에는 <q>{[cur.join("·"), g.title.trim(), g.detail.trim() && (timeLabel(g.detail) || g.detail.trim()), cur.includes("연장근무") && g.until ? `연장 ${g.until}까지` : ""].filter(Boolean).join(" · ")}</q> — {g.names.join("·")} {g.names.length}명{g.from && g.to && g.to > g.from ? ` (${dayLabel(g.from)}~${dayLabel(g.to)})` : ""}</div>
+                    <div className="rg-out">보고서에는 <q>{[cur.join("·"), g.title.trim(), g.detail.trim() && (timeLabel(g.detail) || g.detail.trim())].filter(Boolean).join(" · ")}</q> — {g.names.join("·")} {g.names.length}명{g.from && g.to && g.to > g.from ? ` (${dayLabel(g.from)}~${dayLabel(g.to)})` : ""}</div>
                   )}
                 </div>
               );
