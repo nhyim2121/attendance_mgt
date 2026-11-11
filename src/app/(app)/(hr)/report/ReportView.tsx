@@ -58,10 +58,7 @@ export default async function ReportView({ sp }: { sp: SearchParams }) {
 
       <ReportEditor key={day} day={day} saved={saved.map(({ day: _d, ...r }) => r)}
         isSaved={!!info} canDelete={user?.role === "관리자" || info?.author === user?.loginId}
-        hasPrev={written.some((d) => d < day)} names={names} apprentices={apprentices}
-        apprHistory={allRows.filter((r) => r.section === "도제" && r.day !== day && r.name && r.value.trim() && r.value.trim() !== "-")
-          .map((r) => ({ day: r.day!, name: r.name, value: r.value }))}
-        deptOf={Object.fromEntries(base.roster.map((r) => [r.name, r.dept]))} ranks={rankMap(fileLeaves, allRows)}
+        hasPrev={written.some((d) => d < day)} names={names} apprentices={apprentices}        deptOf={Object.fromEntries(base.roster.map((r) => [r.name, r.dept]))} ranks={rankMap(fileLeaves, allRows)}
         holidayDates={holidayDates} holidays={Object.keys(holidays)} outs={outs}
         mail={{
           configured: !!cfg, sender: cfg ? `${cfg.senderName} <${cfg.user}> · ${cfg.host}:${cfg.port}` : "",

@@ -18,7 +18,6 @@ interface Props {
   hasPrev: boolean;
   names: string[];
   apprentices: string[]; // 일학습병행(도제) 학생: 직원 관리에서 직급 '도제'(또는 부서 일학습·도제)인 재직자
-  apprHistory: { day: string; name: string; value: string }[]; // 다른 날 보고서의 도제 출근일 (누적 출근 일수 계산용)
   deptOf: Record<string, string>;
   ranks: Record<string, string>;
   holidayDates: string[]; // 휴일 근태 표에 기본으로 보일 날짜 (직전 주말·최근 공휴일)
@@ -123,16 +122,6 @@ export default function ReportEditor(p: Props) {
   const router = useRouter();
   // 근태현황 밖의 탭. 예전 휴가일정 줄은 사람·종류·시간별 한 줄로 정리해서 연다
   const [rows, setRows] = useState<ReportRow[]>(() => normDoje(tidySchedule(p.saved.filter((r) => !GROUPED(r.section)), p.day), p.day));
-  // 학생별 다른 날 출근일 (누적 출근 일수)
-  const apprDone = useMemo(() => {
-    const m = new Map<string, Set<string>>();
-    for (const h of p.apprHistory) {
-      const s = m.get(h.name) ?? new Set<string>();
-      for (const x of h.value.split(",")) { const d = toDate(x, h.day); if (d) s.add(d); }
-      m.set(h.name, s);
-    }
-    return m;
-  }, [p.apprHistory]);
   const [vert, setVert] = useState(false); // 입력 카드 세로 보기
   useEffect(() => { try { setVert(localStorage.getItem("rg-vert") === "1"); } catch { /* 저장소 막힘 */ } }, []);
   const toggleVert = () => setVert((v) => { try { localStorage.setItem("rg-vert", v ? "0" : "1"); } catch { /* */ } return !v; });
@@ -586,12 +575,7 @@ export default function ReportEditor(p: Props) {
               const toggleDay = (d: string) => {
                 const next = (picked.includes(d) ? picked.filter((x) => x !== d) : [...picked, d]).sort();
                 set(i, { value: next.map((x) => dayLabel(x)).join(", "), ...(next.length ? { note: "" } : {}) });
-              };
-              // 누적 출근 일수: 다른 날 보고서의 출근일 + 이 카드에서 고른 날 (같은 날은 한 번만)
-              const went = new Set([...(apprDone.get(r.name) ?? []), ...picked]);
-              const mon = p.day.slice(0, 7);
-              const wentMon = [...went].filter((d) => d.startsWith(mon)).length;
-              const nt = splitDojeNote(r.note, p.day);
+              };              const nt = splitDojeNote(r.note, p.day);
               const setNote = (x: Partial<typeof nt>) => {
                 const v = { ...nt, ...x };
                 set(i, { note: joinDojeNote(v.reason, v.from, v.to) });
@@ -605,10 +589,6 @@ export default function ReportEditor(p: Props) {
                     {nameSelect(i, r, p.apprentices)}
                     {meta.length > 0 && <span className="rg-meta">{meta.map((x) => <span key={x} className="rg-tag">{x}</span>)}</span>}
                     <div className="rg-types" />
-                    {r.name && (
-                      <span className="rg-count" title="저장된 보고서에 출근일로 적힌 날 + 이 보고서에서 고른 날">
-                        누적 출근 <b>{went.size}</b>일<small> · {+mon.slice(5)}월 {wentMon}일</small></span>
-                    )}
                     <button type="button" className="rg-del" onClick={() => remove(i)} title="이 학생 줄 삭제">삭제</button>
                   </div>
                   <div className="rg-body">
