@@ -2,7 +2,7 @@
  *
  * 섹션
  * - 근태     : 부서 | 직급 | 성명 | 유형(연차·반차·반반차·외출·공가·출장·교육, 여러 개) | 제목(목적지/사유) | 상세(시간 등) | 비고
- * - 도제     : 일학습병행(도제) 관련 — 성명 | 값(출근 완료) | 비고(비고란)
+ * - 도제     : 일학습병행(도제) 관련 — 성명 | 값(출근일, 근무: 수·목·금 08:30~16:30) | 비고(비고란)
  * - 휴가일정 : 성명 | 값(출근예정) | 비고(휴가 일정)
  * - 휴일근무 : 성명 | 유형(근무한 휴일 날짜들, 'YYYY-MM-DD,YYYY-MM-DD') | 제목(작업내용/근무지) | 비고
  */
@@ -383,8 +383,8 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   sub = rows.filter((r) => r.section === "도제");
   if (sub.length) {
     parts.push(section(SECTION_TITLES.도제, sub.length,
-      table([["부서", "80px"], ["성명", "110px"], ["출근 완료", "130px"], ["비고", ""]],
-        sub.map((r) => [esc(r.dept), person(r), esc(r.value) || "-", esc(r.note)]))));
+      table([["부서", "80px"], ["성명", "110px"], ["출근일", "110px"], ["근무시간", "150px"], ["비고", ""]],
+        sub.map((r) => [esc(r.dept), person(r), esc(r.value) || "-", "수·목·금 08:30~16:30", esc(r.note)]))));
   }
   parts.push(`<div style="${TXT}font-size:11px;color:#9aa3b5;text-align:right;margin-top:10px">주식회사 에쓰엔 관리팀 · 근태관리통합시스템에서 작성</div>`);
   parts.push("</div>");
