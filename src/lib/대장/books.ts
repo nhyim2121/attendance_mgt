@@ -14,7 +14,7 @@ export interface Field {
   k: string; label: string; type: FieldType; options?: string[]; req?: boolean; hide?: boolean; wide?: boolean;
   alert?: number; aliases?: string[]; placeholder?: string;
 }
-export type Area = "ga" | "hr" | "ehs" | "misc";
+export type Area = "ga" | "hr" | "ehs" | "it" | "misc";
 export interface Book {
   key: string; area: Area; title: string; desc: string; folder?: string;
   day: string;                                  // 기준 날짜 칸 (정렬·연도)
@@ -86,7 +86,7 @@ export const BOOKS: Book[] = [
     ],
   },
   {
-    key: "visitors", area: "ga", title: "방문자 관리대장", desc: "방문자 출입 기록", folder: "1. 총무\\3. 보안관리",
+    key: "visitors", area: "it", title: "방문자 관리대장", desc: "방문자 출입 기록", folder: "1. 총무\\3. 보안관리",
     day: "day", title1: "name",
     fields: [
       { k: "day", label: "방문일", type: "date", req: true },
@@ -102,7 +102,7 @@ export const BOOKS: Book[] = [
     ],
   },
   {
-    key: "software", area: "ga", title: "소프트웨어 관리대장", desc: "라이선스 수량·설치 PC·만료 알림 (키 자체는 적지 않기)", folder: "1. 총무\\3. 보안관리\\소프트웨어",
+    key: "software", area: "it", title: "소프트웨어 관리대장", desc: "라이선스 수량·설치 PC·만료 알림 (키 자체는 적지 않기)", folder: "1. 총무\\3. 보안관리\\소프트웨어",
     day: "bought", title1: "name", closed: { k: "status", values: ["해지·삭제"] },
     fields: [
       { k: "name", label: "제품명", type: "text", req: true, wide: true },
@@ -653,6 +653,258 @@ export const BOOKS: Book[] = [
       { k: "doneAt", label: "조치 완료일", type: "date", hide: true },
     ],
   },
+  // ------------------------------------------------------------ 보안전산 (IT) — 업무분장 IT-1 ~ IT-7 (2026-11-11)
+  {
+    key: "itassets", area: "it", title: "전산장비 관리대장", desc: "PC·노트북·서버·네트워크 장비·프린터, 사용자·IP·보증 만료", folder: "보안전산\\1. 전산자산",
+    day: "bought", title1: "name", filters: ["cat", "status"], closed: { k: "status", values: ["폐기"] },
+    fields: [
+      { k: "no", label: "자산번호", type: "text", placeholder: "예: SN-PC-001" },
+      { k: "cat", label: "구분", type: "select", options: ["데스크톱", "노트북", "모니터", "서버·NAS", "네트워크(공유기·스위치·방화벽)", "프린터·복합기", "CCTV·출입통제", "태블릿·휴대폰", "UPS·기타"] },
+      { k: "name", label: "모델명", type: "text", req: true, wide: true },
+      { k: "serial", label: "S/N", type: "text", hide: true },
+      { k: "spec", label: "사양 (CPU·RAM·SSD)", type: "text", hide: true },
+      { k: "os", label: "OS", type: "suggest", options: ["Windows 11 Pro", "Windows 10 Pro", "Windows Server", "macOS", "Synology DSM", "해당 없음"] },
+      { k: "ip", label: "IP·MAC", type: "text", hide: true },
+      { k: "dept", label: "부서", type: "text" },
+      직원("user", "사용자"),
+      { k: "place", label: "설치 위치", type: "text", hide: true },
+      { k: "bought", label: "구입일", type: "date" },
+      { k: "price", label: "구입금액", type: "money", hide: true },
+      { k: "warranty", label: "보증 만료", type: "date", alert: 30 },
+      { k: "status", label: "상태", type: "select", options: ["사용 중", "예비", "수리 중", "폐기"] },
+      { k: "note", label: "비고", type: "textarea", hide: true },
+    ],
+  },
+  {
+    key: "helpdesk", area: "it", title: "전산 요청·장애 처리", desc: "직원 요청·고장 접수 → 조치 → 완료, 외부 수리 비용", folder: "보안전산\\1. 전산자산",
+    day: "day", title1: "title", filters: ["kind", "status"], closed: { k: "status", values: ["완료", "취소"] },
+    fields: [
+      { k: "day", label: "접수일", type: "date", req: true },
+      직원("who", "요청자"),
+      { k: "kind", label: "구분", type: "select", options: ["PC 고장", "프린터·복합기", "네트워크·인터넷", "계정·비밀번호", "프로그램 설치", "ERP·그룹웨어", "메일", "보안(악성코드 등)", "기타"] },
+      { k: "title", label: "내용", type: "text", req: true, wide: true },
+      { k: "asset", label: "장비 (자산번호)", type: "text", hide: true },
+      { k: "action", label: "조치 내용", type: "textarea" },
+      { k: "by", label: "처리 (자체·업체명)", type: "text", hide: true },
+      { k: "cost", label: "수리 비용", type: "money" },
+      { k: "due", label: "처리 기한", type: "date", alert: 3 },
+      { k: "done", label: "완료일", type: "date", hide: true },
+      { k: "status", label: "상태", type: "select", options: ["접수", "처리 중", "업체 수리", "완료", "취소"] },
+    ],
+  },
+  {
+    key: "itdispose", area: "it", title: "저장매체 폐기·데이터 삭제", desc: "PC·HDD·USB 폐기 전 완전삭제(덮어쓰기·파쇄) 확인 기록", folder: "보안전산\\1. 전산자산",
+    day: "day", title1: "item",
+    fields: [
+      { k: "day", label: "처리일", type: "date", req: true },
+      { k: "item", label: "장비·매체", type: "text", req: true, wide: true, placeholder: "예: SN-PC-003 데스크톱 HDD 1TB" },
+      { k: "serial", label: "S/N", type: "text", hide: true },
+      { k: "how", label: "삭제 방법", type: "select", options: ["완전삭제 SW (덮어쓰기)", "로우포맷", "물리 파쇄·천공", "디가우징", "업체 위탁 (증명서)"] },
+      { k: "reason", label: "사유", type: "select", options: ["폐기", "매각", "반납(리스)", "재사용(다른 사람)", "수리 맡김"] },
+      { k: "company", label: "위탁업체", type: "text", hide: true },
+      { k: "by", label: "확인자", type: "text" },
+      { k: "note", label: "비고", type: "text", hide: true },
+    ],
+  },
+  {
+    key: "itcontracts", area: "it", title: "IT 계약·서비스 만기", desc: "인터넷 회선·도메인·SSL·호스팅·클라우드·유지보수 계약 갱신 알림", folder: "보안전산\\2. 네트워크·서비스",
+    day: "start", title1: "name", filters: ["kind"], closed: { k: "status", values: ["해지"] },
+    fields: [
+      { k: "kind", label: "구분", type: "select", options: ["인터넷 회선", "도메인", "SSL 인증서", "웹호스팅·서버", "클라우드·SaaS", "그룹웨어·메일", "ERP 유지보수", "보안 서비스(백신·방화벽)", "복합기 렌탈", "CCTV 유지보수", "기타"] },
+      { k: "name", label: "서비스명", type: "text", req: true, wide: true, placeholder: "예: 회사 도메인, KT 기가 인터넷" },
+      { k: "vendor", label: "업체", type: "text" },
+      { k: "start", label: "계약일", type: "date" },
+      { k: "end", label: "만료·갱신일", type: "date", alert: 45 },
+      { k: "auto", label: "자동 갱신", type: "select", options: ["자동", "수동"] },
+      { k: "fee", label: "요금 (월·연)", type: "money" },
+      { k: "contact", label: "업체 연락처", type: "text", hide: true },
+      { k: "acct", label: "관리 계정 (아이디만)", type: "text", hide: true },
+      { k: "status", label: "상태", type: "select", options: ["사용 중", "해지"] },
+      { k: "note", label: "비고", type: "textarea", hide: true },
+    ],
+  },
+  {
+    key: "accounts", area: "it", title: "계정·권한 부여·회수 대장", desc: "입사·퇴사·부서 이동 때 그룹웨어·ERP·NAS·VPN 계정 발급·변경·말소 (3년 보관)", folder: "보안전산\\3. 계정·권한",
+    day: "day", title1: "system", filters: ["action", "system"],
+    fields: [
+      { k: "day", label: "처리일", type: "date", req: true },
+      직원("emp", "대상 직원"),
+      { k: "system", label: "시스템", type: "suggest", req: true, options: ["하이웍스(그룹웨어·메일)", "이카운트 ERP", "NAS", "VPN", "Windows·PC 로그인", "캡스(출입)", "홈택스·4대보험", "나라장터", "통합관리시스템", "기타"] },
+      { k: "action", label: "구분", type: "select", options: ["부여", "변경", "말소(회수)"] },
+      { k: "role", label: "권한 내용", type: "text", wide: true, placeholder: "예: 회계 모듈 조회·입력, 관리팀 폴더 읽기" },
+      { k: "reason", label: "사유", type: "select", options: ["입사", "퇴사", "부서 이동", "업무 변경", "휴직·복직", "정기 점검"] },
+      { k: "req", label: "요청자", type: "text", hide: true },
+      { k: "by", label: "처리자", type: "text" },
+      { k: "note", label: "비고", type: "text", hide: true },
+    ],
+  },
+  {
+    key: "accessreview", area: "it", title: "접속기록·권한 정기 점검", desc: "개인정보처리시스템 접속기록 월 1회 점검, 계정·권한 분기 검토", folder: "보안전산\\3. 계정·권한",
+    day: "day", title1: "system", filters: ["kind", "result"], closed: { k: "result", values: ["이상 없음", "조치 완료"] },
+    fields: [
+      { k: "day", label: "점검일", type: "date", req: true },
+      { k: "kind", label: "점검 구분", type: "select", options: ["접속기록 점검 (월)", "계정·권한 검토 (분기)", "퇴사자 계정 잔존 확인", "공용·장기 미사용 계정 정리"] },
+      { k: "system", label: "시스템", type: "suggest", req: true, options: ["이카운트 ERP", "하이웍스", "NAS", "통합관리시스템", "인사·급여 프로그램"] },
+      { k: "range", label: "점검 기간", type: "text", placeholder: "예: 2026-10-01 ~ 10-31" },
+      { k: "result", label: "결과", type: "select", options: ["이상 없음", "조치 필요", "조치 완료"] },
+      { k: "found", label: "발견 내용·조치", type: "textarea" },
+      { k: "next", label: "다음 점검일", type: "date", alert: 7 },
+      { k: "by", label: "점검자", type: "text", hide: true },
+    ],
+  },
+  {
+    key: "seccheck", area: "it", title: "보안 점검 기록", desc: "백신·윈도우 업데이트·방화벽·공유폴더·PC 보안 점검 (월·분기)", folder: "보안전산\\4. 정보보안",
+    day: "day", title1: "target", filters: ["kind", "result"], closed: { k: "result", values: ["양호", "조치 완료"] },
+    fields: [
+      { k: "day", label: "점검일", type: "date", req: true },
+      { k: "kind", label: "점검 항목", type: "select", options: ["백신 설치·업데이트", "윈도우·SW 보안 업데이트", "방화벽·공유기 설정·펌웨어", "공유폴더·NAS 권한", "PC 화면보호기·비밀번호", "비인가 SW 설치 확인", "USB·저장매체 통제", "랜섬웨어 대비 점검", "AEO 정보보안 점검", "기타"] },
+      { k: "target", label: "대상", type: "text", req: true, wide: true, placeholder: "예: 전체 PC 24대, 사무실 공유기" },
+      { k: "result", label: "결과", type: "select", options: ["양호", "조치 필요", "조치 완료"] },
+      { k: "found", label: "미흡 사항·조치", type: "textarea" },
+      { k: "due", label: "조치 기한", type: "date", alert: 7 },
+      { k: "next", label: "다음 점검일", type: "date", alert: 7, hide: true },
+      { k: "by", label: "점검자", type: "text", hide: true },
+    ],
+  },
+  {
+    key: "incidents", area: "it", title: "보안사고·장애 대응", desc: "악성코드·랜섬웨어·해킹 메일·정보유출·시스템 장애 발생과 조치·재발 방지", folder: "보안전산\\4. 정보보안",
+    day: "day", title1: "title", filters: ["kind", "status"], closed: { k: "status", values: ["종결"] },
+    fields: [
+      { k: "day", label: "발생일", type: "date", req: true },
+      { k: "kind", label: "유형", type: "select", options: ["악성코드·랜섬웨어", "피싱·해킹 메일", "계정 도용", "정보 유출·분실", "시스템·네트워크 장애", "정전·하드웨어 고장", "기타"] },
+      { k: "title", label: "내용", type: "text", req: true, wide: true },
+      { k: "impact", label: "영향 (장비·사람·자료)", type: "textarea", hide: true },
+      { k: "action", label: "조치", type: "textarea" },
+      { k: "report", label: "신고·통지", type: "select", options: ["해당 없음", "KISA(118) 신고", "개인정보 유출 통지·신고", "경찰 신고", "거래처 통보"] },
+      { k: "prevent", label: "재발 방지", type: "textarea", hide: true },
+      { k: "status", label: "상태", type: "select", options: ["대응 중", "종결"] },
+    ],
+  },
+  {
+    key: "pledges", area: "it", title: "보안서약서 관리", desc: "입사·퇴사·외부업체 보안서약서 징구 여부", folder: "보안전산\\4. 정보보안",
+    day: "day", title1: "name", filters: ["kind"],
+    fields: [
+      { k: "day", label: "서명일", type: "date", req: true },
+      { k: "name", label: "성명", type: "suggest", req: true },
+      { k: "org", label: "소속 (외부는 업체명)", type: "text" },
+      { k: "kind", label: "구분", type: "select", options: ["입사", "퇴사", "외부업체·용역", "프로젝트·NDA", "개인정보 취급자"] },
+      { k: "keep", label: "원본 보관", type: "text", hide: true, placeholder: "예: 인사 서류철, 스캔 첨부" },
+      { k: "note", label: "비고", type: "text", hide: true },
+    ],
+  },
+  {
+    key: "media", area: "it", title: "저장매체·자료 반출입", desc: "USB·외장하드 사용 승인, 도면·기술자료 외부 반출 기록", folder: "보안전산\\4. 정보보안",
+    day: "day", title1: "item", filters: ["kind"], closed: { k: "status", values: ["반납·회수", "해당 없음"] },
+    fields: [
+      { k: "day", label: "일자", type: "date", req: true },
+      직원("emp", "사용·반출자"),
+      { k: "kind", label: "구분", type: "select", options: ["USB·외장하드 사용 승인", "자료 외부 반출", "노트북 외부 반출", "외부 자료 반입"] },
+      { k: "item", label: "매체·자료", type: "text", req: true, wide: true },
+      { k: "purpose", label: "목적·받는 곳", type: "text" },
+      { k: "ok", label: "승인자", type: "text", hide: true },
+      { k: "back", label: "반납 예정일", type: "date", alert: 3 },
+      { k: "status", label: "상태", type: "select", options: ["사용·반출 중", "반납·회수", "해당 없음"] },
+    ],
+  },
+  {
+    key: "privacy", area: "it", title: "개인정보 처리 현황", desc: "회사가 가진 개인정보 파일(직원·지원자·거래처·CCTV)의 항목·보관기간·파기 예정", folder: "보안전산\\5. 개인정보보호",
+    day: "day", title1: "name", filters: ["who"], closed: { k: "status", values: ["파기 완료"] },
+    fields: [
+      { k: "name", label: "개인정보 파일", type: "suggest", req: true, wide: true, options: ["직원 명부·인사기록", "급여·4대보험", "채용 지원자 서류", "거래처 담당자 연락처", "CCTV 영상", "출입 기록(캡스)", "방문자 대장", "건강검진 결과"] },
+      { k: "who", label: "정보주체", type: "select", options: ["직원", "지원자", "고객·거래처", "방문자", "기타"] },
+      { k: "items", label: "수집 항목", type: "text", hide: true, placeholder: "예: 성명, 연락처, 주민번호(암호화)" },
+      { k: "where", label: "보관 위치", type: "text", placeholder: "예: 통합관리시스템, NAS 인사폴더, 서류철" },
+      { k: "keep", label: "보관 기간", type: "text", placeholder: "예: 퇴사 후 3년" },
+      { k: "day", label: "점검일", type: "date" },
+      { k: "destroy", label: "파기 예정일", type: "date", alert: 30 },
+      { k: "status", label: "상태", type: "select", options: ["보관 중", "파기 완료"] },
+      { k: "note", label: "비고", type: "textarea", hide: true },
+    ],
+  },
+  {
+    key: "privdestroy", area: "it", title: "개인정보 파기 대장", desc: "보관기간이 지난 개인정보 파기 기록 (불합격자 서류·퇴사자 자료·CCTV 등)", folder: "보안전산\\5. 개인정보보호",
+    day: "day", title1: "name",
+    fields: [
+      { k: "day", label: "파기일", type: "date", req: true },
+      { k: "name", label: "파기한 개인정보", type: "text", req: true, wide: true, placeholder: "예: 2025년 하반기 불합격자 이력서 12건" },
+      { k: "count", label: "건수", type: "number" },
+      { k: "how", label: "파기 방법", type: "select", options: ["전자파일 영구삭제", "문서 파쇄", "소각", "위탁 파기(증명서)", "CCTV 자동 덮어쓰기 확인"] },
+      { k: "reason", label: "사유", type: "select", options: ["보관기간 만료", "목적 달성", "정보주체 요청", "기타"] },
+      { k: "by", label: "처리자", type: "text" },
+      { k: "ok", label: "확인자", type: "text", hide: true },
+    ],
+  },
+  {
+    key: "itedu", area: "it", title: "정보보안·개인정보 교육", desc: "개인정보 보호교육(연 1회)·보안 교육·피싱 메일 훈련 실시와 참석자", folder: "보안전산\\5. 개인정보보호",
+    day: "day", title1: "title", filters: ["kind"],
+    fields: [
+      { k: "day", label: "교육일", type: "date", req: true },
+      { k: "kind", label: "구분", type: "select", options: ["개인정보 보호교육 (법정)", "정보보안 교육", "피싱 메일 모의훈련", "신규 입사자 보안 교육", "외부 교육 참석"] },
+      { k: "title", label: "교육명·내용", type: "text", req: true, wide: true },
+      { k: "count", label: "참석 인원", type: "number" },
+      { k: "who", label: "대상·참석자", type: "textarea", hide: true },
+      { k: "by", label: "강사·기관", type: "text", hide: true },
+      { k: "next", label: "다음 교육 예정", type: "date", alert: 30 },
+    ],
+  },
+  {
+    key: "backups", area: "it", title: "백업·복구 점검", desc: "NAS·서버·ERP 백업 확인과 복구 테스트 (랜섬웨어 대비 외부 보관)", folder: "보안전산\\6. 백업",
+    day: "day", title1: "target", filters: ["kind", "result"], closed: { k: "result", values: ["정상", "조치 완료"] },
+    fields: [
+      { k: "day", label: "점검일", type: "date", req: true },
+      { k: "target", label: "대상", type: "suggest", req: true, options: ["NAS 공유폴더", "통합관리시스템 DB", "이카운트 ERP 자료", "하이웍스 메일", "회계·급여 프로그램", "도면·기술자료", "개인 PC 중요자료"] },
+      { k: "kind", label: "구분", type: "select", options: ["백업 성공 확인", "복구 테스트", "외부·오프라인 보관", "백업 설정 변경"] },
+      { k: "where", label: "백업 위치", type: "text", placeholder: "예: 외장HDD(금고), 클라우드" },
+      { k: "result", label: "결과", type: "select", options: ["정상", "실패·조치 필요", "조치 완료"] },
+      { k: "found", label: "문제·조치", type: "textarea", hide: true },
+      { k: "next", label: "다음 점검일", type: "date", alert: 7 },
+      { k: "by", label: "점검자", type: "text", hide: true },
+    ],
+  },
+  {
+    key: "cctv", area: "it", title: "CCTV·출입통제 관리", desc: "카메라·녹화기·출입통제기 점검, 영상 열람·제공 기록", folder: "보안전산\\7. 물리보안",
+    day: "day", title1: "target", filters: ["kind"], closed: { k: "result", values: ["정상", "조치 완료"] },
+    fields: [
+      { k: "day", label: "일자", type: "date", req: true },
+      { k: "kind", label: "구분", type: "select", options: ["정기 점검", "고장·수리", "영상 열람", "영상 외부 제공", "안내판 점검", "출입카드 시스템 점검"] },
+      { k: "target", label: "장비·위치", type: "text", req: true, wide: true, placeholder: "예: 1공장 출입구 카메라, 녹화기(NVR)" },
+      { k: "who", label: "요청자·열람자", type: "text", hide: true },
+      { k: "why", label: "목적·내용", type: "text" },
+      { k: "result", label: "결과", type: "select", options: ["정상", "조치 필요", "조치 완료"] },
+      { k: "due", label: "조치 기한", type: "date", alert: 7, hide: true },
+      { k: "by", label: "처리자", type: "text", hide: true },
+    ],
+  },
+  {
+    key: "idcards", area: "it", title: "사원증·출입카드 발급", desc: "카드 발급·재발급·분실·회수 (퇴사 때 회수 확인)", folder: "보안전산\\7. 물리보안",
+    day: "day", title1: "emp", filters: ["action"],
+    fields: [
+      { k: "day", label: "일자", type: "date", req: true },
+      직원("emp", "직원"),
+      { k: "card", label: "카드 번호", type: "text" },
+      { k: "action", label: "구분", type: "select", options: ["발급", "재발급", "분실 정지", "회수", "권한 변경"] },
+      { k: "area", label: "출입 구역", type: "text", hide: true, placeholder: "예: 본사·1공장·2공장" },
+      { k: "note", label: "비고", type: "text", hide: true },
+    ],
+  },
+  {
+    key: "itroutine", area: "it", title: "보안전산 정기 업무", desc: "매일·매월·분기·매년 해야 하는 IT 업무와 다음 예정일", folder: "보안전산",
+    day: "next", title1: "task", filters: ["cycle", "group"],
+    fields: [
+      { k: "group", label: "업무분장", type: "select", options: ["IT-1 전산자산", "IT-2 네트워크·서비스", "IT-3 계정·권한", "IT-4 정보보안", "IT-5 개인정보보호", "IT-6 백업", "IT-7 물리보안"] },
+      { k: "task", label: "업무", type: "suggest", req: true, wide: true, options: [
+        "NAS·DB 백업 성공 확인", "백신 업데이트·검사 결과 확인", "윈도우 보안 업데이트 적용 확인", "개인정보처리시스템 접속기록 점검",
+        "퇴사자 계정·출입카드 회수 확인", "계정·권한 정기 검토", "외부 백업 매체 교체·보관", "복구 테스트",
+        "전산장비 재고 조사", "SW 라이선스 수량 점검", "도메인·SSL·회선 만기 확인", "공유기·방화벽 펌웨어 업데이트",
+        "CCTV 녹화 상태 점검", "개인정보 보호교육 (연 1회)", "정보보안 교육·피싱 메일 훈련", "내부관리계획 검토 (연 1회)",
+        "개인정보 보관기간 경과분 파기", "보안서약서 징구 확인", "AEO 정보보안 기준 점검"] },
+      { k: "cycle", label: "주기", type: "select", options: ["매일", "매주", "매월", "분기", "반기", "매년", "변경 때"] },
+      { k: "last", label: "최근 수행일", type: "date" },
+      { k: "next", label: "다음 예정일", type: "date", req: true, alert: 7 },
+      { k: "who", label: "담당", type: "text", hide: true },
+      { k: "how", label: "방법·확인 위치", type: "textarea", hide: true },
+    ],
+  },
   // ------------------------------------------------------------ 기타
   {
     key: "tasks", area: "misc", title: "진행 건·할 일", desc: "다른 대장에 넣기 어려운 진행 중인 일과 기한", folder: "진행중",
@@ -672,5 +924,5 @@ export const BOOKS: Book[] = [
 export const bookOf = (key: string) => BOOKS.find((b) => b.key === key);
 export const booksIn = (area: Area) => BOOKS.filter((b) => b.area === area);
 /** 대장 화면 주소 */
-export const AREA_BASE: Record<Area, string> = { ga: "/ga/b", hr: "/hr/b", ehs: "/ehs/b", misc: "/misc/b" };
+export const AREA_BASE: Record<Area, string> = { ga: "/ga/b", hr: "/hr/b", ehs: "/ehs/b", it: "/it/b", misc: "/misc/b" };
 export const bookHref = (b: Book) => `${AREA_BASE[b.area]}/${b.key}`;

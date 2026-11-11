@@ -4,7 +4,7 @@ import SiteLinks from "@/components/대시/SiteLinks";
 import { hrSlugOf } from "@/lib/대시/menu";
 import { HR_SITES } from "@/lib/인사노무/sites";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { hrefWith } from "@/components/Filters";
 import { ParamSelect } from "@/components/ParamControls";
@@ -37,7 +37,8 @@ export function show(f: Field, v: string | undefined): React.ReactNode {
 export default async function LedgerView({ area, bookKey, sp }: { area: Area; bookKey: string; sp: Sp }) {
   await (bookKey === "bids" ? requireBidPage() : requireAdminPage());
   const book = bookOf(bookKey);
-  if (!book || book.area !== area) notFound();
+  if (!book) notFound();
+  if (book.area !== area) redirect(bookHref(book)); // 영역을 옮긴 대장 (예: 방문자·SW 총무 → 보안전산)
   const today = todayKst();
   const path = bookHref(book);
   const [all, files, emps, batches] = await Promise.all([store.loadRows(book.key), loadFiles("lg:"), loadEmployees(), store.batchesOf(book.key)]);

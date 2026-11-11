@@ -51,17 +51,19 @@ const BY_HREF: Record<string, string> = {
   "/hours": "chart", "/week52": "gauge", "/monthly": "table", "/leave": "umbrella", "/leave/status": "pie",
   "/leave/calendar": "calendarStar", "/employees": "users", "/org": "org", "/users": "userCog",
   "/ga": "building", "/ga/mail": "mail", "/ga/issue": "doc", "/ga/certs": "key",
-  "/ehs": "shield", "/cert": "medal", "/cert#add": "docPlus", "/misc": "grid",
+  "/ehs": "shield", "/it": "monitor", "/it/duties": "list", "/cert": "medal", "/cert#add": "docPlus", "/misc": "grid",
 };
 const BY_BOOK: Record<string, string> = {
   training: "cap", licenses: "award", fixtures: "box", vehicles: "car", drivelog: "route", visitors: "idcard",
   software: "monitor", ppe: "helmet", dorm: "home", grants: "target", bids: "gavel", meetings: "chat",
   checkup: "heart", wastewater: "drop", inspections: "clipboard", tasks: "list",
+  itassets: "monitor", helpdesk: "clipboard", itdispose: "box", itcontracts: "doc", accounts: "key", accessreview: "table", seccheck: "shield",
+  incidents: "shield", pledges: "doc", media: "box", privacy: "idcard", privdestroy: "doc", itedu: "cap", backups: "table", cctv: "monitor", idcards: "idcard", itroutine: "calendarCheck",
 };
 export const iconFor = (href: string) => BY_HREF[href] ?? BY_BOOK[href.split("/").pop() ?? ""] ?? "grid";
 
 /** 영역 → 아이콘 (사이드바) */
-export const AREA_ICON: Record<string, string> = { hr: "users", ga: "building", ehs: "shield", cert: "medal", misc: "grid" };
+export const AREA_ICON: Record<string, string> = { hr: "users", ga: "building", ehs: "shield", it: "monitor", cert: "medal", misc: "grid" };
 
 export default function AppIcon({ name, color, size = "lg" }: { name: string; color: string; size?: "lg" | "sm" }) {
   return (

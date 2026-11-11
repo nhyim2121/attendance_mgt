@@ -5,7 +5,7 @@ import { bookStats, ddayText, ddayTone, recentRows, todos } from "@/lib/대시/d
 import { menuOf } from "@/lib/대시/menu";
 import { dayLabel } from "@/lib/time";
 
-export default async function BookArea({ area }: { area: "ehs" | "misc" }) {
+export default async function BookArea({ area }: { area: "ehs" | "it" | "misc" }) {
   const m = menuOf(area);
   const [stats, list, recent, openRows] = await Promise.all([bookStats(area), todos(true), recentRows(area, 6), recentRows(area, 6, true)]);
   const mine = list.filter((t) => t.area === area);

@@ -1,11 +1,12 @@
 /** 새 사이트(F안) 메뉴: 업무 영역 → 묶음 → 화면. 사이드바·업무별 대시보드의 '전체 메뉴'가 같이 쓴다.
  *  대장은 books.ts에서 가져오고, 아래 GA_GROUPS에 없는 총무 대장은 '그 밖' 묶음에 들어간다. */
 import { type Area, bookHref, BOOKS, booksIn } from "../대장/books";
+import { IT_DUTIES } from "../보안전산/duties";
 
 export interface MenuItem { href: string; label: string; desc?: string; also?: string[]; exact?: boolean; admin?: boolean }
 export interface MenuGroup { label: string; items: MenuItem[] }
 export interface MenuArea {
-  key: "hr" | "ga" | "ehs" | "cert" | "misc"; label: string; en: string; color: string; desc: string;
+  key: "hr" | "ga" | "ehs" | "it" | "cert" | "misc"; label: string; en: string; color: string; desc: string;
   dash: string; adminOnly: boolean; groups: MenuGroup[];
 }
 
@@ -18,7 +19,7 @@ const booksOf = (area: Area, skip: string[] = []) => booksIn(area).filter((b) =>
 /** 총무 묶음: 회사 업무분장·X:\관리팀\1. 총무 폴더 번호(1~12) 그대로. 아직 화면이 없는 묶음은 '준비 중' 화면으로 간다. */
 const GA_GROUPS: [string, string[]][] = [
   ["2. 복리 및 후생", ["ppe", "dorm"]],
-  ["3. 보안·전산", ["visitors", "software"]],
+  ["3. 보안·전산", []],
   ["4. 비품관리", ["fixtures"]],
   ["5. 차량관리", ["vehicles", "drivelog"]],
   ["6. 출장 및 연수관리", []],
@@ -33,7 +34,6 @@ const GA_GROUPS: [string, string[]][] = [
 export const GA_PLAN: Record<string, string[]> = {
   "1. 문서 및 자료관리": ["문서 보존·폐기, 직인 날인 대장", "각종 규정 (제정·개정 이력, 최신본)", "명함 신청·발주, 인장 관리"],
   "2. 복리 및 후생": ["경조사 (대상·지원금·화환)", "임직원 선물 (명절·기념일, 수령 확인)", "휴게실·복지공간 (비치품·점검)"],
-  "3. 보안·전산": ["사원증·출입카드", "CCTV·보안시스템 점검", "백신·방화벽·보안점검 기록, 장애·조치", "계정·권한 (ERP·하이웍스·NAS 발급·회수)", "PC·노트북·프린터", "매뉴얼 파일함 (이카운트 ERP 등)"],
   "4. 비품관리": ["구매 요청", "수리 신청", "전환(담당자 변경) 신청", "폐기"],
   "5. 차량관리": ["주유·정비·하이패스 비용", "사고·과태료"],
   "6. 출장 및 연수관리": ["출장 신청 → 일정 → 결과보고 → 비용 정산", "연수·외부교육 참가"],
@@ -48,6 +48,7 @@ const gaGroup = ([label, ks]: [string, string[]]): MenuGroup => ({
   label,
   items: [
     ...(label === "10. 입찰관리" ? [{ href: "/bid", label: "입찰관리", desc: "입찰 사이트 바로가기, 공고·투찰·개찰·제출 마감" }] : []),
+    ...(label === "3. 보안·전산" ? [{ href: "/it?from=ga", label: "보안전산 영역", desc: "보안전산(IT) 영역에서 관리: 전산장비·계정·보안점검·개인정보·백업·방문자·CCTV" }] : []),
     ...ks.map(book),
     ...(GA_PLAN[label] ? [soon(label)] : []),
   ],
@@ -118,7 +119,7 @@ export const MENU: MenuArea[] = [
     ],
   },
   {
-    key: "ga", label: "총무", en: "ADMIN", color: "#0e7490", desc: "문서·비품·차량·보안·복리후생·지원사업·입찰", dash: "/ga", adminOnly: true,
+    key: "ga", label: "총무", en: "ADMIN", color: "#0e7490", desc: "문서·비품·차량·복리후생·지원사업·입찰", dash: "/ga", adminOnly: true,
     groups: [
       { label: "1. 문서 및 자료관리", items: [
         { href: "/ga/mail", label: "문서 수발 대장", desc: "대내외 공문서·우편·팩스, 회신 기한" },
@@ -135,6 +136,16 @@ export const MENU: MenuArea[] = [
   {
     key: "ehs", label: "환경안전보건", en: "SAFETY", color: "#15803d", desc: "폐수·안전 점검·건강검진", dash: "/ehs", adminOnly: true,
     groups: [{ label: "", items: booksOf("ehs") }],
+  },
+  {
+    key: "it", label: "보안전산", en: "IT·SECURITY", color: "#4338ca", desc: "전산장비·네트워크·계정·정보보안·개인정보·백업·물리보안 (업무분장 IT-1~IT-7)", dash: "/it", adminOnly: true,
+    groups: [
+      { label: "업무분장", items: [
+        { href: "/it/duties", label: "업무분장·업무 목록", desc: "IT-1~IT-7 하는 일과 주기, 관련 대장" },
+        book("itroutine"),
+      ] },
+      ...IT_DUTIES.map((g) => ({ label: `${g.no}. ${g.name}`, items: g.books.map(book) })),
+    ],
   },
   {
     key: "cert", label: "인증", en: "CERT", color: "#b45309", desc: "인증·지정 만기와 사후심사·갱신 일정", dash: "/cert/home", adminOnly: true,
@@ -165,13 +176,15 @@ export const menuFor = (admin: boolean): MenuArea[] => MENU.filter((a) => admin 
 
 /** 메뉴 이모지 (사이드바·전체 메뉴). 영역은 키, 화면은 주소, 대장은 끝 이름으로 찾는다. */
 const EMOJI: Record<string, string> = {
-  hr: "👥", ga: "🗂️", ehs: "🛡️", cert: "🏅", misc: "📌",
+  hr: "👥", ga: "🗂️", ehs: "🛡️", it: "💻", cert: "🏅", misc: "📌",
+  "/it/duties": "🧩", "/it?from=ga": "💻",
   "/attendance": "⏰", "/daily": "📅", "/person": "🙋", "/calendar": "🗓️", "/hours": "📊", "/week52": "⏱️", "/monthly": "🧮",
   "/leave": "🏖️", "/leave/status": "📈", "/leave/calendar": "🌴", "/leave/evidence": "📎", "/leave/register": "✍️",
   "/employees": "🪪", "/org": "🌳", "/upload": "💾", "/settings": "⚙️",
   "/ga/mail": "📨", "/ga/issue": "🧾", "/ga/certs": "🔑", "/bid": "⚖️", "/cert?from=ga": "🏅", "/cert": "🏅", "/cert#add": "➕", "/users": "⚙️",
   "/misc/weekly": "📓", "/misc/coop": "🤝", "/misc/plan": "🧭", "/misc/calendar": "🗓️",
   training: "🎓", licenses: "📜", recruit: "🧲", onoff: "🔁", contracts: "✒️", holidaywork: "🛠️", flex: "🕘", reserve: "🎖️", leavepromo: "📣", absence: "🍼", payroll: "💰", insurance: "🏥", labor: "⚖️", revisions: "📐", certificates: "📃", foreign: "🌏", programs: "🧑‍🎓", applicants: "📇", appointments: "📢", evaluations: "📝", comp: "💵", awards: "🏆", trainplan: "🗓️", council: "🤝", discipline: "🚨", injuries: "🩹", agreements: "✍️", compliance: "✅", meetings: "💬", fixtures: "📦", vehicles: "🚗", drivelog: "🛣️", software: "💿",
+  itassets: "🖥️", helpdesk: "🛠️", itdispose: "🗑️", itcontracts: "🌐", accounts: "🔐", accessreview: "🔎", seccheck: "🛡️", incidents: "🚨", pledges: "✍️", media: "💽", privacy: "🔏", privdestroy: "🧯", itedu: "🎓", backups: "💾", cctv: "📹", idcards: "🪪", itroutine: "🔁",
   visitors: "🚪", ppe: "🦺", dorm: "🏠", grants: "🎯", bids: "⚖️", checkup: "🩺", wastewater: "💧", inspections: "🔍", tasks: "📝",
 };
 const ICON_EMOJI: Record<string, string> = {

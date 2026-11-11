@@ -25,7 +25,7 @@ export default async function GaHome() {
         { label: "공동인증서 만료", n: dueCerts.length, unit: "개", sub: "60일 안", icon: "key", color: "#b45309", warn: dueCerts.length > 0, href: "/ga/certs" },
         { label: "비품", n: st("fixtures")?.open ?? 0, unit: "건", sub: `이번 달 운행 ${st("drivelog")?.thisMonth ?? 0}건`, icon: "box", color: "#0c3994", href: "/ga/b/fixtures" },
       ]}
-      quick={[["/ga/mail#form", "받은·보낸 공문 등록"], ["/ga/issue#form", "서류 발급 기록"], ["/ga/b/fixtures#form", "비품 추가"], ["/ga/b/drivelog#form", "차량 운행 기록"], ["/ga/b/visitors#form", "방문자 기록"]]}>
+      quick={[["/ga/mail#form", "받은·보낸 공문 등록"], ["/ga/issue#form", "서류 발급 기록"], ["/ga/b/fixtures#form", "비품 추가"], ["/ga/b/drivelog#form", "차량 운행 기록"], ["/it/b/visitors#form", "방문자 기록"]]}>
       <Card en="DOCS" title="처리 중인 문서" more={["문서 수발 대장", "/ga/mail"]}>
         <MiniTable empty="처리 중인 문서가 없습니다." rows={open.slice(0, 6).map((m) => ({
           href: `/ga/mail?y=${m.year}&edit=${m.id}#form`,

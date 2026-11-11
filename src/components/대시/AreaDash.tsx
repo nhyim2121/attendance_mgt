@@ -11,7 +11,7 @@ import { menuOf } from "@/lib/대시/menu";
 import { addDays, todayKst } from "@/lib/time";
 
 export default async function AreaDash({ area, kpis, quick, children }: {
-  area: Scope & ("hr" | "ga" | "ehs" | "cert" | "misc"); kpis: KpiProps[]; quick: [string, string][]; children: React.ReactNode;
+  area: Scope & ("hr" | "ga" | "ehs" | "it" | "cert" | "misc"); kpis: KpiProps[]; quick: [string, string][]; children: React.ReactNode;
 }) {
   const user = await requireUser();
   const today = todayKst();

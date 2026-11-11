@@ -89,7 +89,7 @@ export const hrSnap = cache(async (): Promise<HrSnap> => {
 // ---------------------------------------------------------------- 할 일 (기한·만기 모으기)
 export type TodoCat = "문서" | "만기·갱신" | "기한" | "인사";
 export interface Todo {
-  area: "hr" | "ga" | "ehs" | "cert" | "misc"; cat: TodoCat; icon: string; title: string; sub: string; href: string;
+  area: "hr" | "ga" | "ehs" | "it" | "cert" | "misc"; cat: TodoCat; icon: string; title: string; sub: string; href: string;
   left: number | null; // 남은 날 (음수 = 지남, null = 기한 없음)
 }
 

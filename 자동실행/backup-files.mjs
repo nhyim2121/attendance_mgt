@@ -1,4 +1,4 @@
-/** 업무 영역 폴더(총무·인사노무·환경안전보건·인증·기타)의 '자료' 폴더를 백업하고 바뀐 내용을 기록한다.
+/** 업무 영역 폴더(총무·인사노무·환경안전보건·보안전산·인증·기타)의 '자료' 폴더를 백업하고 바뀐 내용을 기록한다.
  *
  * - <영역>/자료 안의 파일이 지난번과 달라졌을 때만 <영역>/백업/자료-날짜-시각.zip 을 만든다.
  * - 무엇이 추가·변경·삭제됐는지 <영역>/작업기록.md 맨 아래에 한 줄씩 적는다.
@@ -12,7 +12,7 @@ import { join, relative } from "node:path";
 import JSZip from "jszip";
 
 const ROOT = join(import.meta.dirname, "..");
-export const AREAS = ["총무", "인사노무", "환경안전보건", "인증", "기타"];
+export const AREAS = ["총무", "인사노무", "환경안전보건", "보안전산", "인증", "기타"];
 const KEEP = 30;
 
 const pad = (n) => String(n).padStart(2, "0");
