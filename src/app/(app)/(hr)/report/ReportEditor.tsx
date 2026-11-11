@@ -41,7 +41,7 @@ const KEYS = ["section", "dept", "rank", "name", "types", "title", "detail", "va
 const norm = (rows: ReportRow[]) => rows.filter((r) => r.name.trim())
   .map((r) => KEYS.map((k) => String(r[k] ?? "")).join("\u0000")).sort().join("\n"); // 순서는 비교하지 않음
 
-/** 근태현황 탭은 '근태 건' 단위로 편집한다: 근태·근무지·내용·비고가 같은 사람들을 한 줄(인원)로. 저장은 사람별 행. */
+/** 근태현황 탭은 '근태 건' 단위로 편집한다: 근태·근무지·내용이 같은 사람들을 한 줄(인원)로. 저장은 사람별 행. */
 interface Group { id: number; types: string; title: string; detail: string; note: string; names: string[]; from: string; to: string; until: string }
 let gid = 0;
 const newGroup = (g: Partial<Group> = {}): Group => ({ id: ++gid, types: "", title: "", detail: "", note: "", names: [], from: "", to: "", until: "", ...g });
@@ -50,9 +50,9 @@ function toGroups(rows: ReportRow[]): Group[] {
   const m = new Map<string, Group>();
   for (const r of rows.filter((x) => x.section === "근태")) {
     const types = splitReportTypes(r.types).join(",");
-    const k = [splitReportTypes(r.types).sort().join(","), r.title.trim(), r.detail.trim(), r.note.trim(), r.value].join("\u0000");
+    const k = [splitReportTypes(r.types).sort().join(","), r.title.trim(), r.detail.trim(), r.value].join("\u0000"); // 비고 칸은 없앰 (2026-11-11)
     const v = parseAttValue(r.value ?? "");
-    const g = m.get(k) ?? newGroup({ types, title: r.title, detail: r.detail, note: r.note, from: v.from, to: v.to, until: v.until });
+    const g = m.get(k) ?? newGroup({ types, title: r.title, detail: r.detail, note: "", from: v.from, to: v.to, until: v.until });
     if (r.name && !g.names.includes(r.name)) g.names.push(r.name);
     m.set(k, g);
   }
@@ -66,11 +66,11 @@ function toHGroups(rows: ReportRow[]): HGroup[] {
   const m = new Map<string, HGroup>();
   for (const r of rows.filter((x) => x.section === "휴일근무")) {
     const types = splitReportTypes(r.types).sort().join(",");
-    const k = [types, r.title.trim(), r.note.trim()].join("\u0000");
+    const k = [types, r.title.trim()].join("\u0000"); // 비고 칸은 없앰
     const cut = r.title.indexOf("/");
     const place = (cut < 0 ? r.title : r.title.slice(0, cut)).trim();
     const work = cut < 0 ? "" : r.title.slice(cut + 1).trim();
-    const g = m.get(k) ?? newHGroup({ types, place, work, note: r.note });
+    const g = m.get(k) ?? newHGroup({ types, place, work, note: "" });
     if (r.name && !g.names.includes(r.name)) g.names.push(r.name);
     m.set(k, g);
   }
@@ -305,8 +305,6 @@ export default function ReportEditor(p: Props) {
                       </span>
                     </div>
                     {cur.length ? <GroupFields g={g} setG={setG} /> : <div className="rg-cell rg-hint">위에서 근태 종류를 고르면 장소·사유 칸이 나옵니다.</div>}
-                    <label className="rg-cell"><span className="rg-lbl">비고</span>
-                      <input type="text" value={g.note} style={{ width: 140 }} onChange={(e) => setG(g.id, { note: e.target.value })} /></label>
                   </div>
                   {cur.includes("연장근무") && (
                     <div className="rg-ot">
@@ -447,8 +445,6 @@ export default function ReportEditor(p: Props) {
                     <label className="rg-cell"><span className="rg-lbl">작업내용</span>
                       <input type="text" value={g.work} placeholder="예: 신공장 페인트 작업" style={{ width: 210 }}
                         onChange={(e) => setH(g.id, { work: e.target.value })} /></label>
-                    <label className="rg-cell"><span className="rg-lbl">비고</span>
-                      <input type="text" value={g.note} style={{ width: 130 }} onChange={(e) => setH(g.id, { note: e.target.value })} /></label>
                   </div>
                 </div>
               );

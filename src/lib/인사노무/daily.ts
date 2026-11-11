@@ -268,11 +268,10 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   }).join("");
   const nameLines = (g: ReportRow[]) => g.map((r) => `<div style="${TXT}line-height:1.6">${person(r)}</div>`).join("");
   const inner = att.length
-    ? table([["부서", "80px"], ["성명", "110px"], ["근태", "130px"], ["장소 · 내용 (사유·시간)", ""], ["비고", "110px"]],
+    ? table([["부서", "80px"], ["성명", "110px"], ["근태", "130px"], ["장소 · 내용 (사유·시간)", ""]],
       groupAttendance(att).map(byDept).map((g) => [
         deptLines(g), nameLines(g),
-        splitReportTypes(g[0].types).map(badge).join(""), attText(g[0]),
-        lines([...new Set(g.map((r) => r.note).filter(Boolean))].map(esc))]))
+        splitReportTypes(g[0].types).map(badge).join(""), attText(g[0])]))
     : `<div style="${TXT}color:${SUB};padding:6px 0">오늘 근태 특이사항이 없습니다.</div>`;
   parts.push(section(SECTION_TITLES.근태, att.length, inner));
 
