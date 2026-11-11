@@ -301,40 +301,40 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
     : `<div style="${TXT}color:${SUB};padding:6px 0">오늘 근태 특이사항이 없습니다.</div>`;
   parts.push(section(SECTION_TITLES.근태, att.length, inner));
 
-  // 휴가 일정: 종류·시간은 한 번만, 이어지는 휴가 묶음마다 한 줄씩 '휴가일 → 출근일'
+  // 휴가 일정 (2026-11-11 정리): 종류는 배지만, 이어지는 휴가 묶음마다 한 줄 = 휴가 기간 · 일수(또는 시간) · 출근 예정일
   let sub = rows.filter((r) => r.section === "휴가일정");
   if (sub.length) {
-    const red = (s: string) => `<span style="${TXT}font-weight:800;color:#d42a2a">${esc(s)}</span>`;
-    const kind = (r: ReportRow) => {
-      if (!r.types) return `<span style="color:${SUB}">-</span>`;
-      const time = r.detail.trim() ? timeLabel(r.detail) || r.detail.trim() : "";
-      return (r.title ? badge(r.title) : "")
-        + (time ? `<div style="${TXT}font-size:11.5px;color:${SUB};margin-top:3px;white-space:nowrap">${esc(time)}</div>` : "")
-        + (r.note.trim() ? `<div style="${TXT}font-size:13px;color:${SUB};margin-top:2px">${esc(r.note.trim())}</div>` : "");
-    };
-    const runsCell = (r: ReportRow) => {
-      // 반차·반반차·외출: 그날도 출근 → 날짜마다 '당일 출근'
+    const C = `${TXT}font-size:14px;padding:9px 12px;border-bottom:1px solid ${LINE};text-align:left;vertical-align:middle;`;
+    const dim = `${TXT}font-size:12.5px;color:${SUB};`;
+    const back = (s: string) => `<span style="${TXT}font-weight:800;color:${NAVY};white-space:nowrap">${esc(s)}</span>`;
+    const range = (ds: DateStr[]) => esc(ds.length > 1 ? `${dayLabel(ds[0])} ~ ${dayLabel(ds[ds.length - 1])}` : dayLabel(ds[0]));
+    const anyNote = sub.some((r) => r.note.trim());
+    const body = sub.map((r) => {
+      const ds = splitReportTypes(r.types).filter(isDateStr).sort();
+      // 줄마다 [휴가 기간, 일수·시간, 출근 예정]
+      let lines: [string, string, string][];
       if (r.types && isPartialSchedule(r.title)) {
-        const ds = splitReportTypes(r.types).filter(isDateStr).sort();
-        return esc(ds.map((d) => dayLabel(d)).join(" · ")) + `<span style="${TXT}font-size:13px;color:${SUB};padding-left:10px">→ 당일 출근</span>`;
+        const time = r.detail.trim() ? timeLabel(r.detail) || r.detail.trim() : "";
+        lines = [[esc(ds.map((d) => dayLabel(d)).join(", ")), `<span style="${dim}white-space:nowrap">${esc(time || "-")}</span>`, `<span style="${dim}">당일 근무</span>`]];
+      } else {
+        const runs = r.types ? scheduleRuns(r) : null;
+        lines = runs
+          ? runs.map(([run, b]) => [range(run), `<span style="${dim}">${run.length}일</span>`, back(b)])
+          : [[esc(ds.length ? ds.map((d) => dayLabel(d)).join(", ") : r.note), `<span style="${dim}">${ds.length ? `${ds.length}일` : "-"}</span>`, r.value ? back(r.value) : "-"]];
       }
-      const runs = r.types ? scheduleRuns(r) : null;
-      if (!runs) {
-        // 예전 형식이나 출근일을 묶음에 못 맞춘 줄은 그대로
-        const text = esc(r.types ? splitReportTypes(r.types).filter(isDateStr).sort().map((d) => dayLabel(d)).join("·") : r.note);
-        return text + (r.value ? `<div style="margin-top:3px">출근 ${red(r.value)}</div>` : "");
-      }
-      const td = `${TXT}font-size:14px;padding:3px 0;vertical-align:top;`;
-      return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse">`
-        + runs.map(([ds, back], i) => `<tr${i ? ` style="border-top:1px dashed ${LINE}"` : ""}>`
-          + `<td style="${td}padding-right:14px">${esc(ds.map((d) => dayLabel(d)).join(" · "))}</td>`
-          + `<td style="${td}color:${SUB};padding-right:8px;white-space:nowrap">→ 출근</td>`
-          + `<td style="${td}white-space:nowrap">${red(back)}</td></tr>`).join("")
-        + `</table>`;
-    };
+      const span = lines.length > 1 ? ` rowspan="${lines.length}"` : "";
+      return lines.map((l, i) => `<tr>`
+        + (i ? "" : `<td style="${C}"${span}>${esc(r.dept)}</td><td style="${C}"${span}>${person(r)}</td>`
+          + `<td style="${C}"${span}>${r.title ? badge(r.title) : "-"}</td>`)
+        + `<td style="${C}">${l[0]}</td><td style="${C}">${l[1]}</td><td style="${C}">${l[2]}</td>`
+        + (anyNote && !i ? `<td style="${C}${dim}"${span}>${esc(r.note.trim())}</td>` : "")
+        + `</tr>`).join("");
+    }).join("");
+    const heads: [string, string][] = [["부서", "70px"], ["성명", "100px"], ["종류", "70px"], ["휴가 기간", ""], ["일수·시간", "120px"], ["출근 예정", "100px"],
+      ...(anyNote ? [["사유", "110px"] as [string, string]] : [])];
     parts.push(section(SECTION_TITLES.휴가일정, sub.length,
-      table([["부서", "80px"], ["성명", "110px"], ["종류", "130px"], ["휴가일 → 출근 예정", ""]],
-        sub.map((r) => [esc(r.dept), person(r), kind(r), runsCell(r)]))));
+      `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%">`
+      + `<tr>${heads.map(([h, w]) => `<th style="${HEAD}${w ? `width:${w};` : ""}">${h}</th>`).join("")}</tr>${body}</table>`));
   }
 
   // 휴일 근무: 날짜별로 나누고, 같은 날 근무지·작업내용이 같은 사람들은 한 줄로 (부서 순서대로)
@@ -391,52 +391,61 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   return parts.join("");
 }
 
-/** 근태 현황 칸 그리기: 있는 종류만 2열로 (메일에서도 나란히 보이도록 표). 칸 제목 = 종류 + 인원 수 */
+/** 근태 현황 칸 그리기 (2026-11-11 메모지형): 있는 종류만, 종류마다 한 줄 전체를 쓰고
+ *  그 안에 근무지(건)마다 네모난 메모지 타일을 3개씩 나란히 둔다. 메일에서도 나란히 보이도록 표로. */
+const PANEL_SOFT: Record<string, [string, string]> = { // 타일 바탕, 타일 테두리
+  휴가: ["#f3faf5", "#d5ecdc"], 출장: ["#f7f3fe", "#e2d6f8"], 교육: ["#f4f4fe", "#dcdcf7"],
+  외근: ["#f0f9fb", "#cfe9ee"], 휴일근무: ["#fdf8ee", "#f1e1bf"],
+};
 function attPanels(groups: ReportRow[][]): string {
   const small = `${TXT}font-size:12px;color:${SUB};`;
   const md = (d: string) => `${+d.slice(5, 7)}/${+d.slice(8)}`;
   const ppl = (g: ReportRow[]) => {
     const depts = [...new Set(g.map((r) => r.dept))];
-    return depts.map((dp) => (dp ? `<span style="${small}">${esc(dp)}</span> ` : "")
-      + g.filter((r) => r.dept === dp).map((r) => `<b>${esc(r.name)}</b>${r.rank ? `<span style="${small}"> ${esc(r.rank)}</span>` : ""}`).join(" · ")).join("<br>");
+    return depts.map((dp) => (dp ? `<div style="${small}margin-top:4px">${esc(dp)}</div>` : "")
+      + `<div style="${TXT}font-size:13px;line-height:1.55">`
+      + g.filter((r) => r.dept === dp).map((r) => `<b>${esc(r.name)}</b>${r.rank ? `<span style="${small}"> ${esc(r.rank)}</span>` : ""}`).join("<br>")
+      + `</div>`).join("");
   };
-  const item = (panel: string, g: ReportRow[], first: boolean) => {
+  const tile = (panel: string, g: ReportRow[]) => {
     const r = g[0];
-    const top = first ? "" : `border-top:1px dashed ${LINE};`;
+    const [bg, bd] = PANEL_SOFT[panel] ?? ["#f7f8fb", LINE];
+    const box = `background:${bg};border:1px solid ${bd};border-radius:6px;padding:10px 12px;height:100%;box-sizing:border-box`;
     if (panel === "휴가") {
       const unit = leaveUnit(r.types);
       const time = unit === "day" ? "종일" : timeLabel(r.detail);
-      const why = [r.title.trim(), time].filter(Boolean).join(" · ");
-      return `<div style="padding:7px 0;${top}">${splitReportTypes(r.types).map(badge).join("")} ${ppl(g)}`
-        + (why ? `<div style="${small}margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(why)}</div>` : "") + `</div>`;
+      return `<div style="${box}">${splitReportTypes(r.types).map(badge).join("")}`
+        + (r.title.trim() ? `<div style="${TXT}font-size:13px;font-weight:700;margin-top:4px">${esc(r.title.trim())}</div>` : "")
+        + (time ? `<div style="${small}white-space:nowrap">${esc(time)}</div>` : "")
+        + ppl(g) + `</div>`;
     }
     const v = parseAttValue(r.value);
-    const when = v.from && v.to ? `${md(v.from)}~${md(v.to)}` : "";
-    const extra = splitReportTypes(r.types).filter((t) => t !== panel);
-    const sub = [r.detail.trim(), when].filter(Boolean).join(" · ");
-    return `<div style="padding:7px 0;${top}">`
-      + `<div style="${TXT}font-weight:700">${esc(r.title.trim() || "-")}${extra.length ? ` ${extra.map(badge).join("")}` : ""}</div>`
-      + (sub ? `<div style="${small}margin-top:1px">${esc(sub)}</div>` : "")
-      + `<div style="${TXT}font-size:13px;margin-top:3px">${ppl(g)}</div></div>`;
+    const when = v.from && v.to ? `${md(v.from)} ~ ${md(v.to)}` : "";
+    const extra = splitReportTypes(r.types).filter((t) => t !== panel && !(panel === "휴일근무" && t === "연장근무"));
+    return `<div style="${box}">`
+      + `<div style="${TXT}font-size:14px;font-weight:800;line-height:1.35">${esc(r.title.trim() || "-")}</div>`
+      + (r.detail.trim() ? `<div style="${TXT}font-size:12.5px;color:#3b4558;margin-top:2px">${esc(r.detail.trim())}</div>` : "")
+      + (when || extra.length ? `<div style="margin-top:4px">${when ? `<span style="${small}font-weight:700">${when}</span> ` : ""}${extra.map(badge).join("")}</div>` : "")
+      + `<div style="border-top:1px dashed ${bd};margin-top:7px;padding-top:2px">${ppl(g)}</div></div>`;
   };
-  const panels = ATT_PANELS.map(([name, color]) => {
+  const COLS = 3;
+  return ATT_PANELS.map(([name, color]) => {
     const gs = groups.filter((g) => panelOf(g[0].types) === name);
     if (!gs.length) return "";
     const n = new Set(gs.flat().map((r) => r.name)).size;
-    return `<div style="border:1px solid ${LINE};border-top:3px solid ${color};border-radius:8px;padding:8px 12px 4px">`
-      + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%"><tr>`
-      + `<td style="${TXT}font-size:13px;font-weight:800;color:${color}">${name}</td>`
-      + `<td style="${TXT}font-size:18px;font-weight:800;color:${color};text-align:right">${n}<span style="${small}font-weight:600;margin-left:2px">명</span></td></tr></table>`
-      + gs.map((g, i) => item(name, g, i === 0)).join("") + `</div>`;
-  }).filter(Boolean);
-  const rowsHtml: string[] = [];
-  for (let i = 0; i < panels.length; i += 2) {
-    const [a, b] = [panels[i], panels[i + 1]];
-    rowsHtml.push(b
-      ? `<tr><td style="width:50%;vertical-align:top;padding:0 5px 10px 0">${a}</td><td style="width:50%;vertical-align:top;padding:0 0 10px 5px">${b}</td></tr>`
-      : `<tr><td colspan="2" style="vertical-align:top;padding:0 0 10px">${a}</td></tr>`);
-  }
-  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">${rowsHtml.join("")}</table>`;
+    const cells = gs.map((g) => tile(name, g));
+    const trs: string[] = [];
+    for (let i = 0; i < cells.length; i += COLS) {
+      const row = cells.slice(i, i + COLS);
+      while (row.length < COLS) row.push("");
+      trs.push(`<tr>${row.map((c, j) => `<td style="width:${100 / COLS}%;vertical-align:top;padding:0 ${j < COLS - 1 ? 8 : 0}px 8px 0">${c}</td>`).join("")}</tr>`);
+    }
+    return `<div style="margin-bottom:12px">`
+      + `<div style="${TXT}font-size:13px;font-weight:800;color:${color};margin-bottom:6px">`
+      + `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${color};margin-right:6px"></span>${name}`
+      + `<span style="${small}font-weight:700;margin-left:6px">${n}명</span></div>`
+      + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed">${trs.join("")}</table></div>`;
+  }).join("");
 }
 
 /** 근태 현황 줄 순서: 요약 칸 순서(휴가 → 외출 → 출장·교육 → 휴일·연장)대로 같은 종류끼리 모은다. 같은 종류는 입력 순서. */

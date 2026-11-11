@@ -64,7 +64,7 @@ describe("일일 근태현황 보고서", () => {
     for (const text of ["2026년 10월 26일(월) 근태현황", "근태 현황", "휴가 일정", "휴일·연장", "일학습병행(도제)",
       "10/24(토)", "김포발전소", "신품 전동기 납품", "10/30(금)"]) expect(html).toContain(text);
     expect(html.split("김포발전소").length - 1).toBe(1); // 같은 출장은 한 줄로 묶음
-    expect(html).toMatch(/생산팀<\/span> .*<br><span[^>]*>영업팀/); // 묶인 출장 줄에 부서 둘 (생산팀·영업팀)
+    expect(html).toMatch(/>생산팀<\/div>[\s\S]*>영업팀<\/div>/); // 한 메모지(출장 건)에 부서 둘 (생산팀·영업팀)
     expect(html.indexOf("사아자")).toBeLessThan(html.indexOf("차카타"));
     expect(html).toContain("DAILY ATTENDANCE REPORT"); // 남색 머리띠
     expect(html).toContain("width:20%"); // 한 줄 요약 (5칸)
@@ -202,8 +202,13 @@ describe("휴가일정 묶음", () => {
     expect(scheduleRuns({ types: "2026-12-31", value: "1/2(금)" })).toEqual([[["2026-12-31"], "1/2(금)"]]);
     expect(scheduleRuns({ types: "2026-11-06", value: "11/10(화), 11/12(목)" })).toBeNull();
     const html = renderReportHtml("2026-11-05", [{ section: "휴가일정", ord: 1, dept: "생산팀", rank: "차장", name: "가나다",
-      types: r.types, title: "외출", detail: "16:30~17:30", value: r.value, note: "" }]);
-    expect(html).toContain("→ 출근");
-    expect(html).toContain("11/13(금) · 11/16(월)");
+      types: r.types, title: "연차", detail: "", value: r.value, note: "" }]);
+    expect(html).toContain("11/13(금) ~ 11/16(월)"); // 이어지는 휴가는 기간으로
+    expect(html).toContain('rowspan="3"'); // 묶음 3개 = 세 줄, 성명·종류 칸은 합침
+    expect(html).toContain("11/17(화)");
+    const part = renderReportHtml("2026-11-05", [{ section: "휴가일정", ord: 1, dept: "생산팀", rank: "차장", name: "가나다",
+      types: "2026-11-13,2026-11-16", title: "외출", detail: "16:30~17:30", value: "", note: "" }]);
+    expect(part).toContain("당일 근무");
+    expect(part).toContain("11/13(금), 11/16(월)");
   });
 });
