@@ -334,9 +334,6 @@ export default function ReportEditor(p: Props) {
                       </div>
                     </div>
                   )}
-                  {cur.length > 0 && g.names.length > 0 && (
-                    <div className="rg-out">보고서에는 <q>{[cur.join("·"), g.title.trim(), g.detail.trim() && (timeLabel(g.detail) || g.detail.trim())].filter(Boolean).join(" · ")}</q> — {g.names.join("·")} {g.names.length}명{g.from && g.to && g.to > g.from ? ` (${dayLabel(g.from)}~${dayLabel(g.to)})` : ""}</div>
-                  )}
                 </div>
               );
             })}
@@ -405,9 +402,6 @@ export default function ReportEditor(p: Props) {
                       <div className="rg-cell"><span className="rg-lbl">출근 예정 (자동)</span><span className="rg-auto">{back}</span></div>
                     </div>
                   )}
-                  {!legacy && ds.length > 0 && (
-                    <div className="rg-out">보고서에는 <q>{scheduleText({ ...r, title: kind })}</q> → {partial ? "당일 출근" : `출근 ${back}`}</div>
-                  )}
                 </div>
               );
             })}
@@ -456,9 +450,6 @@ export default function ReportEditor(p: Props) {
                     <label className="rg-cell"><span className="rg-lbl">비고</span>
                       <input type="text" value={g.note} style={{ width: 130 }} onChange={(e) => setH(g.id, { note: e.target.value })} /></label>
                   </div>
-                  {(hTitle(g) || g.names.length > 0) && (
-                    <div className="rg-out">보고서에는 <q>{hTitle(g) || "근무지 / 작업내용"}</q>{g.names.length ? ` — ${g.names.join("·")} ${g.names.length}명` : ""}{ds.length ? `, ${ds.map((d) => dayLabel(d)).join("·")}` : " (날짜를 고르세요)"}</div>
-                  )}
                 </div>
               );
             })}
