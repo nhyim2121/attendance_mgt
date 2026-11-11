@@ -29,6 +29,9 @@ export interface JobDesc {
   example?: boolean;     // 예시 그대로 (아직 고치지 않음)
 }
 
+/** 직무기술서를 쓰지 않는 조직도 상자 (빠진 사람 알림에서도 뺀다): 대전지사 (2026-11-11 요청) */
+export const JD_SKIP_UNITS = ["dj"];
+
 /** NCS 직업기초능력 10가지 */
 export const BASICS = ["의사소통능력", "수리능력", "문제해결능력", "자기개발능력", "자원관리능력", "대인관계능력", "정보능력", "기술능력", "조직이해능력", "직업윤리"];
 export const CYCLES = ["매일", "수시", "주간", "월간", "분기", "반기", "연간"];
@@ -209,11 +212,6 @@ export const JD_EXAMPLES: JobDesc[] = [
     kpis: ["급여·근태 마감 오류 0건", "법정 교육·신고 기한 준수", "인증 갱신 누락 0건", "지원사업 선정 건수"],
     training: ["개인정보보호 교육", "노동법 개정 교육", "ISO 내부심사원 교육"] },
   JD_ACCT,
-  { ...base, id: "jd-branch", name: "대전지사", units: ["dj"], grade: "과장~전문위원", reportTo: "대표이사",
-    ncs: "(지사 업무에 맞게 적기)",
-    purpose: "(홈페이지에 대전지사 내용이 없어 비워 둠 — 실제 역할을 적어 주세요. 예: 대전·충청권 고객 대응, 기술 자문, 연구 협력 등)",
-    tasks: [t("(주요 업무 1)", "", 40, "수시"), t("(주요 업무 2)", "", 30, "수시"), t("본사 협업·보고", "일정·실적 공유, 활동 보고", 30, "주간")],
-    knowledge: [], skills: [], attitudes: [], basics: [], edu: "", career: "", licenses: [], env: "", kpis: [], training: [] },
   JD_APPR,
 ];
 

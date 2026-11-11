@@ -3,7 +3,7 @@ import "server-only";
 import ExcelJS from "exceljs";
 import * as store from "../store";
 import { todayKst } from "../time";
-import { BASICS, JD_EXAMPLES, type JobDesc, shareSum } from "./jobdesc";
+import { BASICS, JD_EXAMPLES, JD_SKIP_UNITS, type JobDesc, shareSum } from "./jobdesc";
 import { buildOrg, defaultNodes, type OrgBox, type OrgNode } from "./org";
 
 export async function loadJobs(): Promise<{ jobs: JobDesc[]; saved: boolean }> {
@@ -26,7 +26,7 @@ export async function loadUnits(day = todayKst()): Promise<{ units: Unit[]; all:
     b.children.forEach((c) => walk(c, p));
   };
   roots.forEach((r) => walk(r, []));
-  const all = units.flatMap((u) => u.people);
+  const all = units.filter((u) => !JD_SKIP_UNITS.includes(u.id)).flatMap((u) => u.people);
   return { units, all };
 }
 
