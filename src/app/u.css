@@ -263,3 +263,71 @@
 .u-soon li:last-child { border: 0; }
 .u-top { justify-content: flex-start; } .u-top .tog { margin-left: auto; } .u-top .srch + .tog { margin-left: 0; }
 }
+
+/* ================================================================ 위쪽 가로 메뉴 (2026-11-11, 왼쪽 사이드바를 위로 올림) */
+.shell.top { display: block; }
+.top .u-top .fold { display: none; }
+.tnav { position: sticky; top: 0; z-index: 50; }
+.tnav-bar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; color: #eef3fb;
+  background: linear-gradient(100deg, #0a2b70 0%, #0c3994 62%, #1747a6 100%); box-shadow: 0 4px 16px -8px rgba(10,43,112,.6); }
+.tnav-logo { flex: none; background: #fff; border-radius: 12px; padding: 6px 10px; display: block; }
+.tnav-logo img { display: block; height: 26px; width: auto; }
+.tnav-main { display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0; flex-wrap: nowrap; }
+.tnav-area { position: relative; }
+.tnav-a { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 12px; color: #eef3fb;
+  text-decoration: none; font-weight: 600; font-size: .92rem; white-space: nowrap; }
+.tnav-a:hover, .tnav-area:hover > .tnav-a, .tnav-area:focus-within > .tnav-a { background: rgba(255,255,255,.1); }
+.tnav-a.on, .tnav-a.on:hover { background: #fff; color: var(--navy); box-shadow: 0 4px 12px -4px rgba(0,0,0,.35); }
+.tnav-a .ch { width: 26px; height: 26px; flex: none; border-radius: 9px; display: grid; place-items: center; font-size: 14px;
+  background: rgba(255,255,255,.13); box-shadow: inset 0 1px 0 rgba(255,255,255,.2); }
+.tnav-a.on .ch { background: var(--c, var(--blue)); }
+.tnav-a .caret { font-size: .7rem; opacity: .55; }
+.tnav-drop { display: none; position: absolute; top: 100%; left: 0; min-width: 240px; max-height: 70vh; overflow-y: auto;
+  margin-top: 6px; padding: 8px; background: #fff; border-radius: 14px; border: 1px solid #e6eaf2;
+  box-shadow: 0 18px 40px -12px rgba(10,43,112,.35); }
+.tnav-drop::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; } /* 마우스가 내려가는 틈 */
+.tnav-area:hover .tnav-drop, .tnav-area:focus-within .tnav-drop { display: block; }
+.tnav-drop a { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 9px; color: #33415c;
+  text-decoration: none; font-size: .9rem; white-space: nowrap; }
+.tnav-drop a:hover { background: #f2f5fb; }
+.tnav-drop a.on { background: #eaf0fc; color: var(--blue); font-weight: 700; }
+.tnav-drop a.dash { font-weight: 700; color: var(--navy); }
+.tnav-drop .group { font-size: .72rem; font-weight: 700; color: #9aa3b5; padding: 10px 10px 2px; }
+.tnav-who { flex: none; display: flex; align-items: center; gap: 10px; font-size: .88rem; white-space: nowrap; }
+.tnav-who form { margin: 0; }
+.tnav-who button { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.3); color: #f4f7fb; border-radius: 8px;
+  padding: 4px 10px; cursor: pointer; }
+.tnav-who button:hover { border-color: #ff8a7a; color: #fff; }
+.tnav-sub { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; padding: 5px 20px; background: #fff;
+  border-bottom: 1px solid #e6eaf2; box-shadow: 0 2px 8px -6px rgba(10,43,112,.3); }
+.tnav-s { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 9px; border: 0; background: none;
+  color: #33415c; text-decoration: none; font: inherit; font-size: .87rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.tnav-s .caret { font-size: .65rem; opacity: .45; }
+.tnav-s:hover, .tnav-sub .tnav-area:hover > .tnav-s, .tnav-sub .tnav-area:focus-within > .tnav-s { background: #f2f5fb; }
+.tnav-s.on { color: var(--blue); background: #eaf0fc; box-shadow: inset 0 -2px 0 var(--red); }
+.tnav-ico { padding: 5px; }
+.tnav-who > span { font-size: .84rem; }
+@media (max-width: 1380px) { .tnav-a .caret { display: none; } .tnav-who > span { display: none; } }
+@media (max-width: 1180px) { .tnav-main .tnav-a .t { display: none; } }
+@media (max-width: 860px) {
+  .tnav { position: static; }
+  .tnav-bar { flex-wrap: wrap; padding: 8px 12px; }
+  .tnav-drop { display: none !important; }
+  .tnav-sub { padding: 5px 12px; }
+  .tnav-sub .tnav-drop { display: block !important; position: static; box-shadow: none; border: 0; margin: 0; padding: 0 0 4px 10px; min-width: 0; }
+  .tnav-sub .tnav-area { width: 100%; }
+}
+@media print { .tnav { display: none !important; } }
+/* 위 줄 펼침 메뉴가 둘째 줄 위로 오게 (둘째 줄 묶음 버튼이 비쳐 보이던 것) */
+.tnav-bar { position: relative; z-index: 3; }
+.tnav-sub { position: relative; z-index: 2; }
+.tnav-drop { z-index: 10; }
+/* 펼침 메뉴: 탭과 목록 사이 틈을 없애 마우스가 지나가도 닫히지 않게 (투명 테두리로 간격만 보이게),
+   메뉴가 많은 영역은 여러 칸으로 펼쳐 스크롤 없이 보이게 */
+.tnav-drop { margin-top: 0; border-top: 8px solid transparent; background-clip: padding-box;
+  box-shadow: 0 22px 44px -14px rgba(10,43,112,.4); border-left: 0; border-right: 0; border-bottom: 0; }
+.tnav-drop::before { display: none; }
+.tnav-area.r > .tnav-drop { left: auto; right: 0; }
+.tnav-area.wide > .tnav-drop { width: min(760px, 92vw); max-height: 78vh; columns: 3 200px; column-gap: 8px; }
+.tnav-area.wide > .tnav-drop > .grp { break-inside: avoid; }
+.tnav-area.wide > .tnav-drop > a.dash { column-span: all; }

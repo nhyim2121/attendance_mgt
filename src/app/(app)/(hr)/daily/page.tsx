@@ -14,6 +14,7 @@ import * as store from "@/lib/store";
 import { addDays, dayLabelLong, hhmm, isDateStr, nowKst, parseTs, todayKst, tsHM, tsTime } from "@/lib/time";
 import ReportView from "../report/ReportView";
 import DailyUpload from "./DailyUpload";
+import QuickClock from "./QuickClock";
 
 export const metadata = { title: "일일 현황 · 근태관리통합시스템" };
 
@@ -141,6 +142,7 @@ export default async function DailyPage({ searchParams }: { searchParams: Promis
                         <span className="tm">{b.in !== null ? tsHM(b.in) : ""}{b.out !== null ? ` ~ ${tsHM(b.out)}` : ""}</span>
                         <span className="st">{t === "late" ? "지각" : t === "leave" ? b.leave || "휴가" : t === "trip" ? (b.leaveContent || b.leave).split(String.fromCharCode(10))[0] : t === "none" ? "기록 없음" : b.overtime ? "연장" : b.group === "휴일근무" ? "휴일근무" : ""}</span>
                         {attachmentsFor(atts, b.emp, day, day).map((a) => <FileLink key={a.id} a={a} />)}
+                        {t === "none" && <QuickClock emp={b.emp} day={day} />}
                       </li>
                     );
                   })}
