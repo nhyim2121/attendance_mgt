@@ -44,7 +44,7 @@ function Sheet({ j, units, company, blank }: { j: JobDesc; units: Unit[]; compan
           <tr className="sec"><th colSpan={4}>4. 직무 요건 (필요 능력)</th></tr>
           <tr className="hd"><th /><th>필요 지식</th><th>필요 기술</th><th>직무수행태도</th></tr>
           <tr><th>능력</th><td><L xs={j.knowledge} /></td><td><L xs={j.skills} /></td><td><L xs={j.attitudes} /></td></tr>
-          <tr><th>직업기초능력</th><td colSpan={3} className="jd-basics">{BASICS.map((b) => <span key={b}>{j.basics.includes(b) ? "■" : "□"} {b}</span>)}</td></tr>
+          <tr><th>직업기초능력</th><td colSpan={3}><div className="jd-basics">{BASICS.map((b) => <span key={b}>{j.basics.includes(b) ? "■" : "□"} {b}</span>)}</div></td></tr>
           <tr className="sec"><th colSpan={4}>5. 자격 요건</th></tr>
           <tr><th>학력·전공</th><td>{j.edu}</td><th>경력</th><td>{j.career}</td></tr>
           <tr><th>자격·면허</th><td colSpan={3}>{j.licenses.join(" · ")}</td></tr>
