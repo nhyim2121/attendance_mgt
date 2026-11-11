@@ -191,3 +191,10 @@
 .rg-lbl { font-size: .72rem; font-weight: 700; color: #3b4a6b; }
 .rg-who { min-width: 220px; max-width: 360px; }
 .rg-hint { color: #9aa3b5; font-size: .82rem; align-self: center; }
+.rg-auto { display: inline-block; background: #eaf0fc; color: #0c3994; font-weight: 700; font-size: .84rem; border-radius: 6px; padding: 5px 10px; font-variant-numeric: tabular-nums; }
+.rg-out { margin-top: 10px; padding-top: 8px; border-top: 1px solid #eef1f6; font-size: .82rem; color: #7a8396; }
+.rg-out q { color: #141a26; font-weight: 600; quotes: "「" "」"; }
+.rg-date-add { width: 128px; font-size: .8rem; padding: 2px 4px; border: 1px dashed #c9d3e6; border-radius: 999px; color: #0c3994; }
+.rg-head > select { flex: none; min-width: 96px; }
+/* 근태 보고서 [+ 인원] 목록: 버튼 오른쪽으로 펼치고 3칸으로 (왼쪽으로 펼쳐져 잘리던 것) */
+.rg-card .mates-pop { width: min(420px, 86vw); max-height: 60vh; overflow-y: auto; }

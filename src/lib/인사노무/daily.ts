@@ -268,6 +268,11 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
         + (r.note.trim() ? `<div style="${TXT}font-size:13px;color:${SUB};margin-top:2px">${esc(r.note.trim())}</div>` : "");
     };
     const runsCell = (r: ReportRow) => {
+      // 반차·반반차·외출: 그날도 출근 → 날짜마다 '당일 출근'
+      if (r.types && isPartialSchedule(r.title)) {
+        const ds = splitReportTypes(r.types).filter(isDateStr).sort();
+        return esc(ds.map((d) => dayLabel(d)).join(" · ")) + `<span style="${TXT}font-size:13px;color:${SUB};padding-left:10px">→ 당일 출근</span>`;
+      }
       const runs = r.types ? scheduleRuns(r) : null;
       if (!runs) {
         // 예전 형식이나 출근일을 묶음에 못 맞춘 줄은 그대로
@@ -416,7 +421,11 @@ export function scheduleRuns(r: Pick<ReportRow, "types" | "value">): [DateStr[],
   return i === ds.length ? out : null;
 }
 
-/** 출근 예정: 이어지는 휴가 묶음마다 그다음 근무일 */
+/** 그날 일부만 쉬는 휴가 (반차·반반차·외출): 그날도 출근하므로 '출근 예정'을 따로 계산하지 않고 '당일 출근'으로 본다 */
+export const PARTIAL_SCHEDULE = ["반차", "반반차", "외출"];
+export const isPartialSchedule = (kind: string) => PARTIAL_SCHEDULE.includes(kind.trim());
+
+/** 출근 예정: 이어지는 휴가 묶음마다 그다음 근무일 (하루 종일 쉬는 휴가만. 반차·반반차·외출은 isPartialSchedule) */
 export function returnDays(dates: DateStr[], isWorkday: (d: DateStr) => boolean): DateStr[] {
   const ds = [...new Set(dates.filter(isDateStr))].sort();
   const out: DateStr[] = [];
