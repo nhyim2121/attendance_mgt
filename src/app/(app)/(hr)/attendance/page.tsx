@@ -107,13 +107,14 @@ export default async function Home() {
   let yday = addDays(today, -1);
   while (isHoliday(yday, rule, holidays) && yday > addDays(today, -14)) yday = addDays(yday, -1);
   const y = dayLists(days, yday, rule);
-  // 어제 현황은 현장 부서별로 (2026-11-11 사용자 결정): 생산팀, 품질팀(김동수 제외), 영업팀(이병욱 제외), 연구소
+  // 어제 현황은 부서별로 (2026-11-11 사용자 결정): 생산팀, 품질팀(김동수 제외), 영업팀(이병욱 제외), 연구소, 관리팀
   const yBoard = dailyBoard(days, base.leaves, await staffOn(yday, records), yday, rule);
   const Y_DEPTS: [string, (dept: string, emp: string) => boolean][] = [
     ["생산팀", (d) => d === "생산팀"],
     ["품질팀", (d, e) => d === "품질팀" && e !== "김동수"],
     ["영업팀", (d, e) => d === "영업팀" && e !== "이병욱"],
     ["연구소", (d) => d.includes("연구소")],
+    ["관리팀", (d) => d === "관리팀"],
   ];
   const yDeptOf = new Map(yBoard.map((b) => [b.emp, b.dept]));
   const yGroup = (emp: string, dept = yDeptOf.get(emp) ?? "") => Y_DEPTS.find(([, ok]) => ok(dept, emp))?.[0] ?? "";
