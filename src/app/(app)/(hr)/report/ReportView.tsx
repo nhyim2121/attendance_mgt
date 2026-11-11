@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { ParamDate } from "@/components/ParamControls";
 import { Table } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
-import { rankMap, summaryText, weekendBefore } from "@/lib/인사노무/daily";
+import { rankMap, scheduleToday, summaryText, weekendBefore } from "@/lib/인사노무/daily";
 import { computeDays, getHolidays, getRecords, getRule, loadBase, type SearchParams } from "@/lib/인사노무/data";
 import { employeeRows, SHEET_COLUMNS } from "@/lib/인사노무/splitter";
 import { loadMailConfig } from "@/lib/mailer";
@@ -67,7 +67,7 @@ export default async function ReportView({ sp }: { sp: SearchParams }) {
         holidayDates={holidayDates} holidays={Object.keys(holidays)} outs={outs}
         mail={{
           configured: !!cfg, sender: cfg ? `${cfg.senderName} <${cfg.user}> · ${cfg.host}:${cfg.port}` : "",
-          to: mailTo, cc: mailCc, subject: `[근태현황] ${dayLabel(day)} - ${summaryText(saved)}`,
+          to: mailTo, cc: mailCc, subject: `[근태현황] ${dayLabel(day)} - ${summaryText(scheduleToday(day, saved))}`,
           greeting: `안녕하세요. 관리팀입니다.\n${dayLabel(day, true)} 근태현황 공유드립니다.`,
         }} />
 

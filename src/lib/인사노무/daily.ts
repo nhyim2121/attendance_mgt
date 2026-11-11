@@ -257,7 +257,7 @@ function clean(rows: ReportRow[]): ReportRow[] {
 
 /** 일일 근태현황 보고서 HTML (사이트 미리보기·이미지 저장·메일 본문 공용). */
 export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = true): string {
-  const rows = clean(input);
+  const rows = scheduleToday(day, clean(input));
   const parts = [`<div style="background:${BG};padding:18px;${TXT}max-width:920px">`];
   if (withTitle) {
     // 머리띠: 왼쪽 보고서 이름·날짜, 오른쪽 작성 부서
@@ -400,33 +400,35 @@ const PANEL_SOFT: Record<string, [string, string]> = { // 타일 바탕, 타일 
 function attPanels(groups: ReportRow[][]): string {
   const small = `${TXT}font-size:12px;color:${SUB};`;
   const md = (d: string) => `${+d.slice(5, 7)}/${+d.slice(8)}`;
-  const ppl = (g: ReportRow[]) => {
-    const depts = [...new Set(g.map((r) => r.dept))];
-    return depts.map((dp) => (dp ? `<div style="${small}margin-top:4px">${esc(dp)}</div>` : "")
-      + `<div style="${TXT}font-size:13px;line-height:1.55">`
-      + g.filter((r) => r.dept === dp).map((r) => `<b>${esc(r.name)}</b>${r.rank ? `<span style="${small}"> ${esc(r.rank)}</span>` : ""}`).join("<br>")
-      + `</div>`).join("");
-  };
+  // 사람: 부서마다 한 줄 '부서  이름 직급 · 이름 직급'
+  const ppl = (g: ReportRow[]) => [...new Set(g.map((r) => r.dept))].map((dp) =>
+    `<div style="${TXT}font-size:13px;line-height:1.6">${dp ? `<span style="${small}margin-right:6px">${esc(dp)}</span>` : ""}`
+    + g.filter((r) => r.dept === dp).map((r) => `<b>${esc(r.name)}</b>${r.rank ? `<span style="${small}"> ${esc(r.rank)}</span>` : ""}`).join(`<span style="color:#c3c9d4"> · </span>`)
+    + `</div>`).join("");
   const tile = (panel: string, g: ReportRow[]) => {
     const r = g[0];
     const [bg, bd] = PANEL_SOFT[panel] ?? ["#f7f8fb", LINE];
-    const box = `background:${bg};border:1px solid ${bd};border-radius:6px;padding:10px 12px;height:100%;box-sizing:border-box`;
+    // 메모지 한 장 = [머리: 제목 | 오른쪽 작은 표시] / [한 줄 설명] / 점선 / [사람]
+    const head = (title: string, right: string) => `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%"><tr>`
+      + `<td style="${TXT}font-size:14px;font-weight:800;line-height:1.35;vertical-align:top">${title}</td>`
+      + `<td style="text-align:right;vertical-align:top;white-space:nowrap;padding-left:6px">${right}</td></tr></table>`;
+    const line = (t: string) => `<div style="${TXT}font-size:12.5px;color:#3b4558;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t || "&nbsp;"}</div>`;
+    const foot = (inner: string) => `<div style="border-top:1px dashed ${bd};margin-top:8px;padding-top:6px">${inner}</div>`;
+    const box = (inner: string) => `<div style="background:${bg};border:1px solid ${bd};border-radius:6px;padding:10px 12px;min-height:96px;box-sizing:border-box">${inner}</div>`;
     if (panel === "휴가") {
       const unit = leaveUnit(r.types);
       const time = unit === "day" ? "종일" : timeLabel(r.detail);
-      return `<div style="${box}">${splitReportTypes(r.types).map(badge).join("")}`
-        + (r.title.trim() ? `<div style="${TXT}font-size:13px;font-weight:700;margin-top:4px">${esc(r.title.trim())}</div>` : "")
-        + (time ? `<div style="${small}white-space:nowrap">${esc(time)}</div>` : "")
-        + ppl(g) + `</div>`;
+      return box(head(g.map((x) => `${esc(x.name)}${x.rank ? `<span style="${small}font-weight:400"> ${esc(x.rank)}</span>` : ""}`).join(", "),
+        splitReportTypes(r.types).map(badge).join(""))
+        + line(esc([r.title.trim(), time].filter(Boolean).join(" · ")))
+        + foot(`<div style="${small}">${esc([...new Set(g.map((x) => x.dept))].filter(Boolean).join(" · "))}</div>`));
     }
     const v = parseAttValue(r.value);
-    const when = v.from && v.to ? `${md(v.from)} ~ ${md(v.to)}` : "";
+    const when = v.from && v.to ? `${md(v.from)}~${md(v.to)}` : "당일";
     const extra = splitReportTypes(r.types).filter((t) => t !== panel && !(panel === "휴일근무" && t === "연장근무"));
-    return `<div style="${box}">`
-      + `<div style="${TXT}font-size:14px;font-weight:800;line-height:1.35">${esc(r.title.trim() || "-")}</div>`
-      + (r.detail.trim() ? `<div style="${TXT}font-size:12.5px;color:#3b4558;margin-top:2px">${esc(r.detail.trim())}</div>` : "")
-      + (when || extra.length ? `<div style="margin-top:4px">${when ? `<span style="${small}font-weight:700">${when}</span> ` : ""}${extra.map(badge).join("")}</div>` : "")
-      + `<div style="border-top:1px dashed ${bd};margin-top:7px;padding-top:2px">${ppl(g)}</div></div>`;
+    return box(head(esc(r.title.trim() || "-"), `<span style="${small}font-weight:700">${when}</span>`)
+      + line(esc(r.detail.trim()) + (extra.length ? ` ${extra.map(badge).join("")}` : ""))
+      + foot(ppl(g)));
   };
   const COLS = 3;
   return ATT_PANELS.map(([name, color]) => {
@@ -571,6 +573,30 @@ export function tidySchedule(rows: ReportRow[], reportDay: DateStr): ReportRow[]
 }
 
 /** 메일 제목·미리보기용 한 줄 요약: '연차 1, 반차 1, 출장 3' */
+/** 휴가일정 중 보고일(과 이미 지난 날)은 휴가일정에서 빼고, 보고일 휴가는 근태현황 '휴가'에 올린다 (보고서 그릴 때만, 2026-11-11).
+ *  같은 사람·같은 종류가 이미 근태현황에 있으면 다시 올리지 않는다. 남은 날짜가 없으면 휴가일정 줄을 뺀다. */
+export function scheduleToday(day: DateStr, rows: ReportRow[]): ReportRow[] {
+  const out: ReportRow[] = [];
+  const add: ReportRow[] = [];
+  for (const r of rows) {
+    const ds = r.section === "휴가일정" && r.types ? splitReportTypes(r.types).filter(isDateStr).sort() : [];
+    if (!ds.length || !ds.some((d) => d <= day)) { out.push(r); continue; }
+    if (ds.includes(day) && r.title) {
+      const has = rows.some((x) => x.section === "근태" && x.name === r.name && splitReportTypes(x.types).includes(r.title));
+      if (!has) add.push({ ...r, section: "근태", types: r.title, title: r.note.trim(), detail: r.detail, value: "", note: "" });
+    }
+    const rest = ds.filter((d) => d > day);
+    if (!rest.length) continue;
+    if (isPartialSchedule(r.title)) { out.push({ ...r, types: rest.join(",") }); continue; }
+    // 하루 종일 휴가: 묶음별 출근 예정(value)을 남은 날짜에 맞춰 다시 짝짓는다
+    const runs = scheduleRuns(r);
+    if (!runs) { out.push({ ...r, types: rest.join(",") }); continue; }
+    const keep = runs.map(([run, b]) => [run.filter((d) => d > day), b] as const).filter(([run]) => run.length);
+    out.push({ ...r, types: keep.flatMap(([run]) => run).join(","), value: keep.map(([, b]) => b).join(", ") });
+  }
+  return [...out, ...add];
+}
+
 export function summaryText(rows: ReportRow[]): string {
   const counts: Record<string, number> = {};
   for (const r of rows.filter((x) => x.section === "근태")) {

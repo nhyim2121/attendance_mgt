@@ -64,7 +64,7 @@ describe("일일 근태현황 보고서", () => {
     for (const text of ["2026년 10월 26일(월) 근태현황", "근태 현황", "휴가 일정", "휴일·연장", "일학습병행(도제)",
       "10/24(토)", "김포발전소", "신품 전동기 납품", "10/30(금)"]) expect(html).toContain(text);
     expect(html.split("김포발전소").length - 1).toBe(1); // 같은 출장은 한 줄로 묶음
-    expect(html).toMatch(/>생산팀<\/div>[\s\S]*>영업팀<\/div>/); // 한 메모지(출장 건)에 부서 둘 (생산팀·영업팀)
+    expect(html).toMatch(/>생산팀<\/span>[\s\S]*>영업팀<\/span>/); // 한 메모지(출장 건)에 부서 둘 (생산팀·영업팀)
     expect(html.indexOf("사아자")).toBeLessThan(html.indexOf("차카타"));
     expect(html).toContain("DAILY ATTENDANCE REPORT"); // 남색 머리띠
     expect(html).toContain("width:20%"); // 한 줄 요약 (5칸)
