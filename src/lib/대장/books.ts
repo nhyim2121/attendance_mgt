@@ -14,7 +14,7 @@ export interface Field {
   k: string; label: string; type: FieldType; options?: string[]; req?: boolean; hide?: boolean; wide?: boolean;
   alert?: number; aliases?: string[]; placeholder?: string;
 }
-export type Area = "ga" | "hr" | "ehs" | "it" | "misc";
+export type Area = "ga" | "hr" | "ehs" | "it" | "cert" | "misc";
 export interface Book {
   key: string; area: Area; title: string; desc: string; folder?: string;
   day: string;                                  // 기준 날짜 칸 (정렬·연도)
@@ -27,6 +27,20 @@ export interface Book {
 }
 
 const 직원 = (k = "emp", label = "직원"): Field => ({ k, label, type: "emp" });
+/** 영역별 정기 업무 대장 (업무분장 묶음·추천 업무만 다르고 칸은 같다) */
+const routine = (key: string, area: Area, title: string, folder: string, groups: string[], tasks: string[]): Book => ({
+  key, area, title, desc: "매월·분기·매년 반복하는 업무와 다음 예정일 (7일 전 알림)", folder,
+  day: "next", title1: "task", filters: ["cycle", "group"],
+  fields: [
+    { k: "group", label: "업무분장", type: "select", options: groups },
+    { k: "task", label: "업무", type: "suggest", req: true, wide: true, options: tasks },
+    { k: "cycle", label: "주기", type: "select", options: ["매일", "매주", "매월", "분기", "반기", "매년", "변경 때"] },
+    { k: "last", label: "최근 수행일", type: "date" },
+    { k: "next", label: "다음 예정일", type: "date", req: true, alert: 7 },
+    { k: "who", label: "담당", type: "text", hide: true },
+    { k: "how", label: "방법·근거", type: "textarea", hide: true },
+  ],
+});
 
 export const BOOKS: Book[] = [
   // ------------------------------------------------------------ 총무
@@ -905,6 +919,26 @@ export const BOOKS: Book[] = [
       { k: "how", label: "방법·확인 위치", type: "textarea", hide: true },
     ],
   },
+  // ------------------------------------------------------------ 영역별 정기 업무 (2026-11-11, 업무분장 화면과 짝)
+  routine("hrroutine", "hr", "인사노무 정기 업무", "3. 인사, 노무",
+    ["3-1 직원채용", "3-2 복무·근태·휴가", "3-3 급여", "3-4 노무", "3-5 조직", "3-6 인사", "3-7 교육훈련"],
+    ["캡스·하이웍스 자료 올리기", "주 52시간 초과 확인", "월 근태 집계·근태표 인쇄", "연차 현황 업로드", "급여 마감·명세서 교부", "원천세 신고·납부 (10일)",
+      "4대보험 고지 확인", "노사협의회 정기회의 (분기)", "산업안전보건교육 (분기)", "연차사용촉진 1차 통보", "연차사용촉진 2차 통보", "연말정산 자료 수집",
+      "지급명세서 제출", "성희롱 예방교육 (연 1회)", "장애인 인식개선교육 (연 1회)", "퇴직연금 교육 (연 1회)", "연간 교육 계획 수립", "인사평가", "비상연락망 갱신",
+      "법정 선임자 자격 확인", "최저임금 반영 점검 (1월)", "장애인 고용부담금 신고 (1월)"]),
+  routine("garoutine", "ga", "총무 정기 업무", "1. 총무",
+    ["1 문서 및 자료관리", "2 복리 및 후생", "4 비품관리", "5 차량관리", "6 출장 및 연수", "7 주주 및 법무", "8 자산관리", "9 프로젝트", "10 입찰", "11 국책", "12 지원사업"],
+    ["공문 회신 기한 확인", "공동인증서 만료 확인", "문서 보존기간 경과분 폐기", "보호구·피복 지급", "기숙사 월세·관리비 확인", "비품 재고 조사",
+      "운행일지 확인", "자동차 보험 갱신", "자동차 정기검사", "정기 주주총회 (3월)", "법인 등기 변경 확인", "계약서 만기 확인",
+      "화재·재산 보험 갱신", "렌탈·용역 계약 갱신", "입찰 참가자격 정보 갱신", "국책과제 연차 보고·정산", "지원사업 공고 확인", "명절 선물 준비"]),
+  routine("ehsroutine", "ehs", "환경안전보건 정기 업무", "4. 환경, 안전, 보건",
+    ["4-1 환경", "4-2 안전", "4-3 보건"],
+    ["폐수·대기 운영일지", "자가측정 결과 보관", "폐기물 실적 보고 (2월)", "올바로 인계 확인", "위험성평가 (연 1회)", "소방시설 작동점검",
+      "소방시설 종합점검", "크레인·지게차 안전검사", "압력용기 안전검사", "산업안전보건위원회 (분기)", "작업환경측정 (반기)", "일반 건강검진", "특수 건강검진", "MSDS 교육"]),
+  routine("certroutine", "cert", "인증 정기 업무", "※인증",
+    ["C-1 인증 현황", "C-2 사후심사·갱신", "C-3 연구소·지정 유지"],
+    ["ISO 내부심사", "ISO 경영검토", "ISO 사후심사", "벤처확인 갱신", "이노비즈 갱신", "메인비즈 갱신", "기업부설연구소 연구원 변동 신고",
+      "AEO 정기 자체평가", "병역지정업체 실태 점검", "성과공유제 운영 보고", "일학습병행 운영 보고"]),
   // ------------------------------------------------------------ 기타
   {
     key: "tasks", area: "misc", title: "진행 건·할 일", desc: "다른 대장에 넣기 어려운 진행 중인 일과 기한", folder: "진행중",
@@ -924,5 +958,5 @@ export const BOOKS: Book[] = [
 export const bookOf = (key: string) => BOOKS.find((b) => b.key === key);
 export const booksIn = (area: Area) => BOOKS.filter((b) => b.area === area);
 /** 대장 화면 주소 */
-export const AREA_BASE: Record<Area, string> = { ga: "/ga/b", hr: "/hr/b", ehs: "/ehs/b", it: "/it/b", misc: "/misc/b" };
+export const AREA_BASE: Record<Area, string> = { ga: "/ga/b", hr: "/hr/b", ehs: "/ehs/b", it: "/it/b", cert: "/cert/b", misc: "/misc/b" };
 export const bookHref = (b: Book) => `${AREA_BASE[b.area]}/${b.key}`;

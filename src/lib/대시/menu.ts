@@ -2,6 +2,7 @@
  *  대장은 books.ts에서 가져오고, 아래 GA_GROUPS에 없는 총무 대장은 '그 밖' 묶음에 들어간다. */
 import { type Area, bookHref, BOOKS, booksIn } from "../대장/books";
 import { IT_DUTIES } from "../보안전산/duties";
+import { DUTY_HREF, type DutyArea, ROUTINE_BOOK } from "./duties";
 
 export interface MenuItem { href: string; label: string; desc?: string; also?: string[]; exact?: boolean; admin?: boolean }
 export interface MenuGroup { label: string; items: MenuItem[] }
@@ -14,7 +15,13 @@ const book = (key: string): MenuItem => {
   const b = BOOKS.find((x) => x.key === key)!;
   return { href: bookHref(b), label: b.title, desc: b.desc };
 };
-const booksOf = (area: Area, skip: string[] = []) => booksIn(area).filter((b) => !skip.includes(b.key)).map((b) => book(b.key));
+/** 영역 맨 위 '업무분장' 묶음: 업무분장·업무 목록 화면 + 정기 업무 대장 */
+const dutyGroup = (area: DutyArea, admin = false): MenuGroup => ({ label: "업무분장", items: [
+  { href: DUTY_HREF[area], label: "업무분장·업무 목록", desc: "묶음별 하는 일과 주기, 관련 대장", ...(admin ? { admin: true } : {}) },
+  { ...book(ROUTINE_BOOK[area]), ...(admin ? { admin: true } : {}) },
+] });
+const ROUTINES = Object.values(ROUTINE_BOOK);
+const booksOf = (area: Area, skip: string[] = []) => booksIn(area).filter((b) => !skip.includes(b.key) && !ROUTINES.includes(b.key)).map((b) => book(b.key));
 
 /** 총무 묶음: 회사 업무분장·X:\관리팀\1. 총무 폴더 번호(1~12) 그대로. 아직 화면이 없는 묶음은 '준비 중' 화면으로 간다. */
 const GA_GROUPS: [string, string[]][] = [
@@ -83,6 +90,7 @@ export const MENU: MenuArea[] = [
   {
     key: "hr", label: "인사노무", en: "HR", color: "#0c3994", desc: "채용·근태·휴가·급여·노무·조직·인사·교육 (업무분장 3-1~3-7)", dash: "/hr", adminOnly: false,
     groups: [
+      dutyGroup("hr", true),
       { label: "3-1. 직원채용", items: [gdash("hire"), hrBook("recruit"), { ...hrBook("applicants"), also: ["/hr/applicant"] }, hrBook("onoff"), hrBook("contracts")] },
       { label: "3-2. 복무 및 근태관리", items: [
         { href: "/attendance", label: "근태 홈", desc: "오늘 출근·지각·휴가 한눈에" },
@@ -121,6 +129,7 @@ export const MENU: MenuArea[] = [
   {
     key: "ga", label: "총무", en: "ADMIN", color: "#0e7490", desc: "문서·비품·차량·복리후생·지원사업·입찰", dash: "/ga", adminOnly: true,
     groups: [
+      dutyGroup("ga"),
       { label: "1. 문서 및 자료관리", items: [
         { href: "/ga/mail", label: "문서 수발 대장", desc: "대내외 공문서·우편·팩스, 회신 기한" },
         { href: "/ga/issue", label: "증빙·법인서류 발급", desc: "등기부·납세증명 등 발급 기록" },
@@ -135,21 +144,18 @@ export const MENU: MenuArea[] = [
   },
   {
     key: "ehs", label: "환경안전보건", en: "SAFETY", color: "#15803d", desc: "폐수·안전 점검·건강검진", dash: "/ehs", adminOnly: true,
-    groups: [{ label: "", items: booksOf("ehs") }],
+    groups: [dutyGroup("ehs"), { label: "대장", items: booksOf("ehs") }],
   },
   {
     key: "it", label: "보안전산", en: "IT·SECURITY", color: "#4338ca", desc: "전산장비·네트워크·계정·정보보안·개인정보·백업·물리보안 (업무분장 IT-1~IT-7)", dash: "/it", adminOnly: true,
     groups: [
-      { label: "업무분장", items: [
-        { href: "/it/duties", label: "업무분장·업무 목록", desc: "IT-1~IT-7 하는 일과 주기, 관련 대장" },
-        book("itroutine"),
-      ] },
+      dutyGroup("it"),
       ...IT_DUTIES.map((g) => ({ label: `${g.no}. ${g.name}`, items: g.books.map(book) })),
     ],
   },
   {
     key: "cert", label: "인증", en: "CERT", color: "#b45309", desc: "인증·지정 만기와 사후심사·갱신 일정", dash: "/cert/home", adminOnly: true,
-    groups: [{ label: "", items: [
+    groups: [dutyGroup("cert"), { label: "인증", items: [
       { href: "/cert", label: "인증 현황", desc: "분류별 인증 카드와 일정", also: ["/cert/item"], exact: true },
       { href: "/cert#add", label: "인증 등록", desc: "새 인증·지정 등록" },
     ] }],
@@ -177,7 +183,8 @@ export const menuFor = (admin: boolean): MenuArea[] => MENU.filter((a) => admin 
 /** 메뉴 이모지 (사이드바·전체 메뉴). 영역은 키, 화면은 주소, 대장은 끝 이름으로 찾는다. */
 const EMOJI: Record<string, string> = {
   hr: "👥", ga: "🗂️", ehs: "🛡️", it: "💻", cert: "🏅", misc: "📌",
-  "/it/duties": "🧩", "/it?from=ga": "💻",
+  "/it/duties": "🧩", "/hr/duties": "🧩", "/ga/duties": "🧩", "/ehs/duties": "🧩", "/cert/duties": "🧩",
+  hrroutine: "🔁", garoutine: "🔁", ehsroutine: "🔁", certroutine: "🔁", "/it?from=ga": "💻",
   "/attendance": "⏰", "/daily": "📅", "/person": "🙋", "/calendar": "🗓️", "/hours": "📊", "/week52": "⏱️", "/monthly": "🧮",
   "/leave": "🏖️", "/leave/status": "📈", "/leave/calendar": "🌴", "/leave/evidence": "📎", "/leave/register": "✍️",
   "/employees": "🪪", "/org": "🌳", "/upload": "💾", "/settings": "⚙️",
