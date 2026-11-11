@@ -1228,15 +1228,15 @@ html[data-print="port"] .edit-print .ep-tbl { table-layout: fixed; }
 /* ---------------------------------------------------------------- 직무기술서 (/jobs, 2026-11-11) */
 .jd-note { background: #fff8e6; border: 1px solid #f5d99a; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: .9rem; }
 .jd-ex { display: inline-block; margin-left: 6px; font-size: .7rem; font-weight: 700; color: #b45309; border: 1px solid #f5c26b; background: #fff8e6; border-radius: 8px; padding: 0 6px; vertical-align: 1px; }
-.jd-tbl td { vertical-align: top; font-size: .86rem; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; } /* 표 공통 nowrap이면 긴 글이 옆 칸으로 넘쳐 겹친다 */
-.jd-tbl td:first-child, .jd-tbl td:nth-child(6), .jd-tbl td:nth-child(7), .jd-tbl td:last-child { white-space: nowrap; }
+table.tbl.jd-tbl td { vertical-align: top; font-size: .86rem; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; } /* 표 공통 nowrap이면 긴 글이 옆 칸으로 넘쳐 겹친다 */
+table.tbl.jd-tbl td:first-child, table.tbl.jd-tbl td:nth-child(6), table.tbl.jd-tbl td:nth-child(7), table.tbl.jd-tbl td:last-child { white-space: nowrap; }
 .jd-tbl .c, .jd-tasks .c { text-align: center; }
 .jd-tbl .jd-pur { min-width: 260px; max-width: 420px; color: var(--ink-2); }
 .jd-tbl .jd-ppl { min-width: 120px; max-width: 220px; }
 .jd-acts { display: inline-flex; flex-wrap: wrap; gap: 3px; white-space: nowrap; }
 .jd-acts.busy, .jd-ed.busy { opacity: .6; }
 .jd-guide th { width: 120px; text-align: left; white-space: nowrap; vertical-align: top; font-size: .84rem; }
-.jd-guide td { font-size: .84rem; white-space: normal; }
+table.tbl.jd-guide td { font-size: .84rem; white-space: normal; }
 .jd-links { margin: 0 0 8px; padding-left: 18px; line-height: 1.5; font-size: .88rem; }
 .jd-links li { margin-bottom: 6px; }
 .jd-links .muted { font-size: .8rem; }
