@@ -107,12 +107,12 @@ export default async function Home() {
   let yday = addDays(today, -1);
   while (isHoliday(yday, rule, holidays) && yday > addDays(today, -14)) yday = addDays(yday, -1);
   const y = dayLists(days, yday, rule);
-  // 어제 현황은 부서별로 (2026-11-11 사용자 결정): 생산팀, 품질팀(김동수 제외), 영업팀(이병욱 제외), 연구소, 관리팀
+  // 어제 현황은 부서별로 (2026-11-11 사용자 결정): 생산팀, 품질팀(김동수 제외), 영업팀, 연구소, 관리팀
   const yBoard = dailyBoard(days, base.leaves, await staffOn(yday, records), yday, rule);
   const Y_DEPTS: [string, (dept: string, emp: string) => boolean][] = [
     ["생산팀", (d) => d === "생산팀"],
     ["품질팀", (d, e) => d === "품질팀" && e !== "김동수"],
-    ["영업팀", (d, e) => d === "영업팀" && e !== "이병욱"],
+    ["영업팀", (d) => d === "영업팀"],
     ["연구소", (d) => d.includes("연구소")],
     ["관리팀", (d) => d === "관리팀"],
   ];
@@ -144,7 +144,8 @@ export default async function Home() {
   const ph = periodHours(monthDays, rule);
   const late3 = frequentLate(monthDays);
   const order = [...new Set(base.employees.map((e) => e.dept).filter(Boolean))];
-  const deptOt = deptOvertime(monthDays, rule, order);
+  // 이번 달 평균 연장근무시간 그래프에서 대전지사·일학습(도제)은 뺀다 (2026-11-11 사용자 결정)
+  const deptOt = deptOvertime(monthDays, rule, order).filter((x) => !/대전|일학습/.test(x.dept));
   const yearDays = days.filter((d) => d.day >= yearStart);
   const monthly = monthlyAverage(yearDays, rule).map((m) => ({ ...m, label: `${+m.month.slice(5)}월` }));
   const org = buildOrg(savedNodes?.length ? savedNodes : defaultNodes(base.employees), base.employees, today);
