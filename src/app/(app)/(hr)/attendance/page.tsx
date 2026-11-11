@@ -170,11 +170,12 @@ export default async function Home() {
     return { dept: dp, staff: g.length, present: g.filter((b) => b.in !== null).length };
   }).filter((x) => x.staff > 0);
   const status = [
+    // 항목마다 색을 달리 (출근 남색, 지각 빨강, 휴가 초록, 출장·교육 보라, 미출근 주황)
     { label: "출근", n: present, color: HOME.navy },
     { label: "지각", n: board.filter((b) => b.late).length, color: HOME.red },
-    { label: "휴가", n: by("휴가").length, color: HOME.navy },
-    { label: "출장·교육", n: by("출장·교육").length, color: HOME.navy },
-    { label: "미출근", n: by("기록 없음").length, color: HOME.red },
+    { label: "휴가", n: by("휴가").length, color: "#1f8a5b" },
+    { label: "출장·교육", n: by("출장·교육").length, color: "#6d3fd1" },
+    { label: "미출근", n: by("기록 없음").length, color: "#d9730d" },
   ];
 
   const soon = base.leaves.filter((l) => l.day > today && l.day <= addDays(today, 14)

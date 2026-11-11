@@ -157,10 +157,9 @@ export function StatusBars({ data, total, unit = "명" }: { data: { label: strin
       {data.map((d) => (
         <div key={d.label} className="sbar">
           <span className="sbar-l">{d.label}</span>
-          <div className="sbar-track">
-            <div className="sbar-fill" style={{ width: `${total ? Math.max(d.n ? 4 : 0, (d.n / total) * 100) : 0}%`, background: d.color }}>
-              {d.n > 0 && <b>{d.n}</b>}
-            </div>
+          <div className="sbar-track st">
+            {/* 막대 안 숫자는 빼고(잘 안 보임) 진한 색 막대만, 숫자는 오른쪽에 크게 */}
+            <span className="sbar-fill" style={{ width: `${total ? Math.max(d.n ? 3 : 0, (d.n / total) * 100) : 0}%`, backgroundColor: d.color }} />
           </div>
           <span className="sbar-v">{d.n}{unit} <small>{total ? Math.round((d.n / total) * 100) : 0}%</small></span>
         </div>
