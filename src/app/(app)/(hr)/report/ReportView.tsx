@@ -4,7 +4,8 @@ import { ParamDate } from "@/components/ParamControls";
 import { Table } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
 import { rankMap, summaryText, weekendBefore } from "@/lib/인사노무/daily";
-import { getHolidays, getRecords, loadBase, type SearchParams } from "@/lib/인사노무/data";
+import { computeDays, getHolidays, getRecords, getRule, loadBase, type SearchParams } from "@/lib/인사노무/data";
+import { employeeRows, SHEET_COLUMNS } from "@/lib/인사노무/splitter";
 import { loadMailConfig } from "@/lib/mailer";
 import * as store from "@/lib/store";
 import { addDays, dayLabel, isDateStr, shortKst, todayKst } from "@/lib/time";
@@ -28,6 +29,19 @@ export default async function ReportView({ sp }: { sp: SearchParams }) {
     ...Object.keys(holidays).filter((d) => d >= addDays(day, -7) && d < day)])].sort();
   const cfg = loadMailConfig();
 
+  // 그날 퇴근 기록 (캡스·수기입력): 연장근무 카드에서 같이 근무한 사람들의 퇴근 시각·근무형태를 보여 준다
+  const C = (n: string) => SHEET_COLUMNS.indexOf(n);
+  const outs: Record<string, { out: string; type: string }> = {};
+  const recs = await getRecords(day, day);
+  if (recs.length || base.overrides.some((o) => o.day === day)) {
+    const rule = await getRule();
+    const dd = (await computeDays(recs, rule)).filter((d) => d.day === day);
+    for (const emp of new Set(dd.map((d) => d.emp))) {
+      const o = employeeRows(dd.filter((d) => d.emp === emp), rule).find((x) => x[C("모드")] === "퇴근" && x[C("발생시각")]);
+      if (o) outs[emp] = { out: String(o[C("발생시각")]).slice(0, 5), type: String(o[C("근무형태")] ?? "") };
+    }
+  }
+
   return (
     <>
       <p className="caption">매일 엑셀로 작성해 캡처하던 근태현황을 여기서 작성합니다. 저장하면 근태 판정(지각·조퇴 제외, 휴가 집계)에도 바로 반영되고, 이미지로 저장하거나 하이웍스 메일로 보낼 수 있습니다.</p>
@@ -46,7 +60,7 @@ export default async function ReportView({ sp }: { sp: SearchParams }) {
         isSaved={!!info} canDelete={user?.role === "관리자" || info?.author === user?.loginId}
         hasPrev={written.some((d) => d < day)} names={names}
         deptOf={Object.fromEntries(base.roster.map((r) => [r.name, r.dept]))} ranks={rankMap(fileLeaves, allRows)}
-        holidayDates={holidayDates} holidays={Object.keys(holidays)}
+        holidayDates={holidayDates} holidays={Object.keys(holidays)} outs={outs}
         mail={{
           configured: !!cfg, sender: cfg ? `${cfg.senderName} <${cfg.user}> · ${cfg.host}:${cfg.port}` : "",
           to: mailTo, cc: mailCc, subject: `[근태현황] ${dayLabel(day)} - ${summaryText(saved)}`,

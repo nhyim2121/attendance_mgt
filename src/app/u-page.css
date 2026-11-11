@@ -198,3 +198,13 @@
 .rg-head > select { flex: none; min-width: 96px; }
 /* 근태 보고서 [+ 인원] 목록: 버튼 오른쪽으로 펼치고 3칸으로 (왼쪽으로 펼쳐져 잘리던 것) */
 .rg-card .mates-pop { width: min(420px, 86vw); max-height: 60vh; overflow-y: auto; }
+/* 연장근무: 신청 시각 + 같이 근무한 사람들의 퇴근 기록 */
+.rg-ot { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: flex-start; margin-top: 10px; padding: 8px 10px; background: #f6f8fd; border-radius: 10px; }
+.rg-outs { display: flex; flex-wrap: wrap; gap: 6px; }
+.rg-o { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #dfe5f0; border-radius: 8px; padding: 3px 8px; font-size: .84rem; }
+.rg-o .tm { font-variant-numeric: tabular-nums; }
+.rg-o small { color: #7a8396; font-size: .74rem; }
+.rg-o i { font-style: normal; font-size: .72rem; font-weight: 800; }
+.rg-o.ok { border-color: #a7d7b5; } .rg-o.ok i { color: #1f8a3b; }
+.rg-o.early { border-color: #f0b46b; background: #fffaf2; } .rg-o.early i { color: #c2410c; }
+.rg-o.none { color: #9aa3b5; border-style: dashed; }

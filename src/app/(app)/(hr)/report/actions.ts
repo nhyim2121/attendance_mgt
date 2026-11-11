@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
-import { escapeHtml, prefillFromLeaves, renderReportHtml, type ReportRow } from "@/lib/인사노무/daily";
+import { escapeHtml, parseAttValue, prefillFromLeaves, renderReportHtml, type ReportRow } from "@/lib/인사노무/daily";
 import { isHoliday } from "@/lib/인사노무/analytics";
 import { getHolidays, getRule, loadBase } from "@/lib/인사노무/data";
 import { friendlyError, loadMailConfig, parseAddresses, sendMail } from "@/lib/mailer";
@@ -95,12 +95,13 @@ type Row = Omit<ReportRow, "day">;
 
 /** 근태현황 줄에 기간(value = 'YYYY-MM-DD~YYYY-MM-DD')이 있으면 기간 안의 다른 근무일 보고서에도 같은 줄을 넣는다. */
 async function spreadRanges(day: string, rows: Row[], user: string): Promise<number> {
-  const ranged = rows.filter((r) => r.section === "근태" && RANGE.test(r.value));
+  const rangeOf = (v: string) => { const x = parseAttValue(v); return x.from && x.to ? `${x.from}~${x.to}` : ""; };
+  const ranged = rows.filter((r) => r.section === "근태" && RANGE.test(rangeOf(r.value)));
   if (!ranged.length) return 0;
   const [rule, holidays] = await Promise.all([getRule(), getHolidays()]);
   const targets = new Map<string, Row[]>();
   for (const r of ranged) {
-    const [, a, b] = RANGE.exec(r.value)!;
+    const [, a, b] = RANGE.exec(rangeOf(r.value))!;
     for (let d = a; d <= b; d = addDays(d, 1)) {
       if (d === day || isHoliday(d, rule, holidays)) continue;
       if (!targets.has(d)) targets.set(d, []);

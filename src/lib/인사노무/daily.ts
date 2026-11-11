@@ -7,6 +7,7 @@
  * - 휴일근무 : 성명 | 유형(근무한 휴일 날짜들, 'YYYY-MM-DD,YYYY-MM-DD') | 제목(작업내용/근무지) | 비고
  */
 import { dedupeLeaves, type Leave, sortLeaves } from "./leave";
+import { RANK_ORDER } from "./org";
 import { addDays, type DateStr, dayLabel, isDateStr, makeDate, weekday } from "../time";
 
 export const SECTIONS = ["근태", "도제", "휴가일정", "휴일근무"] as const;
@@ -148,8 +149,27 @@ function twoLine(title: string, detail: string): string {
 }
 
 /** 근태 줄 본문: 출장·교육·휴일연장 = 장소(굵게) + 내용, 휴가류 = 사유 + 시간(종일), 경조·공가·병가 = 사유 + 비고 */
+/** 근태현황 줄의 value: 기간('YYYY-MM-DD~YYYY-MM-DD')과 연장근무 신청 시각('~HH:MM')을 '|'로 이어 저장한다.
+ *  예) '2026-11-10~2026-11-12|~20:00', '~20:00', '' */
+export function parseAttValue(v: string): { from: string; to: string; until: string } {
+  let from = "", to = "", until = "";
+  for (const part of String(v ?? "").split("|").map((x) => x.trim())) {
+    const rg = /^(\d{4}-\d{2}-\d{2})~(\d{4}-\d{2}-\d{2})$/.exec(part);
+    const ot = /^~(\d{2}:\d{2})$/.exec(part);
+    if (rg) [from, to] = [rg[1], rg[2]];
+    else if (ot) until = ot[1];
+  }
+  return { from, to, until };
+}
+export const attValue = (from: string, to: string, until: string) =>
+  [from && to && to > from ? `${from}~${to}` : "", until ? `~${until}` : ""].filter(Boolean).join("|");
+
 function attText(r: ReportRow): string {
   const cat = attCat(r.types);
+  const until = parseAttValue(r.value).until;
+  if (cat === "work" && until && splitReportTypes(r.types).includes("연장근무")) {
+    return twoLine(r.title, [r.detail.trim(), `연장 ${until}까지`].filter(Boolean).join(" · "));
+  }
   if (cat === "leave") {
     const unit = leaveUnit(r.types);
     const time = unit === "day" ? "종일 (1일)" : timeLabel(r.detail);
@@ -240,7 +260,9 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   // 묶인 줄 안에서 부서별로 사람을 모으고, 부서 이름은 그 부서 첫 사람 옆에만
   const byDept = (g: ReportRow[]) => {
     const order = [...new Set(g.map((r) => r.dept))];
-    return [...g].sort((a, b) => order.indexOf(a.dept) - order.indexOf(b.dept));
+    // 같은 부서 안에서는 직급 높은 순 (차장 → 대리 → 사원), 같은 직급은 입력 순서
+    const rk = (r: string) => (RANK_ORDER.includes(r) ? RANK_ORDER.indexOf(r) : RANK_ORDER.length);
+    return [...g].sort((a, b) => order.indexOf(a.dept) - order.indexOf(b.dept) || rk(a.rank) - rk(b.rank));
   };
   const deptLines = (g: ReportRow[]) => g.map((r, i) => {
     const first = i === 0 || g[i - 1].dept !== r.dept;

@@ -4,7 +4,7 @@ import { toBlob, toPng } from "html-to-image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
-  addWorkHours, attCat, isPartialSchedule, LEAVE_TYPES, leaveUnit, renderReportHtml, type ReportRow, returnDays, SCHEDULE_TYPES, scheduleText, splitReportTypes,
+  addWorkHours, attCat, attValue, isPartialSchedule, parseAttValue, LEAVE_TYPES, leaveUnit, renderReportHtml, type ReportRow, returnDays, SCHEDULE_TYPES, scheduleText, splitReportTypes,
   tidySchedule, timeLabel,
 } from "@/lib/인사노무/daily";
 import { addDays, dayLabel, isDateStr, weekday } from "@/lib/time";
@@ -21,6 +21,7 @@ interface Props {
   ranks: Record<string, string>;
   holidayDates: string[]; // 휴일 근태 표에 기본으로 보일 날짜 (직전 주말·최근 공휴일)
   holidays: string[]; // 공휴일 전체 (출근예정 계산)
+  outs: Record<string, { out: string; type: string }>; // 그날 퇴근 기록 (연장근무 확인)
   mail: { configured: boolean; sender: string; to: string; cc: string; subject: string; greeting: string };
 }
 
@@ -41,17 +42,17 @@ const norm = (rows: ReportRow[]) => rows.filter((r) => r.name.trim())
   .map((r) => KEYS.map((k) => String(r[k] ?? "")).join("\u0000")).sort().join("\n"); // 순서는 비교하지 않음
 
 /** 근태현황 탭은 '근태 건' 단위로 편집한다: 근태·근무지·내용·비고가 같은 사람들을 한 줄(인원)로. 저장은 사람별 행. */
-interface Group { id: number; types: string; title: string; detail: string; note: string; names: string[]; from: string; to: string }
+interface Group { id: number; types: string; title: string; detail: string; note: string; names: string[]; from: string; to: string; until: string }
 let gid = 0;
-const newGroup = (g: Partial<Group> = {}): Group => ({ id: ++gid, types: "", title: "", detail: "", note: "", names: [], from: "", to: "", ...g });
+const newGroup = (g: Partial<Group> = {}): Group => ({ id: ++gid, types: "", title: "", detail: "", note: "", names: [], from: "", to: "", until: "", ...g });
 const RANGE = /^(\d{4}-\d{2}-\d{2})~(\d{4}-\d{2}-\d{2})$/;
 function toGroups(rows: ReportRow[]): Group[] {
   const m = new Map<string, Group>();
   for (const r of rows.filter((x) => x.section === "근태")) {
     const types = splitReportTypes(r.types).join(",");
     const k = [splitReportTypes(r.types).sort().join(","), r.title.trim(), r.detail.trim(), r.note.trim(), r.value].join("\u0000");
-    const rg = RANGE.exec(r.value ?? "");
-    const g = m.get(k) ?? newGroup({ types, title: r.title, detail: r.detail, note: r.note, from: rg?.[1] ?? "", to: rg?.[2] ?? "" });
+    const v = parseAttValue(r.value ?? "");
+    const g = m.get(k) ?? newGroup({ types, title: r.title, detail: r.detail, note: r.note, from: v.from, to: v.to, until: v.until });
     if (r.name && !g.names.includes(r.name)) g.names.push(r.name);
     m.set(k, g);
   }
@@ -127,7 +128,7 @@ export default function ReportEditor(p: Props) {
     const att: ReportRow[] = groups.flatMap((g) => g.names.map((n) => ({
       ...blank("근태"), name: n, dept: info.get(n)?.dept ?? "", rank: info.get(n)?.rank ?? "",
       types: g.types, title: g.title, detail: g.detail, note: g.note,
-      value: g.from && g.to && g.to > g.from ? `${g.from}~${g.to}` : "",
+      value: attValue(g.from, g.to, splitReportTypes(g.types).includes("연장근무") ? g.until : ""),
     })));
     const hw: ReportRow[] = hgroups.flatMap((g) => g.names.map((n) => ({
       ...blank("휴일근무"), name: n, dept: hinfo.get(n)?.dept ?? "", rank: hinfo.get(n)?.rank ?? "",
@@ -307,8 +308,34 @@ export default function ReportEditor(p: Props) {
                     <label className="rg-cell"><span className="rg-lbl">비고</span>
                       <input type="text" value={g.note} style={{ width: 140 }} onChange={(e) => setG(g.id, { note: e.target.value })} /></label>
                   </div>
+                  {cur.includes("연장근무") && (
+                    <div className="rg-ot">
+                      <label className="rg-cell"><span className="rg-lbl">연장 신청 (몇 시까지)</span>
+                        <select value={g.until} onChange={(e) => setG(g.id, { until: e.target.value })} style={{ width: 110 }}>
+                          <option value="">선택</option>{OT_SLOTS.map((t) => <option key={t}>{t}</option>)}
+                        </select></label>
+                      <div className="rg-cell" style={{ flex: 1 }}>
+                        <span className="rg-lbl">퇴근 기록 {Object.keys(p.outs).length ? "(캡스·수기입력)" : ""}</span>
+                        {!g.names.length ? <span className="rg-hint">[+ 인원]으로 같이 근무한 사람을 고르면 퇴근 시각을 모아 보여 줍니다.</span>
+                          : !Object.keys(p.outs).length ? <span className="rg-hint">이 날짜의 출퇴근 기록이 아직 없습니다. 기록이 올라오면 여기에 퇴근 시각·근무형태가 나옵니다.</span>
+                          : <div className="rg-outs">
+                              {g.names.map((nm) => {
+                                const o = p.outs[nm];
+                                const st = !o ? "none" : !g.until ? "" : o.out >= g.until ? "ok" : "early";
+                                return (
+                                  <span key={nm} className={`rg-o ${st}`} title={st === "early" ? `신청(${g.until})보다 일찍 퇴근` : st === "ok" ? "신청 시각까지 근무" : ""}>
+                                    <b>{nm}</b>
+                                    {o ? <><span className="tm">{o.out}</span>{o.type && <small>{o.type}</small>}</> : <small>퇴근 기록 없음</small>}
+                                    {st === "ok" && <i>✓</i>}{st === "early" && <i>일찍</i>}
+                                  </span>
+                                );
+                              })}
+                            </div>}
+                      </div>
+                    </div>
+                  )}
                   {cur.length > 0 && g.names.length > 0 && (
-                    <div className="rg-out">보고서에는 <q>{[cur.join("·"), g.title.trim(), g.detail.trim() && (timeLabel(g.detail) || g.detail.trim())].filter(Boolean).join(" · ")}</q> — {g.names.join("·")} {g.names.length}명{g.from && g.to && g.to > g.from ? ` (${dayLabel(g.from)}~${dayLabel(g.to)})` : ""}</div>
+                    <div className="rg-out">보고서에는 <q>{[cur.join("·"), g.title.trim(), g.detail.trim() && (timeLabel(g.detail) || g.detail.trim()), cur.includes("연장근무") && g.until ? `연장 ${g.until}까지` : ""].filter(Boolean).join(" · ")}</q> — {g.names.join("·")} {g.names.length}명{g.from && g.to && g.to > g.from ? ` (${dayLabel(g.from)}~${dayLabel(g.to)})` : ""}</div>
                   )}
                 </div>
               );
@@ -536,6 +563,8 @@ const catOf = attCat;
 const PLACES = ["1공장", "2공장", "출장"];
 // 30분 단위 시각 07:00 ~ 22:00
 const SLOTS = Array.from({ length: 31 }, (_, i) => `${String(7 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
+// 연장근무 신청 시각: 18:00 ~ 24:00, 30분 단위
+const OT_SLOTS = Array.from({ length: 13 }, (_, i) => `${String(18 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 const slotSel = (v: string, on: (x: string) => void, opts = SLOTS) => (
   <select value={v} onChange={(e) => on(e.target.value)} style={{ width: 92 }}>
     <option value="">--:--</option>{opts.map((t) => <option key={t}>{t}</option>)}
