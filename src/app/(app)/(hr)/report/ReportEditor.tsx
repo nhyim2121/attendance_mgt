@@ -25,7 +25,14 @@ interface Props {
 }
 
 type Res = { ok?: string; error?: string } | null;
-const TYPES = [...LEAVE_TYPES, "외근"];
+/** 근태 종류 버튼 묶음 (보고서 화면 정돈 2026-11-11) */
+const TYPE_GROUPS: [string, string[]][] = [
+  ["휴가", ["연차", "월차", "반차", "반반차", "외출"]],
+  ["특별", ["공가", "경조휴가", "병가"]],
+  ["근무", ["출장", "외근", "교육", "휴일근무", "연장근무"]],
+];
+// 묶음에 빠진 종류가 생기면 근무 묶음 끝에 붙인다
+[...LEAVE_TYPES, "외근"].forEach((t) => { if (!TYPE_GROUPS.some(([, ts]) => ts.includes(t))) TYPE_GROUPS[2][1].push(t); });
 const blank = (section: string): ReportRow => ({
   section, ord: 0, dept: "", rank: "", name: "", types: "", title: "", detail: "", value: "", note: "",
 });
@@ -261,36 +268,48 @@ export default function ReportEditor(p: Props) {
           ))}
         </div>
         {tab === "근태" && (
-          <div className="tbl-wrap">
-            <table className="tbl edit">
-              <thead><tr><th>근태 (여러 개 가능)</th><th title="연속 출장 등: 기간 안의 다른 근무일 보고서에도 같은 줄이 들어갑니다">기간</th><th>장소</th><th>목적·내용·사유</th><th>비고</th><th>인원</th><th /></tr></thead>
-              <tbody>
-                {groups.map((g) => (
-                  <tr key={g.id}>
-                    <td style={{ whiteSpace: "normal", minWidth: 250 }}>
-                      {TYPES.map((t) => (
-                        <label key={t} style={{ display: "inline-flex", gap: 3, marginRight: 8, fontSize: ".82rem" }}>
-                          <input type="checkbox" checked={splitReportTypes(g.types).includes(t)} onChange={() => toggleGType(g, t)} />{t}
-                        </label>
+          <div className="rg-list">
+            {groups.length === 0 && <p className="caption" style={{ margin: "6px 2px" }}>아직 근태가 없습니다. 아래 [+ 근태 추가]를 누르세요.</p>}
+            {groups.map((g, n) => {
+              const cur = splitReportTypes(g.types);
+              return (
+                <div key={g.id} className={`rg-card${!cur.length && g.names.length ? " warn" : ""}`}>
+                  <div className="rg-head">
+                    <span className="rg-no">{n + 1}</span>
+                    <div className="rg-types">
+                      {TYPE_GROUPS.map(([label, ts]) => (
+                        <span key={label} className="rg-tgroup">
+                          <small>{label}</small>
+                          {ts.map((t) => (
+                            <button key={t} type="button" className={`rg-t${cur.includes(t) ? " on" : ""}`} onClick={() => toggleGType(g, t)}>{t}</button>
+                          ))}
+                        </span>
                       ))}
-                    </td>
-                    <td style={{ whiteSpace: "nowrap" }}>
-                      <input type="date" value={g.from || p.day} style={{ width: 132 }}
-                        onChange={(e) => setG(g.id, { from: e.target.value, to: g.to && g.to >= e.target.value ? g.to : e.target.value })} />
-                      <span className="muted"> ~ </span>
-                      <input type="date" value={g.to || g.from || p.day} min={g.from || p.day} style={{ width: 132 }}
-                        onChange={(e) => setG(g.id, { from: g.from || p.day, to: e.target.value })} />
-                    </td>
-                    <GroupFields g={g} setG={setG} />
-                    <td><input type="text" value={g.note} style={{ minWidth: 100 }} onChange={(e) => setG(g.id, { note: e.target.value })} /></td>
-                    <td style={{ minWidth: 220, whiteSpace: "normal" }}>
-                      <NamePicker names={g.names} all={p.names} toggle={(n) => toggleName(g, n)} hint="고른 사람마다 같은 근태·근무지·내용으로 저장됩니다." />
-                    </td>
-                    <td><button className="btn sm danger" onClick={() => setGroups((gs) => gs.filter((x) => x.id !== g.id))} title="이 줄 삭제">삭제</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <button type="button" className="rg-del" onClick={() => setGroups((gs) => gs.filter((x) => x.id !== g.id))} title="이 근태 삭제">삭제</button>
+                  </div>
+                  <div className="rg-body">
+                    <div className="rg-cell rg-who">
+                      <span className="rg-lbl">인원</span>
+                      <NamePicker names={g.names} all={p.names} toggle={(nm) => toggleName(g, nm)} hint="고른 사람마다 같은 근태·근무지·내용으로 저장됩니다." />
+                    </div>
+                    <div className="rg-cell" title="연속 출장 등: 기간 안의 다른 근무일 보고서에도 같은 줄이 들어갑니다">
+                      <span className="rg-lbl">기간</span>
+                      <span className="row" style={{ gap: 4, flexWrap: "nowrap" }}>
+                        <input type="date" value={g.from || p.day} style={{ width: 132 }}
+                          onChange={(e) => setG(g.id, { from: e.target.value, to: g.to && g.to >= e.target.value ? g.to : e.target.value })} />
+                        <span className="muted">~</span>
+                        <input type="date" value={g.to || g.from || p.day} min={g.from || p.day} style={{ width: 132 }}
+                          onChange={(e) => setG(g.id, { from: g.from || p.day, to: e.target.value })} />
+                      </span>
+                    </div>
+                    {cur.length ? <GroupFields g={g} setG={setG} /> : <div className="rg-cell rg-hint">위에서 근태 종류를 고르면 장소·사유 칸이 나옵니다.</div>}
+                    <label className="rg-cell"><span className="rg-lbl">비고</span>
+                      <input type="text" value={g.note} style={{ width: 140 }} onChange={(e) => setG(g.id, { note: e.target.value })} /></label>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
         {tab === "휴가일정" && (
@@ -400,9 +419,9 @@ export default function ReportEditor(p: Props) {
         <div className="row" style={{ marginTop: 8 }}>
           <button className="btn sm" onClick={() => (tab === "근태" ? setGroups((gs) => [...gs, newGroup()])
             : tab === "휴일근무" ? setHGroups((gs) => [...gs, newHGroup()])
-            : setRows((rs) => [...rs, tab === "휴가일정" ? { ...blank(tab), title: "연차" } : blank(tab)]))}>+ 행 추가</button>
+            : setRows((rs) => [...rs, tab === "휴가일정" ? { ...blank(tab), title: "연차" } : blank(tab)]))}>{tab === "근태" ? "+ 근태 추가" : "+ 행 추가"}</button>
           <span className="caption" style={{ margin: 0 }}>
-            {tab === "근태" && "근태 한 건마다 한 줄입니다. 같은 출장·휴가에 해당하는 사람은 [+ 인원]으로 고르세요. 기간을 정하면 그 기간의 다른 근무일 보고서에도 같은 줄이 들어갑니다. 부서·직급은 직원 명부에서 자동으로 채웁니다."}
+            {tab === "근태" && "근태 한 건마다 카드 한 장입니다. 종류를 누르고, 같은 출장·휴가에 해당하는 사람은 [+ 인원]으로 고르세요. 기간을 정하면 그 기간의 다른 근무일 보고서에도 같은 줄이 들어갑니다. 부서·직급은 직원 명부에서 자동으로 채웁니다."}
             {tab === "휴가일정" && "한 사람당 한 줄: 종류를 고르고 날짜를 여러 개 넣으세요. 출근 예정은 자동으로 계산됩니다."}
             {tab === "휴일근무" && "작업 한 건마다 한 줄입니다. 근무한 날짜에 체크하고 같이 일한 사람은 [+ 인원]으로 고르세요. 보고서에는 「근무지 / 작업내용」으로 나옵니다."}
           </span>
@@ -489,22 +508,21 @@ function GroupFields({ g, setG }: { g: { id: number; types: string; title: strin
   const detail = (label: string, ph: string) => (
     <Labeled label={label}><input type="text" value={g.detail} placeholder={ph} onChange={(e) => setG(g.id, { detail: e.target.value })} /></Labeled>
   );
-  const none = <span className="muted gf-none">—</span>;
-  if (cat === "trip") return <><td>{title("근무장소", "예: SK나래에너지(하남)")}</td><td>{detail("목적/작업내용", "예: MCOP 취외 작업")}</td></>;
-  if (cat === "edu") return <><td>{title("교육장소", "예: 서산상공회의소")}</td><td>{detail("교육목적/내용", "예: 산업안전 보건교육")}</td></>;
+  if (cat === "trip") return <><div className="rg-cell">{title("근무장소", "예: SK나래에너지(하남)")}</div><div className="rg-cell">{detail("목적/작업내용", "예: MCOP 취외 작업")}</div></>;
+  if (cat === "edu") return <><div className="rg-cell">{title("교육장소", "예: 서산상공회의소")}</div><div className="rg-cell">{detail("교육목적/내용", "예: 산업안전 보건교육")}</div></>;
   if (cat === "work") {
     const custom = g.title && !PLACES.includes(g.title);
     return <>
-      <td><Labeled label="근무장소">
+      <div className="rg-cell"><Labeled label="근무장소">
         <select value={custom ? "__" : g.title} onChange={(e) => setG(g.id, { title: e.target.value === "__" ? g.title : e.target.value })}>
           <option value="">선택</option>{PLACES.map((p) => <option key={p}>{p}</option>)}
           {custom && <option value="__">{g.title}</option>}
         </select>
-      </Labeled></td>
-      <td>{detail("목적/작업내용", "예: 신공장 배관 작업")}</td>
+      </Labeled></div>
+      <div className="rg-cell">{detail("목적/작업내용", "예: 신공장 배관 작업")}</div>
     </>;
   }
-  if (cat === "special") return <><td>{none}</td><td><div className="gf-two">{title("구분 사유", "예: 본인 결혼, 예비군, 진단명")}{detail("비고", "예: 증빙 제출 예정")}</div></td></>;
+  if (cat === "special") return <><div className="rg-cell"><div className="gf-two">{title("구분 사유", "예: 본인 결혼, 예비군, 진단명")}{detail("비고", "예: 증빙 제출 예정")}</div></div></>;
   if (cat === "leave") {
     const unit = leaveUnit(g.types);
     // 시작만 고른 상태('09:00~')도 읽음
@@ -531,12 +549,12 @@ function GroupFields({ g, setG }: { g: { id: number; types: string; title: strin
       </span>;
     }
     return <>
-      <td>{none}</td>
-      <td><div className="gf-two">
+      
+      <div className="rg-cell"><div className="gf-two">
         {title("사유", "예: 개인사유, 병원")}
         <Labeled label={unit === "day" ? "기간" : unit === "free" ? "시간 (30분 단위)" : `시간 (${unit}시간)`} group>{timeBox}</Labeled>
-      </div></td>
+      </div></div>
     </>;
   }
-  return <><td>{title("장소·사유", "")}</td><td>{detail("내용", "")}</td></>;
+  return <><div className="rg-cell">{title("장소·사유", "")}</div><div className="rg-cell">{detail("내용", "")}</div></>;
 }
