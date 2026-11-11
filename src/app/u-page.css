@@ -268,3 +268,20 @@
 .pm-tbl input[type="checkbox"] { width: 16px; height: 16px; accent-color: #0c3994; }
 .pm-ok { color: #1f7a45; font-size: .82rem; font-weight: 700; }
 .pm-err { color: #c62828; font-size: .82rem; font-weight: 700; }
+/* 근태 보고서: 입력(왼쪽) + 미리보기(오른쪽 고정) */
+.rp-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 560px); gap: 16px; align-items: start; }
+.rp-split.solo { grid-template-columns: minmax(0, 1fr); }
+.rp-split.solo .rp-side { display: none; }
+.rp-edit { min-width: 0; }
+.rp-side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+.u .main .rp-side .card.rp-prev-card { margin: 0; }
+.rp-prev { overflow-x: auto; }
+.rp-split:not(.solo) .rp-zoom { zoom: .62; } /* 캡처하는 칸(ref)은 그대로 두고 감싼 칸만 줄인다 */
+.rp-open { position: fixed; right: 0; top: 40%; z-index: 30; border: 2px solid #141a26; border-right: 0; border-radius: 10px 0 0 10px; background: #0c3994; color: #fff;
+  font: inherit; font-weight: 700; font-size: .84rem; padding: 10px 8px; writing-mode: vertical-rl; cursor: pointer; box-shadow: -3px 3px 0 #141a26; }
+@media (max-width: 1280px) {
+  .rp-split { grid-template-columns: minmax(0, 1fr); }
+  .rp-side { position: static; max-height: none; }
+  .rp-split:not(.solo) .rp-zoom { zoom: 1; }
+}
+@media print { .rp-open { display: none; } }
