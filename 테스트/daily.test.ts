@@ -66,7 +66,8 @@ describe("일일 근태현황 보고서", () => {
     expect(html.split("김포발전소").length - 1).toBe(1); // 같은 출장은 한 줄로 묶음
     expect(html).toContain("생산팀</div><div"); // 묶인 줄에 부서 둘 (생산팀·영업팀)
     expect(html.indexOf("사아자")).toBeLessThan(html.indexOf("차카타"));
-    expect(html).toContain("border-top:4px solid"); // 요약 카드
+    expect(html).toContain("DAILY ATTENDANCE REPORT"); // 남색 머리띠
+    expect(html).toContain("width:25%"); // 한 줄 요약 (4칸)
     expect(html).not.toContain("display:grid"); // 메일에서 깨지는 CSS 안 씀
     expect(summaryText(rows())).toBe("연차 1, 반차 1, 출장 2");
   });

@@ -113,12 +113,13 @@ export function weekendBefore(day: DateStr): [DateStr, DateStr] {
 
 // ---------------------------------------------------------------- 보고서 그리기 (대시보드 스타일, 메일에도 쓰도록 인라인 스타일)
 // 메일 프로그램은 CSS grid·외부 스타일을 무시하는 경우가 많아 표(table)와 인라인 스타일만 쓴다.
-const INK = "#1f2937", SUB = "#6b7280", LINE = "#eef0f4", BG = "#f3f5f9";
+// 보고서 디자인 (2026-11-11 개편): 회사 남색 머리띠 + 한 줄 요약 + 구분선 위주의 깔끔한 표
+const INK = "#1b2333", SUB = "#6b7486", LINE = "#e8ebf1", BG = "#f2f4f8", NAVY = "#0c3994", RED = "#e84340";
 const TXT = `font-family:${FONT};color:${INK};`;
-const CELL = `${TXT}font-size:14px;padding:10px 12px;border-bottom:1px solid ${LINE};text-align:left;vertical-align:top;`;
-const HEAD = `${TXT}font-size:13px;font-weight:700;color:#374151;background:${BG};padding:9px 12px;text-align:left;`
-  + "border-bottom:1px solid #e5e7eb;white-space:nowrap;";
-const CARD = "background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;";
+const CELL = `${TXT}font-size:14px;line-height:1.55;padding:11px 12px;border-bottom:1px solid ${LINE};text-align:left;vertical-align:top;`;
+const HEAD = `${TXT}font-size:12px;font-weight:700;color:${SUB};background:#f7f8fb;padding:8px 12px;text-align:left;`
+  + `border-top:1px solid ${LINE};border-bottom:1px solid ${LINE};white-space:nowrap;letter-spacing:0.02em;`;
+const CARD = `background:#ffffff;border:1px solid ${LINE};border-radius:10px;`;
 
 // 근태 종류별 배지 색 (글자색, 배경색)
 const BADGE: Record<string, [string, string]> = {
@@ -141,7 +142,7 @@ const SUMMARY_CARDS: [string, string, Set<string>][] = [
 export function badge(t: string): string {
   const [fg, bg] = BADGE[t] ?? ["#374151", "#eef0f4"];
   return `<span style="display:inline-block;${TXT}font-size:12px;font-weight:700;color:${fg};background:${bg};`
-    + `border-radius:10px;padding:2px 9px;margin:0 4px 2px 0;white-space:nowrap">${esc(t)}</span>`;
+    + `border-left:3px solid ${fg};border-radius:4px;padding:2px 8px;margin:0 4px 3px 0;white-space:nowrap">${esc(t)}</span>`;
 }
 
 function twoLine(title: string, detail: string): string {
@@ -192,10 +193,11 @@ function table(heads: [string, string][], bodyRows: string[][]): string {
 
 function section(title: string, count: number, inner: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;${CARD}margin-top:14px">`
-    + `<tr><td style="padding:16px 18px 6px">`
+    + `<tr><td style="padding:14px 18px 10px">`
+    + `<span style="display:inline-block;width:4px;height:16px;background:${NAVY};border-radius:2px;vertical-align:-2px;margin-right:8px"></span>`
     + `<span style="${TXT}font-size:16px;font-weight:800">${title}</span>`
-    + `<span style="${TXT}font-size:13px;color:${SUB};margin-left:6px">${count}명</span></td></tr>`
-    + `<tr><td style="padding:4px 18px 16px">${inner}</td></tr></table>`;
+    + `<span style="${TXT}font-size:12px;font-weight:700;color:${NAVY};background:#eaf0fc;border-radius:999px;padding:2px 9px;margin-left:8px">${count}명</span></td></tr>`
+    + `<tr><td style="padding:0 18px 12px">${inner}</td></tr></table>`;
 }
 
 /** 요약 카드 숫자 (사람 수). 휴일·연장은 근태 목록 + 휴일근무 표. */
@@ -236,20 +238,29 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   const rows = clean(input);
   const parts = [`<div style="background:${BG};padding:18px;${TXT}max-width:920px">`];
   if (withTitle) {
-    parts.push(`<div style="${TXT}font-size:22px;font-weight:800;letter-spacing:-0.02em">`
-      + `${dayLabel(day, true)} 근태현황</div>`
-      + `<div style="${TXT}font-size:13px;color:${SUB};margin:4px 0 14px">근태관리통합시스템</div>`);
+    // 머리띠: 왼쪽 보고서 이름·날짜, 오른쪽 작성 부서
+    parts.push(`<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:${NAVY};border-radius:10px 10px 0 0">`
+      + `<tr><td style="padding:16px 20px 14px">`
+      + `<div style="${TXT}font-size:12px;font-weight:700;color:#b9c8ec;letter-spacing:0.08em">DAILY ATTENDANCE REPORT</div>`
+      + `<div style="${TXT}font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;margin-top:2px">${dayLabel(day, true)} 근태현황</div></td>`
+      + `<td style="padding:16px 20px 14px;text-align:right;vertical-align:bottom;white-space:nowrap">`
+      + `<div style="${TXT}font-size:13px;font-weight:700;color:#ffffff">관리팀</div>`
+      + `<div style="${TXT}font-size:11px;color:#b9c8ec;margin-top:2px">근태관리통합시스템</div></td></tr></table>`
+      + `<div style="height:3px;background:${RED}"></div>`);
   }
 
-  // 요약 카드 (메일에서도 나란히 보이도록 표로)
+  // 한 줄 요약 (메일에서도 나란히 보이도록 표로): 칸 사이 세로선, 0명은 흐리게
   const counts = reportCounts(rows);
-  const cards = SUMMARY_CARDS.map(([label, color]) =>
-    `<td style="padding:0 6px;width:25%">`
-    + `<div style="${CARD}border-top:4px solid ${color};text-align:center;padding:14px 6px 12px">`
-    + `<div style="${TXT}font-size:13px;font-weight:700;color:${color}">${label}</div>`
-    + `<div style="${TXT}font-size:30px;font-weight:800;color:${color};line-height:1.25">${counts[label]}</div>`
-    + `<div style="${TXT}font-size:11px;color:${SUB}">명</div></div></td>`).join("");
-  parts.push(`<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 -6px">`
+  const cards = SUMMARY_CARDS.map(([label, color], i) => {
+    const n = counts[label];
+    return `<td style="width:25%;padding:12px 8px 12px 18px;${i ? `border-left:1px solid ${LINE};` : ""}">`
+      + `<div style="${TXT}font-size:12px;font-weight:700;color:${SUB}">`
+      + `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${label}</div>`
+      + `<div style="${TXT}font-size:26px;font-weight:800;line-height:1.3;color:${n ? color : "#c3c9d4"}">${n}`
+      + `<span style="${TXT}font-size:13px;font-weight:600;color:${SUB};margin-left:3px">명</span></div></td>`;
+  }).join("");
+  parts.push(`<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:#ffffff;`
+    + `border:1px solid ${LINE};border-top:0;border-radius:${withTitle ? "0 0 10px 10px" : "10px"}">`
     + `<tr>${cards}</tr></table>`);
 
   // 근태 현황 (항상 표시)
@@ -269,7 +280,7 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   const nameLines = (g: ReportRow[]) => g.map((r) => `<div style="${TXT}line-height:1.6">${person(r)}</div>`).join("");
   const inner = att.length
     ? table([["부서", "80px"], ["성명", "110px"], ["근태", "130px"], ["장소 · 내용 (사유·시간)", ""]],
-      groupAttendance(att).map(byDept).map((g) => [
+      sortByKind(groupAttendance(att)).map(byDept).map((g) => [
         deptLines(g), nameLines(g),
         splitReportTypes(g[0].types).map(badge).join(""), attText(g[0])]))
     : `<div style="${TXT}color:${SUB};padding:6px 0">오늘 근태 특이사항이 없습니다.</div>`;
@@ -334,7 +345,7 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
       const [place] = split(g[0].title);
       return (place
         ? `<span style="display:inline-block;${TXT}font-size:12px;font-weight:700;color:${hfg};background:${hbg};`
-          + `border-radius:10px;padding:2px 9px;margin:0 4px 2px 0">${esc(place)}</span>`
+          + `border-left:3px solid ${hfg};border-radius:4px;padding:2px 8px;margin:0 4px 3px 0">${esc(place)}</span>`
         : `<span style="color:${SUB}">-</span>`)
         + notes.map((n) => `<div style="${TXT}font-size:13px;color:${SUB};margin-top:3px">${esc(n)}</div>`).join("");
     };
@@ -360,8 +371,19 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
       table([["부서", "80px"], ["성명", "110px"], ["출근 완료", "130px"], ["비고", ""]],
         sub.map((r) => [esc(r.dept), person(r), esc(r.value) || "-", esc(r.note)]))));
   }
+  parts.push(`<div style="${TXT}font-size:11px;color:#9aa3b5;text-align:right;margin-top:10px">주식회사 에쓰엔 관리팀 · 근태관리통합시스템에서 작성</div>`);
   parts.push("</div>");
   return parts.join("");
+}
+
+/** 근태 현황 줄 순서: 요약 칸 순서(휴가 → 외출 → 출장·교육 → 휴일·연장)대로 같은 종류끼리 모은다. 같은 종류는 입력 순서. */
+function sortByKind(groups: ReportRow[][]): ReportRow[][] {
+  const kindOf = (g: ReportRow[]) => {
+    const ts = splitReportTypes(g[0].types);
+    const i = SUMMARY_CARDS.findIndex(([, , set]) => ts.some((t) => set.has(t)));
+    return i < 0 ? SUMMARY_CARDS.length : i;
+  };
+  return groups.map((g, i) => [g, i] as const).sort((a, b) => kindOf(a[0]) - kindOf(b[0]) || a[1] - b[1]).map(([g]) => g);
 }
 
 // ---------------------------------------------------------------- 근태 종류 분류·휴가 시간 (보고서 입력칸·표시 공용)
