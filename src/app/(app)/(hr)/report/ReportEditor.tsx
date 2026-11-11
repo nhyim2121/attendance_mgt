@@ -17,6 +17,7 @@ interface Props {
   canDelete: boolean;
   hasPrev: boolean;
   names: string[];
+  apprentices: string[]; // 일학습병행(도제) 학생: 직원 관리에서 직급 '도제'(또는 부서 일학습·도제)인 재직자
   deptOf: Record<string, string>;
   ranks: Record<string, string>;
   holidayDates: string[]; // 휴일 근태 표에 기본으로 보일 날짜 (직전 주말·최근 공휴일)
@@ -229,10 +230,10 @@ export default function ReportEditor(p: Props) {
     }
   }
 
-  const nameSelect = (i: number, r: ReportRow) => (
+  const nameSelect = (i: number, r: ReportRow, list = p.names) => (
     <select value={r.name} style={{ minWidth: 96 }} onChange={(e) => set(i, { name: e.target.value })}>
       <option value="">-</option>
-      {(p.names.includes(r.name) || !r.name ? p.names : [r.name, ...p.names]).map((n) => <option key={n}>{n}</option>)}
+      {(list.includes(r.name) || !r.name ? list : [r.name, ...list]).map((n) => <option key={n}>{n}</option>)}
     </select>
   );
   const text = (i: number, k: keyof ReportRow, ph = "", w = 110) => (
@@ -461,7 +462,7 @@ export default function ReportEditor(p: Props) {
             <tbody>
               {idx.map(([r, i]) => (
                 <tr key={i}>
-                  <td>{nameSelect(i, r)}</td>
+                  <td>{nameSelect(i, r, p.apprentices)}</td>
                   <td>{text(i, "dept", p.deptOf[r.name] ?? "", 80)}</td>
                   <td>{text(i, "rank", p.ranks[r.name] ?? "", 60)}</td>
                   <td>{text(i, "value", "예: 10/23(금) 또는 -")}</td><td>{text(i, "note", "", 280)}</td>

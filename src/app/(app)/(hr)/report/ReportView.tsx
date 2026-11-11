@@ -28,6 +28,10 @@ export default async function ReportView({ sp }: { sp: SearchParams }) {
   const holidayDates = [...new Set([...weekendBefore(day),
     ...Object.keys(holidays).filter((d) => d >= addDays(day, -7) && d < day)])].sort();
   const cfg = loadMailConfig();
+  // 일학습병행(도제) 학생: 직원 관리에 직급 '도제'(또는 부서 이름에 일학습·도제)로 등록된, 보고일에 재직 중인 사람
+  const apprentices = base.employees
+    .filter((e) => (e.rank === "도제" || /일학습|도제/.test(e.dept)) && (!e.leaveDate || e.leaveDate >= day) && (!e.joinDate || e.joinDate <= day))
+    .map((e) => e.name);
 
   // 그날 퇴근 기록 (캡스·수기입력): 연장근무 카드에서 같이 근무한 사람들의 퇴근 시각·근무형태를 보여 준다
   const C = (n: string) => SHEET_COLUMNS.indexOf(n);
@@ -58,7 +62,7 @@ export default async function ReportView({ sp }: { sp: SearchParams }) {
 
       <ReportEditor key={day} day={day} saved={saved.map(({ day: _d, ...r }) => r)}
         isSaved={!!info} canDelete={user?.role === "관리자" || info?.author === user?.loginId}
-        hasPrev={written.some((d) => d < day)} names={names}
+        hasPrev={written.some((d) => d < day)} names={names} apprentices={apprentices}
         deptOf={Object.fromEntries(base.roster.map((r) => [r.name, r.dept]))} ranks={rankMap(fileLeaves, allRows)}
         holidayDates={holidayDates} holidays={Object.keys(holidays)} outs={outs}
         mail={{
