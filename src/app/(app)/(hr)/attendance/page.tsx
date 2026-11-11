@@ -163,10 +163,12 @@ export default async function Home() {
   // ---------------------------------------------------------------- 다가오는 휴가·출장 (2주)
   // 홈 상단: 부서별 재직·출근, 오늘 근태 분포
   const present = board.filter((b) => b.in !== null).length;
+  // 부서별 인원 현황에서 빼는 사람 (2026-11-11 사용자 결정): 품질팀 김동수, 대전지사 김창범
+  const HEAD_EXCLUDE = ["김동수", "김창범"];
   const deptHead = [...order.filter((d) => depts.includes(d)), ...depts.filter((d) => !order.includes(d))].map((dp) => {
-    const g = board.filter((b) => (b.dept || "(부서 없음)") === dp);
+    const g = board.filter((b) => (b.dept || "(부서 없음)") === dp && !HEAD_EXCLUDE.includes(b.emp));
     return { dept: dp, staff: g.length, present: g.filter((b) => b.in !== null).length };
-  });
+  }).filter((x) => x.staff > 0);
   const status = [
     { label: "출근", n: present, color: HOME.navy },
     { label: "지각", n: board.filter((b) => b.late).length, color: HOME.red },
