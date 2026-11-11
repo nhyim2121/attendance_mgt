@@ -226,6 +226,28 @@ export default function ReportEditor(p: Props) {
     setSavedOnce(p.isSaved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.saved]);
+  // 근태현황 파일 내용 + 가장 최근 보고서의 도제·휴가일정을 불러온다.
+  // 새 보고서는 열 때 자동으로 (불러온 상태를 기준으로 삼아 손대기 전에는 자동 저장하지 않는다)
+  const [loadNote, setLoadNote] = useState("");
+  const autoLoad = (first: boolean) => start(async () => {
+    const [pre, carry] = await Promise.all([prefillAction(p.day), p.hasPrev ? carryAction(p.day) : Promise.resolve([] as ReportRow[])]);
+    const c = loadCards(pre, p.day);
+    const keep = carry.filter((r) => r.section === "휴가일정");
+    const doje = carryDoje(carry.filter((r) => r.section === "도제"), p.day);
+    setGroups(c.groups);
+    setHGroups((hs) => (first ? c.hgroups : [...hs, ...c.hgroups]));
+    setRows((rs) => [...rs.filter((r) => r.section !== "도제" && r.section !== "휴가일정"), ...doje, ...tidySchedule(keep, p.day)]);
+    if (first) setBaseline(null);
+    const n = c.groups.reduce((t, g) => t + g.names.length, 0);
+    setLoadNote(`근태현황 파일 ${n}명${carry.length ? `, 최근 보고서의 도제 ${doje.length}명·휴가일정 ${keep.length}건` : ""}을 자동으로 불러왔습니다.`);
+  });
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (autoRan.current || p.isSaved) return;
+    autoRan.current = true;
+    autoLoad(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const run = (fn: () => Promise<Res>, refresh = true, resync = false) => start(async () => {
     reload.current = resync;
     const r = await fn();
@@ -269,22 +291,11 @@ export default function ReportEditor(p: Props) {
     <>
       {msg?.ok && <div className="msg ok">{msg.ok}</div>}
       {msg?.error && <div className="msg err">{msg.error}</div>}
-      <div className="row" style={{ marginBottom: 12 }}>
-        <button className="btn" disabled={pending} title="업로드된 근태현황(하이웍스) 파일에 이 날짜로 적힌 근태를 가져옵니다."
-          onClick={() => start(async () => {
-            const pre = await prefillAction(p.day);
-            if (!pre.length) setMsg({ error: "근태현황 파일에 이 날짜 기록이 없습니다." });
-            else {
-              const c = loadCards(pre, p.day);
-              setGroups(c.groups);
-              if (c.hgroups.length) setHGroups((hs) => [...hs, ...c.hgroups]);
-            }
-          })}>근태현황 파일 내용 불러오기</button>
-        <button className="btn" disabled={pending || !p.hasPrev} title="계속 이어지는 일학습병행(도제)·휴가일정 표를 가장 최근 보고서에서 복사합니다."
-          onClick={() => start(async () => {
-            const carry = await carryAction(p.day);
-            setRows((rs) => [...rs.filter((r) => r.section !== "도제" && r.section !== "휴가일정"), ...carry]);
-          })}>전일 보고서에서 도제·휴가일정 가져오기</button>
+      <div className="row" style={{ marginBottom: 12, alignItems: "center" }}>
+        <span className="caption" style={{ margin: 0 }}>{loadNote || (p.isSaved ? "저장된 보고서입니다." : "")}</span>
+        <div className="spacer" />
+        <button className="btn sm" disabled={pending} title="근태현황 파일의 이 날짜 근태와 가장 최근 보고서의 도제·휴가일정을 다시 가져옵니다 (지금 입력한 내용을 바꿉니다)"
+          onClick={() => autoLoad(false)}>다시 불러오기</button>
       </div>
 
       <div className="card">
@@ -691,6 +702,18 @@ const SLOTS = Array.from({ length: 31 }, (_, i) => `${String(7 + Math.floor(i / 
 const OT_SLOTS = Array.from({ length: 13 }, (_, i) => `${String(18 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 /** 일학습병행(도제) 근무 기준: 매주 수·목·금 08:30~16:30 (설정 emp_rules와 같게) */
 const APPR_DAYS = [2, 3, 4]; // 월=0
+/** 지난 보고서에서 가져온 도제 줄: 이번 주가 아닌 출근일은 비우고, 이미 끝난 '해당 없음' 기간은 처음 상태로 */
+function carryDoje(rows: ReportRow[], day: string): ReportRow[] {
+  const week = apprWeekOf(day);
+  return rows.map((r) => {
+    if (r.value.trim() === "-") {
+      const nt = splitDojeNote(r.note, day);
+      return nt.to && nt.to < day ? { ...r, value: "", note: "" } : r;
+    }
+    const ds = r.value.split(",").map((x) => toDate(x, day)).filter((d) => week.includes(d));
+    return { ...r, value: ds.map((d) => dayLabel(d)).join(", "), note: ds.length ? r.note : "" };
+  });
+}
 /** 보고일이 든 주의 수·목·금 (주말이면 다음 주) */
 function apprWeekOf(day: string): string[] {
   const w = weekday(day);

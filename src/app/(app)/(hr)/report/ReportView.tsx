@@ -52,12 +52,8 @@ export default async function ReportView({ sp }: { sp: SearchParams }) {
       <div className="filters">
         <Suspense><ParamDate name="day" label="보고 일자" value={day} /></Suspense>
         <div style={{ paddingBottom: 8 }}>
-          {info
-            ? <><b>저장됨</b> · {info.author} {shortKst(info.updated_at)}{info.sent_at ? ` · 메일 발송 ${shortKst(info.sent_at)} (${info.sent_by})` : " · 메일 미발송"}</>
-            : <><b>새 보고서</b> (아직 저장 안 됨)</>}
+          {info ? <><b>저장됨</b> · {info.sent_at ? "메일 발송 완료" : "메일 미발송"}</> : <b>새 보고서</b>}
         </div>
-        <div className="spacer" />
-        {written.length > 0 && <span className="caption" style={{ margin: 0, paddingBottom: 8 }}>최근 작성: {written.slice(0, 7).map((d) => dayLabel(d)).join(", ")}</span>}
       </div>
 
       <ReportEditor key={day} day={day} saved={saved.map(({ day: _d, ...r }) => r)}
