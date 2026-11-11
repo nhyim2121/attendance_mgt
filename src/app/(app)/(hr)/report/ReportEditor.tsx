@@ -4,7 +4,7 @@ import { toBlob, toPng } from "html-to-image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
-  addWorkHours, attCat, attValue, isPartialSchedule, parseAttValue, LEAVE_TYPES, leaveUnit, renderReportHtml, type ReportRow, returnDays, SCHEDULE_TYPES, scheduleText, splitReportTypes,
+  addWorkHours, attCat, attValue, isOtRow, isPartialSchedule, otUntil, parseAttValue, LEAVE_TYPES, leaveUnit, renderReportHtml, type ReportRow, returnDays, SCHEDULE_TYPES, scheduleText, splitReportTypes,
   tidySchedule, timeLabel,
 } from "@/lib/인사노무/daily";
 import { addDays, dayLabel, isDateStr, weekday } from "@/lib/time";
@@ -31,10 +31,10 @@ type Res = { ok?: string; error?: string } | null;
 const TYPE_GROUPS: [string, string[]][] = [
   ["휴가", ["연차", "월차", "반차", "반반차", "외출"]],
   ["특별", ["공가", "경조휴가", "병가"]],
-  ["근무", ["출장", "외근", "교육", "휴일근무", "연장근무"]],
+  ["근무", ["출장", "외근", "교육", "휴일근무"]],
 ];
 // 묶음에 빠진 종류가 생기면 근무 묶음 끝에 붙인다
-[...LEAVE_TYPES, "외근"].forEach((t) => { if (!TYPE_GROUPS.some(([, ts]) => ts.includes(t))) TYPE_GROUPS[2][1].push(t); });
+[...LEAVE_TYPES, "외근"].filter((t) => t !== "연장근무").forEach((t) => { if (!TYPE_GROUPS.some(([, ts]) => ts.includes(t))) TYPE_GROUPS[2][1].push(t); });
 const blank = (section: string): ReportRow => ({
   section, ord: 0, dept: "", rank: "", name: "", types: "", title: "", detail: "", value: "", note: "",
 });
@@ -60,24 +60,37 @@ function toGroups(rows: ReportRow[]): Group[] {
   return [...m.values()];
 }
 /** 휴일 근태는 날짜·근무지·작업내용이 같은 사람들을 한 줄(명단)로 편집한다. 저장은 사람별 행, 제목 = '근무지 / 작업내용'. */
-interface HGroup { id: number; types: string; place: string; work: string; note: string; names: string[] }
-const newHGroup = (g: Partial<HGroup> = {}): HGroup => ({ id: ++gid, types: "", place: "", work: "", note: "", names: [], ...g });
+interface HGroup { id: number; kind: "휴일" | "연장"; types: string; place: string; work: string; note: string; names: string[]; until: string }
+const newHGroup = (g: Partial<HGroup> = {}): HGroup => ({ id: ++gid, kind: "휴일", types: "", place: "", work: "", note: "", names: [], until: "", ...g });
 const hTitle = (g: HGroup) => [g.place.trim(), g.work.trim()].filter(Boolean).join(" / ");
 function toHGroups(rows: ReportRow[]): HGroup[] {
   const m = new Map<string, HGroup>();
   for (const r of rows.filter((x) => x.section === "휴일근무")) {
     const types = splitReportTypes(r.types).sort().join(",");
-    const k = [types, r.title.trim()].join("\u0000"); // 비고 칸은 없앰
+    const k = [types, r.title.trim(), r.value].join("\u0000"); // 비고 칸은 없앰, value = 연장 구분·신청 시각
     const cut = r.title.indexOf("/");
     const place = (cut < 0 ? r.title : r.title.slice(0, cut)).trim();
     const work = cut < 0 ? "" : r.title.slice(cut + 1).trim();
-    const g = m.get(k) ?? newHGroup({ types, place, work, note: "" });
+    const g = m.get(k) ?? newHGroup({ kind: isOtRow(r) ? "연장" : "휴일", until: otUntil(r), types, place, work, note: "" });
     if (r.name && !g.names.includes(r.name)) g.names.push(r.name);
     m.set(k, g);
   }
   return [...m.values()];
 }
 const GROUPED = (s: string) => s === "근태" || s === "휴일근무";
+/** 저장된 보고서 → 카드. 근태현황에 있던 예전 연장근무 줄은 휴일·연장 근무 탭(연장 카드)으로 옮긴다 (2026-11-11) */
+function loadCards(rows: ReportRow[], day: string): { groups: Group[]; hgroups: HGroup[] } {
+  const hgroups = toHGroups(rows);
+  const groups: Group[] = [];
+  for (const g of toGroups(rows)) {
+    const ts = splitReportTypes(g.types);
+    if (!ts.includes("연장근무")) { groups.push(g); continue; }
+    hgroups.push(newHGroup({ kind: "연장", types: day, place: g.title, work: g.detail, names: [...g.names], until: g.until }));
+    const rest = ts.filter((t) => t !== "연장근무");
+    if (rest.length) groups.push({ ...g, types: rest.join(","), until: "" });
+  }
+  return { groups, hgroups };
+}
 
 /** 인원 칩 + [+ 인원] 체크 목록 */
 function NamePicker({ names, all, toggle, hint }: { names: string[]; all: string[]; toggle: (n: string) => void; hint: string }) {
@@ -103,16 +116,16 @@ function NamePicker({ names, all, toggle, hint }: { names: string[]; all: string
   );
 }
 
-const TABS: [string, string][] = [["근태", "근태현황"], ["도제", "일학습병행(도제)"], ["휴가일정", "휴가일정"], ["휴일근무", "휴일 근태"]];
+const TABS: [string, string][] = [["근태", "근태현황"], ["도제", "일학습병행(도제)"], ["휴가일정", "휴가일정"], ["휴일근무", "휴일·연장 근무"]];
 
 export default function ReportEditor(p: Props) {
   const router = useRouter();
   // 근태현황 밖의 탭. 예전 휴가일정 줄은 사람·종류·시간별 한 줄로 정리해서 연다
   const [rows, setRows] = useState<ReportRow[]>(() => tidySchedule(p.saved.filter((r) => !GROUPED(r.section)), p.day));
-  const [hgroups, setHGroups] = useState<HGroup[]>(() => toHGroups(p.saved));
+  const [hgroups, setHGroups] = useState<HGroup[]>(() => loadCards(p.saved, p.day).hgroups);
   const hset = useMemo(() => new Set(p.holidays), [p.holidays]);
   const isWorkday = (d: string) => weekday(d) < 5 && !hset.has(d);
-  const [groups, setGroups] = useState<Group[]>(() => toGroups(p.saved));
+  const [groups, setGroups] = useState<Group[]>(() => loadCards(p.saved, p.day).groups);
   // 저장돼 있던 사람별 부서·직급 (직접 고친 값 유지)
   const info = useMemo(() => new Map(p.saved.filter((r) => r.section === "근태").map((r) => [r.name, r])), [p.saved]);
   const hinfo = useMemo(() => new Map(p.saved.filter((r) => r.section === "휴일근무").map((r) => [r.name, r])), [p.saved]);
@@ -129,11 +142,11 @@ export default function ReportEditor(p: Props) {
     const att: ReportRow[] = groups.flatMap((g) => g.names.map((n) => ({
       ...blank("근태"), name: n, dept: info.get(n)?.dept ?? "", rank: info.get(n)?.rank ?? "",
       types: g.types, title: g.title, detail: g.detail, note: g.note,
-      value: attValue(g.from, g.to, splitReportTypes(g.types).includes("연장근무") ? g.until : ""),
+      value: attValue(g.from, g.to, ""),
     })));
     const hw: ReportRow[] = hgroups.flatMap((g) => g.names.map((n) => ({
       ...blank("휴일근무"), name: n, dept: hinfo.get(n)?.dept ?? "", rank: hinfo.get(n)?.rank ?? "",
-      types: g.types, title: hTitle(g), note: g.note,
+      types: g.types, title: hTitle(g), note: g.note, value: g.kind === "연장" ? (g.until ? `연장|~${g.until}` : "연장") : "",
     })));
     // 휴가일정: 출근 예정은 날짜에서 자동 계산
     const sch = rows.map((r) => (r.section === "휴가일정" && r.types
@@ -196,8 +209,9 @@ export default function ReportEditor(p: Props) {
     if (!reload.current) return;
     reload.current = false;
     setRows(tidySchedule(p.saved.filter((r) => !GROUPED(r.section)), p.day));
-    setGroups(toGroups(p.saved));
-    setHGroups(toHGroups(p.saved));
+    const c = loadCards(p.saved, p.day);
+    setGroups(c.groups);
+    setHGroups(c.hgroups);
     setBaseline(null);
     setSavedOnce(p.isSaved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -250,7 +264,11 @@ export default function ReportEditor(p: Props) {
           onClick={() => start(async () => {
             const pre = await prefillAction(p.day);
             if (!pre.length) setMsg({ error: "근태현황 파일에 이 날짜 기록이 없습니다." });
-            else setGroups(toGroups(pre));
+            else {
+              const c = loadCards(pre, p.day);
+              setGroups(c.groups);
+              if (c.hgroups.length) setHGroups((hs) => [...hs, ...c.hgroups]);
+            }
           })}>근태현황 파일 내용 불러오기</button>
         <button className="btn" disabled={pending || !p.hasPrev} title="계속 이어지는 일학습병행(도제)·휴가일정 표를 가장 최근 보고서에서 복사합니다."
           onClick={() => start(async () => {
@@ -307,32 +325,6 @@ export default function ReportEditor(p: Props) {
                     </div>
                     {cur.length ? <GroupFields g={g} setG={setG} /> : <div className="rg-cell rg-hint">위에서 근태 종류를 고르면 장소·사유 칸이 나옵니다.</div>}
                   </div>
-                  {cur.includes("연장근무") && (
-                    <div className="rg-ot">
-                      <label className="rg-cell"><span className="rg-lbl" title="직원별 근태의 퇴근 근무형태가 연장(이 시각)으로 들어갑니다">연장 신청 (몇 시까지)</span>
-                        <select value={g.until} onChange={(e) => setG(g.id, { until: e.target.value })} style={{ width: 110 }}>
-                          <option value="">선택</option>{OT_SLOTS.map((t) => <option key={t}>{t}</option>)}
-                        </select></label>
-                      <div className="rg-cell" style={{ flex: 1 }}>
-                        <span className="rg-lbl">퇴근 기록 {Object.keys(p.outs).length ? "(캡스·수기입력)" : ""}</span>
-                        {!g.names.length ? <span className="rg-hint">[+ 인원]으로 같이 근무한 사람을 고르면 퇴근 시각을 모아 보여 줍니다.</span>
-                          : !Object.keys(p.outs).length ? <span className="rg-hint">이 날짜의 출퇴근 기록이 아직 없습니다. 기록이 올라오면 여기에 퇴근 시각·근무형태가 나옵니다.</span>
-                          : <div className="rg-outs">
-                              {g.names.map((nm) => {
-                                const o = p.outs[nm];
-                                const st = !o ? "none" : !g.until ? "" : o.out >= g.until ? "ok" : "early";
-                                return (
-                                  <span key={nm} className={`rg-o ${st}`} title={st === "early" ? `신청(${g.until})보다 일찍 퇴근` : st === "ok" ? "신청 시각까지 근무" : ""}>
-                                    <b>{nm}</b>
-                                    {o ? <><span className="tm">{o.out}</span>{o.type && <small>{o.type}</small>}</> : <small>퇴근 기록 없음</small>}
-                                    {st === "ok" && <i>✓</i>}{st === "early" && <i>일찍</i>}
-                                  </span>
-                                );
-                              })}
-                            </div>}
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -412,17 +404,25 @@ export default function ReportEditor(p: Props) {
         )}
         {tab === "휴일근무" && (
           <div className="rg-list">
-            {hgroups.length === 0 && <p className="caption" style={{ margin: "6px 2px" }}>아직 휴일 근무가 없습니다. 아래 [+ 작업 추가]를 누르세요.</p>}
+            {hgroups.length === 0 && <p className="caption" style={{ margin: "6px 2px" }}>아직 휴일·연장 근무가 없습니다. 아래 [+ 휴일근무] 또는 [+ 연장근무]를 누르세요.</p>}
             {hgroups.map((g, n) => {
               const ds = splitReportTypes(g.types).filter(isDateStr);
-              const opts = [...new Set([...hol, ...ds])].sort();
+              const ot = g.kind === "연장";
+              const opts = [...new Set([...(ot ? [p.day] : hol), ...ds])].sort();
               const toggleDay = (d: string) =>
                 setH(g.id, { types: (ds.includes(d) ? ds.filter((x) => x !== d) : [...ds, d]).sort().join(",") });
+              const hasOuts = ot && ds.includes(p.day) && Object.keys(p.outs).length > 0;
               return (
                 <div key={g.id} className={`rg-card${g.names.length && !ds.length ? " warn" : ""}`}>
                   <div className="rg-head">
                     <span className="rg-no">{n + 1}</span>
                     <div className="rg-types">
+                      <span className="rg-tgroup"><small>구분</small>
+                        {(["휴일", "연장"] as const).map((k) => (
+                          <button key={k} type="button" className={`rg-t${g.kind === k ? " on" : ""}`}
+                            onClick={() => setH(g.id, { kind: k, types: k === g.kind ? g.types : k === "연장" ? p.day : "", until: k === "연장" ? g.until : "" })}>{k}근무</button>
+                        ))}
+                      </span>
                       <span className="rg-tgroup"><small>날짜</small>
                         {opts.map((d) => (
                           <button key={d} type="button" className={`rg-t${ds.includes(d) ? " on" : ""}`} onClick={() => toggleDay(d)}>{dayLabel(d)}</button>
@@ -441,47 +441,82 @@ export default function ReportEditor(p: Props) {
                         toggle={(nm) => setH(g.id, { names: g.names.includes(nm) ? g.names.filter((x) => x !== nm) : [...g.names, nm] })} />
                     </div>
                     <label className="rg-cell"><span className="rg-lbl">근무지</span>
-                      <input type="text" value={g.place} placeholder="예: 에쓰엔" style={{ width: 130 }}
-                        onChange={(e) => setH(g.id, { place: e.target.value.replace(/\//g, "") })} /></label>
+                      {ot
+                        ? <select value={PLACES.includes(g.place) || !g.place ? g.place : "__"} style={{ width: 130 }}
+                            onChange={(e) => setH(g.id, { place: e.target.value === "__" ? g.place : e.target.value })}>
+                            <option value="">선택</option>{PLACES.map((x) => <option key={x}>{x}</option>)}
+                            {g.place && !PLACES.includes(g.place) && <option value="__">{g.place}</option>}
+                          </select>
+                        : <input type="text" value={g.place} placeholder="예: 에쓰엔" style={{ width: 130 }}
+                            onChange={(e) => setH(g.id, { place: e.target.value.replace(/\//g, "") })} />}
+                    </label>
                     <label className="rg-cell"><span className="rg-lbl">작업내용</span>
-                      <input type="text" value={g.work} placeholder="예: 신공장 페인트 작업" style={{ width: 210 }}
+                      <input type="text" value={g.work} placeholder={ot ? "예: 모터조립" : "예: 신공장 페인트 작업"} style={{ width: 210 }}
                         onChange={(e) => setH(g.id, { work: e.target.value })} /></label>
+                    {ot && (
+                      <label className="rg-cell"><span className="rg-lbl" title="직원별 근태의 퇴근 근무형태가 연장(이 시각)으로 들어갑니다">연장 신청 (몇 시까지)</span>
+                        <select value={g.until} onChange={(e) => setH(g.id, { until: e.target.value })} style={{ width: 110 }}>
+                          <option value="">선택</option>{OT_SLOTS.map((t) => <option key={t}>{t}</option>)}
+                        </select></label>
+                    )}
                   </div>
+                  {ot && g.names.length > 0 && (
+                    <div className="rg-ot">
+                      <div className="rg-cell" style={{ flex: 1 }}>
+                        <span className="rg-lbl">{dayLabel(p.day)} 퇴근 기록 (캡스·수기입력)</span>
+                        {!hasOuts ? <span className="rg-hint">이 날짜의 퇴근 기록이 아직 없습니다. 기록이 올라오면 여기에 퇴근 시각·근무형태가 나옵니다.</span>
+                          : <div className="rg-outs">
+                              {g.names.map((nm) => {
+                                const o = p.outs[nm];
+                                const st = !o ? "none" : !g.until ? "" : o.out >= g.until ? "ok" : "early";
+                                return (
+                                  <span key={nm} className={`rg-o ${st}`} title={st === "early" ? `신청(${g.until})보다 일찍 퇴근` : st === "ok" ? "신청 시각까지 근무" : ""}>
+                                    <b>{nm}</b>
+                                    {o ? <><span className="tm">{o.out}</span>{o.type && <small>{o.type}</small>}</> : <small>퇴근 기록 없음</small>}
+                                    {st === "ok" && <i>✓</i>}{st === "early" && <i>일찍</i>}
+                                  </span>
+                                );
+                              })}
+                            </div>}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
-        {tab === "도제" && <div className="tbl-wrap">
-          <table className="tbl edit">
-            <thead><tr>
-              <th>성명</th><th>부서</th><th>직급</th>
-              <th>출근 완료</th><th>비고란</th>
-              <th />
-            </tr></thead>
-            <tbody>
-              {idx.map(([r, i]) => (
-                <tr key={i}>
-                  <td>{nameSelect(i, r, p.apprentices)}</td>
-                  <td>{text(i, "dept", p.deptOf[r.name] ?? "", 80)}</td>
-                  <td>{text(i, "rank", p.ranks[r.name] ?? "", 60)}</td>
-                  <td>{text(i, "value", "예: 10/23(금) 또는 -")}</td><td>{text(i, "note", "", 280)}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>
-                    <button className="btn sm danger" onClick={() => remove(i)} title="행 삭제">삭제</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>}
+        {tab === "도제" && (
+          <div className="rg-list">
+            {idx.length === 0 && <p className="caption" style={{ margin: "6px 2px" }}>아직 도제 학생 줄이 없습니다. 아래 [+ 학생 추가]를 누르거나, [전일 보고서에서 도제·휴가일정 가져오기]를 누르세요.</p>}
+            {idx.map(([r, i], n) => (
+              <div key={i} className="rg-card">
+                <div className="rg-head">
+                  <span className="rg-no">{n + 1}</span>
+                  {nameSelect(i, r, p.apprentices)}
+                  <span className="rg-meta">{[r.dept || p.deptOf[r.name], r.rank || p.ranks[r.name]].filter(Boolean).join(" · ")}</span>
+                  <div className="rg-types" />
+                  <button type="button" className="rg-del" onClick={() => remove(i)} title="이 학생 줄 삭제">삭제</button>
+                </div>
+                <div className="rg-body">
+                  <label className="rg-cell"><span className="rg-lbl">출근 완료</span>{text(i, "value", "예: 10/23(금) 또는 -", 150)}</label>
+                  <label className="rg-cell" style={{ flex: 1 }}><span className="rg-lbl">비고</span>{text(i, "note", "예: 외부평가 준비기간(11/11~11/27)", 320)}</label>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="row" style={{ marginTop: 8 }}>
+          {tab === "휴일근무" ? <>
+            <button className="btn sm" onClick={() => setHGroups((gs) => [...gs, newHGroup({ kind: "휴일" })])}>+ 휴일근무</button>
+            <button className="btn sm" onClick={() => setHGroups((gs) => [...gs, newHGroup({ kind: "연장", types: p.day })])}>+ 연장근무</button>
+          </> : (
           <button className="btn sm" onClick={() => (tab === "근태" ? setGroups((gs) => [...gs, newGroup()])
-            : tab === "휴일근무" ? setHGroups((gs) => [...gs, newHGroup()])
-            : setRows((rs) => [...rs, tab === "휴가일정" ? { ...blank(tab), title: "연차" } : blank(tab)]))}>{tab === "근태" ? "+ 근태 추가" : tab === "휴가일정" ? "+ 휴가 추가" : tab === "휴일근무" ? "+ 작업 추가" : "+ 행 추가"}</button>
+            : setRows((rs) => [...rs, tab === "휴가일정" ? { ...blank(tab), title: "연차" } : blank(tab)]))}>{tab === "근태" ? "+ 근태 추가" : tab === "휴가일정" ? "+ 휴가 추가" : "+ 학생 추가"}</button>)}
           <span className="caption" style={{ margin: 0 }}>
             {tab === "근태" && "근태 한 건마다 카드 한 장입니다. 종류를 누르고, 같은 출장·휴가에 해당하는 사람은 [+ 인원]으로 고르세요. 기간을 정하면 그 기간의 다른 근무일 보고서에도 같은 줄이 들어갑니다. 부서·직급은 직원 명부에서 자동으로 채웁니다."}
             {tab === "휴가일정" && "한 사람의 휴가 한 건마다 카드 한 장: 종류를 누르고 날짜를 여러 개 넣으세요. 출근 예정은 자동으로 계산됩니다."}
-            {tab === "휴일근무" && "작업 한 건마다 카드 한 장: 근무한 날짜를 누르고 같이 일한 사람은 [+ 인원]으로 고르세요. 보고서에는 「근무지 / 작업내용」으로 나옵니다."}
+            {tab === "휴일근무" && "작업 한 건마다 카드 한 장: 휴일근무·연장근무를 고르고 날짜를 누르세요. 같이 일한 사람은 [+ 인원]으로 고릅니다. 연장 신청 시각은 직원별 근태의 퇴근 근무형태로 들어갑니다."}
           </span>
         </div>
       </div>
@@ -489,7 +524,7 @@ export default function ReportEditor(p: Props) {
       {noType.length > 0 && <div className="msg warn" style={{ marginTop: 12 }}>근태 종류가 비어 있는 사람: {noType.join(", ")}</div>}
       <div className="row" style={{ margin: "12px 0" }}>
         <button className="btn primary" disabled={pending || (!dirty && isSaved)} onClick={() => saveNow(true)}>저장</button>
-        <button className="btn" disabled={pending || !dirty} onClick={() => { setRows(p.saved.filter((r) => !GROUPED(r.section))); setGroups(toGroups(p.saved)); setHGroups(toHGroups(p.saved)); }}>편집 취소</button>
+        <button className="btn" disabled={pending || !dirty} onClick={() => { setRows(p.saved.filter((r) => !GROUPED(r.section))); const c = loadCards(p.saved, p.day); setGroups(c.groups); setHGroups(c.hgroups); }}>편집 취소</button>
         <details className="pop left">
           <summary className="btn" aria-disabled={!p.isSaved}>보고서 삭제</summary>
           {p.isSaved && (

@@ -43,6 +43,10 @@ export function splitReportTypes(v: string | string[] | null | undefined): strin
 }
 
 // ---------------------------------------------------------------- 근태 판정용 변환
+/** 휴일·연장 근무 탭의 연장근무 줄: section '휴일근무' + value '연장' 또는 '연장|~20:00' */
+export const isOtRow = (r: Pick<ReportRow, "section" | "value">) => r.section === "휴일근무" && String(r.value ?? "").startsWith("연장");
+export const otUntil = (r: Pick<ReportRow, "value">) => /~(\d{2}:\d{2})/.exec(String(r.value ?? ""))?.[1] ?? "";
+
 /** 보고서 행 -> 하이웍스 근태와 같은 형식 (근태 판정·직원별 시트에 쓰임). */
 export function reportToLeaves(rows: ReportRow[]): Leave[] {
   const out: Leave[] = [];
@@ -54,7 +58,11 @@ export function reportToLeaves(rows: ReportRow[]): Leave[] {
     if (r.section === "근태") {
       for (const t of splitReportTypes(r.types)) out.push({ ...base, day: r.day!, type: t });
     } else if (r.section === "휴일근무") {
-      for (const t of splitReportTypes(r.types)) if (isDateStr(t)) out.push({ ...base, day: t, type: "휴일근무" });
+      // 휴일·연장 근무 탭: value가 '연장…'이면 연장근무 (신청 시각 '~HH:MM'을 내용 끝에 붙여 퇴근 근무형태 연장(HH:MM)이 되게)
+      const ot = isOtRow(r);
+      const until = ot ? otUntil(r) : "";
+      const c = until ? [content, `~${until}`].filter(Boolean).join("\n") : content;
+      for (const t of splitReportTypes(r.types)) if (isDateStr(t)) out.push({ ...base, content: c, day: t, type: ot ? "연장근무" : "휴일근무" });
     }
   }
   return out;
@@ -129,7 +137,7 @@ const BADGE: Record<string, [string, string]> = {
   교육: ["#4338ca", "#e6e7fb"], 외근: ["#6d28d9", "#ede5fb"], 휴일근무: ["#b45309", "#fdf0d5"], 연장근무: ["#be123c", "#fde4ea"],
 };
 const SECTION_TITLES: Record<Section, string> = {
-  근태: "근태 현황", 도제: "일학습병행(도제)", 휴가일정: "휴가 일정", 휴일근무: "휴일 근무",
+  근태: "근태 현황", 도제: "일학습병행(도제)", 휴가일정: "휴가 일정", 휴일근무: "휴일·연장 근무",
 };
 // 요약 카드: (라벨, 색, 포함 유형)
 const SUMMARY_CARDS: [string, string, Set<string>][] = [
@@ -335,7 +343,7 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
       const ds = splitReportTypes(r.types).filter(isDateStr);
       for (const d of ds.length ? ds : [""]) {
         const m = byDay.get(d) ?? new Map<string, ReportRow[]>();
-        const k = split(r.title).join("|");
+        const k = [isOtRow(r) ? "연장" : "휴일", ...split(r.title)].join("|");
         m.set(k, [...(m.get(k) ?? []), r]);
         byDay.set(d, m);
       }
@@ -355,13 +363,13 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
     };
     const body: string[][] = [];
     for (const d of [...byDay.keys()].sort((a, b) => (a || "9").localeCompare(b || "9"))) {
-      [...byDay.get(d)!.values()].map(byDept).forEach((g, i) => body.push([
+      [...byDay.get(d)!.values()].sort((a, b) => Number(isOtRow(a[0])) - Number(isOtRow(b[0]))).map(byDept).forEach((g, i) => body.push([
         i ? "" : `<div style="${TXT}font-weight:700;white-space:nowrap">${d ? esc(dayLabel(d)) : "-"}</div>`,
-        deptLines(g), nameLines(g), placeCell(g), workCell(g),
+        badge(isOtRow(g[0]) ? "연장근무" : "휴일근무"), deptLines(g), nameLines(g), placeCell(g), workCell(g),
       ]));
     }
     parts.push(section(SECTION_TITLES.휴일근무, new Set(sub.map((r) => r.name)).size,
-      table([["근무일", "90px"], ["부서", "80px"], ["성명", "110px"], ["근무지", "120px"], ["작업내용", ""]], body)));
+      table([["근무일", "90px"], ["구분", "90px"], ["부서", "80px"], ["성명", "110px"], ["근무지", "120px"], ["작업내용", ""]], body)));
   }
 
   // 일학습병행(도제)
