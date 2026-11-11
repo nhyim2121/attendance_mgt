@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
@@ -15,6 +16,7 @@ type Res = { ok?: string; error?: string };
 const SECTIONS = new Set(["근태", "도제", "휴가일정", "휴일근무"]);
 
 export async function saveReportAction(day: string, rows: ReportRow[]): Promise<Res> {
+  await requirePerm("update");
   const user = await requireUser();
   if (!isDateStr(day)) return { error: "보고 일자가 올바르지 않습니다." };
   const clean = rows.filter((r) => SECTIONS.has(r.section) && String(r.name).trim()).map((r) => ({
@@ -31,6 +33,7 @@ export async function saveReportAction(day: string, rows: ReportRow[]): Promise<
 }
 
 export async function deleteReportAction(day: string): Promise<Res> {
+  await requirePerm("delete");
   const user = await requireUser();
   const info = await store.reportInfo(day);
   if (!info) return { error: "저장된 보고서가 없습니다." };

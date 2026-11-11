@@ -5,7 +5,7 @@ import { Clock, LinksCard, MemoCard, Todo4Card, TodoCard } from "@/components/�
 import { nextOf, noteOf, schedOf, splitTodos, weekStrip } from "@/components/대시/common";
 import { Bars, Card, Hello, HoursLine, type KpiProps, Kpis, Leaves, MenuLists, QuickAdd, Schedule, Win } from "@/components/대시/parts";
 import { toViews } from "@/components/대시/views";
-import { requireUser } from "@/lib/auth";
+import { readableAreas, requireUser } from "@/lib/auth";
 import { ddayText, hrSnap, todos, WEEK_WARN } from "@/lib/대시/data";
 import { loadLinks } from "@/lib/대시/links";
 import { menuFor } from "@/lib/대시/menu";
@@ -14,9 +14,11 @@ import { todayKst } from "@/lib/time";
 
 export const metadata = { title: "통합 대시보드 · 통합관리시스템" };
 
-export default async function HubPage() {
+export default async function HubPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const user = await requireUser();
   const admin = user.role === "관리자";
+  const areas = await readableAreas(user);
+  const denied = (await searchParams).denied; // 권한 없는 영역에서 돌아온 경우 (proxy.ts)
   const today = todayKst();
   const [hr, list, links, t4, memos] = await Promise.all([hrSnap(), todos(admin), loadLinks("all"), loadTodo4(user.id), loadMemos(user.id)]);
   const { week, later } = splitTodos(list);
@@ -43,6 +45,7 @@ export default async function HubPage() {
 
   return (
     <div className="ud">
+      {denied && <div className="msg warn">이 계정은 그 업무 영역을 볼 권한이 없습니다. 필요하면 관리자에게 권한을 요청하세요.</div>}
       <Hello today={today} name={user.name} todo={week.length} note={noteOf(week)} />
       <Kpis items={kpis} />
       <div className="u-grid">
@@ -52,7 +55,7 @@ export default async function HubPage() {
         <Todo4Card items={t4} />
         <MemoCard items={memos} />
         <LinksCard scope="all" links={links} />
-        <Win en="MENU" ko="업무 영역 전체 메뉴" className="s12"><MenuLists areas={menuFor(admin)} /></Win>
+        <Win en="MENU" ko="업무 영역 전체 메뉴" className="s12"><MenuLists areas={menuFor(admin, areas)} /></Win>
         <Card en="TEAM" title="부서별 인원" more={["조직도", "/org"]} className="s5"><Bars data={hr.depts.map((d) => ({ label: d.dept, n: d.n }))} /></Card>
         <Card en="HOURS" title="월별 1인 평균 주 근로시간" more={["리포트", "/hours"]} className="s7"><HoursLine data={hr.monthly} /></Card>
         <Card en="LEAVE" title="이번 주 휴가·출장" more={["캘린더", "/leave/calendar"]} className="s4"><Leaves items={hr.weekLeaves} today={today} /></Card>

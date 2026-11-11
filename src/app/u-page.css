@@ -249,3 +249,22 @@
 .rg-appr-day { font-size: .84rem; color: #1f2d4d; background: #f5f8fd; border: 1px solid #e1e8f4; border-radius: 10px; padding: 7px 12px; }
 .rg-appr-day b { color: #0c3994; }
 .rg-tag { display: inline-block; background: #f1f4f9; border: 1px solid #e1e7f0; color: #3b4a6b; font-size: .74rem; font-weight: 600; border-radius: 999px; padding: 2px 9px; }
+/* 사용자·권한 설정: 계정별 권한 표 */
+.pm-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 12px; }
+.pm-card { border: 1px solid #dfe5f0; border-radius: 12px; padding: 12px 14px; background: #fff; }
+.pm-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.pm-role { font-size: .74rem; font-weight: 700; border-radius: 999px; padding: 2px 9px; background: #eef1f6; color: #3b4a6b; }
+.pm-role.admin { background: #0c3994; color: #fff; }
+.pm-mode { display: inline-flex; border: 1px solid #dfe5f0; border-radius: 8px; overflow: hidden; }
+.pm-mode button { border: 0; background: #fff; padding: 4px 10px; font: inherit; font-size: .78rem; color: #5b6578; cursor: pointer; }
+.pm-mode button + button { border-left: 1px solid #dfe5f0; }
+.pm-mode button.on { background: #0c3994; color: #fff; font-weight: 700; }
+.pm-tbl { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.pm-tbl th { font-size: .74rem; color: #5b6578; font-weight: 700; padding: 4px 6px; border-bottom: 1px solid #e3e8f1; text-align: center; }
+.pm-tbl th:first-child { text-align: left; }
+.pm-tbl td { padding: 5px 6px; border-bottom: 1px solid #f0f2f6; }
+.pm-tbl td.c { text-align: center; }
+.pm-tbl tr.off td:first-child { color: #9aa3b5; }
+.pm-tbl input[type="checkbox"] { width: 16px; height: 16px; accent-color: #0c3994; }
+.pm-ok { color: #1f7a45; font-size: .82rem; font-weight: 700; }
+.pm-err { color: #c62828; font-size: .82rem; font-weight: 700; }

@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireUser } from "@/lib/auth";
@@ -22,6 +23,7 @@ export interface PrivateInput { birth: string | null; rrn?: string; salaryType: 
 
 /** 한 사람 추가·고치기. orig = 고치기 전 이름 (새로 추가면 빈칸). priv는 관리자만 */
 export async function saveEmployee(orig: string, e: Employee, priv?: PrivateInput): Promise<Res> {
+  await requirePerm("update");
   const user = await requireUser();
   const list = await store.loadEmployees();
   const i = orig ? list.findIndex((x) => x.name === orig) : -1;
@@ -58,6 +60,7 @@ export async function saveEmployee(orig: string, e: Employee, priv?: PrivateInpu
 
 /** 명부에서 지우기 (퇴사자는 지우지 말고 퇴사일만 넣는다) */
 export async function deleteEmployee(name: string): Promise<Res> {
+  await requirePerm("delete");
   const user = await requireUser();
   const list = await store.loadEmployees();
   if (!list.some((x) => x.name === name)) return { error: "이미 없는 직원입니다." };
@@ -73,6 +76,7 @@ export async function deleteEmployee(name: string): Promise<Res> {
 
 /** 캐릭터 저장 (브라우저에서 만든 PNG, 300KB 이하) */
 export async function saveAvatar(f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireAdmin();
   const name = String(f.get("name") ?? "");
   const file = f.get("file");
@@ -86,6 +90,7 @@ export async function saveAvatar(f: FormData): Promise<Res> {
 }
 
 export async function dropAvatar(name: string): Promise<Res> {
+  await requirePerm("delete");
   await requireAdmin();
   await removeAvatar(name);
   revalidatePath("/", "layout");
@@ -94,6 +99,7 @@ export async function dropAvatar(name: string): Promise<Res> {
 
 /** 주민등록번호 전체 보기 (관리자) */
 export async function showRrn(name: string): Promise<Res & { rrn?: string }> {
+  await requirePerm("update");
   await requireAdmin();
   try { return { rrn: await revealRrn(name) }; } catch (exc) { return { error: (exc as Error).message }; }
 }
@@ -102,6 +108,7 @@ const MAX = 20 * 1024 * 1024;
 const OK_EXT = /\.(pdf|png|jpe?g|gif|webp|bmp|heic|tiff?|hwpx?|docx?|xlsx?|pptx?|zip|txt)$/i;
 /** 직원 첨부 파일 올리기 (근로계약서·이력서·자격증 사본 등) */
 export async function uploadEmpFiles(f: FormData): Promise<Res> {
+  await requirePerm("create");
   await requireAdmin();
   const name = String(f.get("name") ?? "");
   const files = f.getAll("file").filter((x): x is File => x instanceof File && x.size > 0);
@@ -120,6 +127,7 @@ export async function uploadEmpFiles(f: FormData): Promise<Res> {
 }
 
 export async function removeEmpFile(id: number): Promise<Res> {
+  await requirePerm("delete");
   await requireAdmin();
   await deleteEmpFile(id);
   revalidatePath("/employees");

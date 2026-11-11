@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -20,6 +21,7 @@ const badFiles = (files: File[]) => {
 
 // ---------------------------------------------------------------- 발급 대장
 export async function saveIssueAction(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireAdmin();
   const day = str(f, "day"), docType = str(f, "docType");
   if (!isDateStr(day)) return { error: "발급일을 확인해 주세요." };
@@ -38,6 +40,7 @@ export async function saveIssueAction(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function attachIssue(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireAdmin();
   const id = Number(f.get("id")), files = filesOf(f);
   if (!id || !files.length) return { error: "파일을 골라 주세요." };
@@ -49,6 +52,7 @@ export async function attachIssue(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function removeIssue(id: number): Promise<void> {
+  await requirePerm("delete");
   await requireAdmin();
   await issue.deleteIssue(id);
   revalidatePath("/ga", "layout");
@@ -56,6 +60,7 @@ export async function removeIssue(id: number): Promise<void> {
 
 // ---------------------------------------------------------------- 인증서
 export async function saveCertAction(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireAdmin();
   const name = str(f, "name"), issued = str(f, "issued"), expires = str(f, "expires");
   if (!name) return { error: "인증서 이름을 적어 주세요. (예: 법인 범용 공동인증서)" };
@@ -72,6 +77,7 @@ export async function saveCertAction(_prev: Res, f: FormData): Promise<Res> {
 
 /** 갱신: 새 만료일 (안 주면 오늘부터 1년) */
 export async function renewCertAction(id: number, expires: string): Promise<{ error?: string }> {
+  await requirePerm("update");
   await requireAdmin();
   const today = todayKst();
   const exp = expires || addDays(today, 365);
@@ -82,6 +88,7 @@ export async function renewCertAction(id: number, expires: string): Promise<{ er
 }
 
 export async function removeCert(id: number): Promise<void> {
+  await requirePerm("delete");
   await requireAdmin();
   await issue.deleteCert(id);
   revalidatePath("/ga", "layout");

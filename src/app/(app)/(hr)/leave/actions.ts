@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { isHoliday } from "@/lib/인사노무/analytics";
@@ -14,6 +15,7 @@ type Res = { ok?: string; error?: string } | null;
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
 export async function addVacationAction(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("create");
   const user = await requireUser();
   const name = str(f, "name"), type = str(f, "type");
   const startDay = str(f, "start"), endDay = RANGE_TYPES.has(type) ? str(f, "end") || startDay : startDay;
@@ -42,6 +44,7 @@ export async function addVacationAction(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function deleteVacationAction(id: number): Promise<Res> {
+  await requirePerm("delete");
   await requireUser();
   await store.deleteVacation(id);
   revalidatePath("/", "layout");
@@ -49,6 +52,7 @@ export async function deleteVacationAction(id: number): Promise<Res> {
 }
 
 export async function addAdjustAction(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("create");
   const user = await requireUser();
   const name = str(f, "name"), fy = Number(str(f, "fy")), days = Number(str(f, "days"));
   if (!name) return { error: "직원을 골라 주세요." };
@@ -60,6 +64,7 @@ export async function addAdjustAction(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function deleteAdjustAction(id: number): Promise<Res> {
+  await requirePerm("delete");
   await requireUser();
   await store.deleteAdjust(id);
   revalidatePath("/", "layout");
@@ -67,6 +72,7 @@ export async function deleteAdjustAction(id: number): Promise<Res> {
 }
 
 export async function savePolicyAction(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireUser();
   const num = (k: keyof LeavePolicy, lo: number, hi: number) => {
     const v = Number(str(f, k));
@@ -119,6 +125,7 @@ async function removeLeave(ref: LeaveRef, user: string): Promise<string | null> 
 }
 
 export async function removeLeaveAction(ref: LeaveRef): Promise<Res> {
+  await requirePerm("delete");
   const user = await requireUser();
   if (!isDateStr(ref.day) || !ref.name) return { error: "지울 기록을 확인해 주세요." };
   const err = await removeLeave(ref, user.loginId);
@@ -129,6 +136,7 @@ export async function removeLeaveAction(ref: LeaveRef): Promise<Res> {
 
 /** 추가(old 없음) 또는 수정(old를 지우고 새로 등록). 새 기록은 '휴가 등록'에 들어간다. */
 export async function saveLeaveAction(old: LeaveRef | null, v: LeaveInput): Promise<Res> {
+  await requirePerm("update");
   const user = await requireUser();
   const type = v.type, startDay = v.start, endDay = RANGE_TYPES.has(type) && v.end ? v.end : v.start;
   const startTime = v.startTime.trim(), endTime = v.endTime.trim();
@@ -168,6 +176,7 @@ export async function saveLeaveAction(old: LeaveRef | null, v: LeaveInput): Prom
 
 /** 지운 기록 되살리기 */
 export async function restoreLeaveAction(key: string): Promise<Res> {
+  await requirePerm("update");
   await requireUser();
   const list = await store.loadHiddenLeaves();
   await store.saveHiddenLeaves(list.filter((h) => leaveKey(h) !== key));
@@ -179,6 +188,7 @@ export async function restoreLeaveAction(key: string): Promise<Res> {
 export async function saveHwRowAction(fy: number, name: string, v: {
   grant: { 정기: number; 포상: number; 기타: number }; used: Record<string, number>; remain: number | null; joinDate: string | null; exportedAt: string;
 }): Promise<Res> {
+  await requirePerm("update");
   const user = await requireUser();
   const r4 = (x: number) => Math.round(x * 10000) / 10000;
   const nums = [v.grant.정기, v.grant.포상, v.grant.기타, ...Object.values(v.used), v.remain ?? 0];
@@ -194,6 +204,7 @@ export async function saveHwRowAction(fy: number, name: string, v: {
 }
 
 export async function deleteHwRowAction(fy: number, name: string): Promise<Res> {
+  await requirePerm("delete");
   await requireUser();
   await store.deleteLeaveStatusRow(fy, name);
   revalidatePath("/", "layout");
@@ -202,6 +213,7 @@ export async function deleteHwRowAction(fy: number, name: string): Promise<Res> 
 
 /** 휴가 생성 (하이웍스 '휴가 생성' 창처럼 종류별 일수 ±). 연차 조정에 '○○ 생성'으로 남기고, 하이웍스 숫자가 있으면 그것도 같이 늘린다. */
 export async function grantLeaveAction(fy: number, name: string, rows: { type: string; days: number; note: string }[]): Promise<Res> {
+  await requirePerm("create");
   const user = await requireUser();
   const r4 = (x: number) => Math.round(x * 10000) / 10000;
   const list = rows.filter((r) => ["연차", "포상", "월차"].includes(r.type) && Number.isFinite(r.days) && r.days !== 0);

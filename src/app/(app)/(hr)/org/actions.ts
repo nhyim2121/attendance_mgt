@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
@@ -6,6 +7,7 @@ import { NODE_KINDS, type NodeKind, ORG_FIELDS, type OrgCompany, type OrgField, 
 import * as store from "@/lib/store";
 
 export async function saveViewsAction(views: OrgView[]): Promise<{ ok?: string; error?: string }> {
+  await requirePerm("update");
   await requireUser();
   const fields = Object.keys(ORG_FIELDS) as OrgField[];
   const clean = views.filter((v) => String(v.name).trim()).map((v, i) => ({
@@ -22,6 +24,7 @@ export async function saveViewsAction(views: OrgView[]): Promise<{ ok?: string; 
 }
 
 export async function saveStructureAction(nodes: OrgNode[], company: OrgCompany): Promise<{ ok?: string; error?: string }> {
+  await requirePerm("update");
   await requireUser();
   const str = (x: unknown, n: number) => String(x ?? "").trim().slice(0, n);
   const clean = nodes.map((n, i) => ({

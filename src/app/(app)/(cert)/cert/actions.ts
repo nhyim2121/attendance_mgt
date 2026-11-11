@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -24,6 +25,7 @@ const done = () => revalidatePath("/", "layout");
 
 /** 인증 등록·고치기 */
 export async function saveItemAction(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireAdmin();
   const name = str(f, "name");
   if (!name) return { error: "인증 이름을 적어 주세요." };
@@ -45,6 +47,7 @@ export async function saveItemAction(_prev: Res, f: FormData): Promise<Res> {
 
 /** 인증서 스캔본·이력 첨부 추가 */
 export async function attachCert(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireAdmin();
   const ref = str(f, "ref"), files = filesOf(f);
   if (!/^(cert|certev):\d+$/.test(ref) || !files.length) return { error: "파일을 골라 주세요." };
@@ -57,6 +60,7 @@ export async function attachCert(_prev: Res, f: FormData): Promise<Res> {
 
 /** 이력 한 줄 추가. 갱신이면 새 유효기간, 심사면 다음 심사일을 인증에도 반영한다. */
 export async function addEventAction(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("create");
   await requireAdmin();
   const itemId = Number(f.get("itemId")), d = day(f, "day"), kind = str(f, "kind") || "기타";
   if (!itemId || !d) return { error: "날짜를 확인해 주세요." };
@@ -85,6 +89,7 @@ export async function addEventAction(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function removeItem(id: number): Promise<void> {
+  await requirePerm("delete");
   await requireAdmin();
   await cert.deleteItem(id);
   done();
@@ -92,6 +97,7 @@ export async function removeItem(id: number): Promise<void> {
 }
 
 export async function removeEvent(id: number): Promise<void> {
+  await requirePerm("delete");
   await requireAdmin();
   await cert.deleteEvent(id);
   done();

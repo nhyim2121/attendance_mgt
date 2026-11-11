@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 /** 입찰관리 저장: 공고 등록·고치기, 단계 바꾸기, 업무 절차 체크, 투찰·개찰 결과, 메모, 알림 조건, 나라장터 불러오기 */
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -16,6 +17,7 @@ const done = () => revalidatePath("/", "layout");
 
 /** 공고 직접 등록·고치기 (사이트에서 본 공고를 옮겨 적기) */
 export async function saveBidForm(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireBid();
   const id = Number(f.get("id") || 0);
   const old = id ? await loadBid(id) : null;
@@ -42,6 +44,7 @@ export async function saveBidForm(_prev: Res, f: FormData): Promise<Res> {
 
 /** 단계 바꾸기. 참여를 정하면 업무 절차 체크리스트를 붙인다. */
 export async function setStage(id: number, stage: string): Promise<void> {
+  await requirePerm("update");
   await requireBid();
   const b = await loadBid(id);
   if (!b || !(STAGES as readonly string[]).includes(stage)) return;
@@ -51,6 +54,7 @@ export async function setStage(id: number, stage: string): Promise<void> {
 }
 
 export async function toggleCheck(id: number, i: number): Promise<void> {
+  await requirePerm("update");
   await requireBid();
   const b = await loadBid(id);
   if (!b?.checklist[i]) return;
@@ -58,6 +62,7 @@ export async function toggleCheck(id: number, i: number): Promise<void> {
   done();
 }
 export async function addCheck(id: number, t: string): Promise<void> {
+  await requirePerm("create");
   await requireBid();
   const b = await loadBid(id);
   if (!b || !t.trim()) return;
@@ -65,6 +70,7 @@ export async function addCheck(id: number, t: string): Promise<void> {
   done();
 }
 export async function removeCheck(id: number, i: number): Promise<void> {
+  await requirePerm("delete");
   await requireBid();
   const b = await loadBid(id);
   if (!b) return;
@@ -74,6 +80,7 @@ export async function removeCheck(id: number, i: number): Promise<void> {
 
 /** 투찰·개찰 결과 */
 export async function saveResult(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireBid();
   const id = Number(f.get("id"));
   const b = await loadBid(id);
@@ -89,6 +96,7 @@ export async function saveResult(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function saveMemo(id: number, memo: string): Promise<void> {
+  await requirePerm("update");
   await requireBid();
   const b = await loadBid(id);
   if (!b) return;
@@ -97,6 +105,7 @@ export async function saveMemo(id: number, memo: string): Promise<void> {
 }
 
 export async function removeBid(id: number): Promise<void> {
+  await requirePerm("delete");
   await requireBid();
   await deleteBid(id);
   done();
@@ -105,6 +114,7 @@ export async function removeBid(id: number): Promise<void> {
 
 /** 알림 조건 */
 export async function saveWatchForm(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireBid();
   const w: Watch = {
     keywords: list(str(f, "keywords")), exclude: list(str(f, "exclude")), kinds: f.getAll("kinds").map(String),
@@ -154,6 +164,7 @@ export async function searchNow(_prev: SearchRes, f: FormData): Promise<SearchRe
 
 /** 검색 결과를 받은 공고에 담기 */
 export async function keepFound(b: Omit<Bid, "id">, matched: string[]): Promise<{ id: number; isNew: boolean }> {
+  await requirePerm("update");
   await requireBid();
   const clean: Omit<Bid, "id"> = { ...emptyBid(), ...b, src: "g2b", stage: "새 공고", checklist: [], memo: "", fetchedAt: new Date().toISOString() };
   const r = await keepBid(clean, matched.map(String).slice(0, 20));

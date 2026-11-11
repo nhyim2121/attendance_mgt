@@ -171,8 +171,10 @@ export const MENU: MenuArea[] = [
 ];
 export const menuOf = (key: string) => MENU.find((a) => a.key === key)!;
 /** 이 계정에 보이는 메뉴: 관리자 전용 영역·화면을 뺀다 */
-export const menuFor = (admin: boolean): MenuArea[] => MENU.filter((a) => admin || !a.adminOnly)
-  .map((a) => ({ ...a, groups: a.groups.map((g) => ({ ...g, items: g.items.filter((i) => admin || !i.admin) })).filter((g) => g.items.length) }));
+/** 보이는 메뉴. areas = 계정별 권한으로 '읽기'가 있는 영역 (권한을 직접 정한 계정만, 아니면 null = 역할 규칙) */
+export const menuFor = (admin: boolean, areas: string[] | null = null): MenuArea[] => MENU
+  .filter((a) => (areas ? areas.includes(a.key) : admin || !a.adminOnly))
+  .map((a) => ({ ...a, groups: a.groups.map((g) => ({ ...g, items: g.items.filter((i) => admin || !!areas || !i.admin) })).filter((g) => g.items.length) }));
 
 /** 메뉴 이모지 (사이드바·전체 메뉴). 영역은 키, 화면은 주소, 대장은 끝 이름으로 찾는다. */
 const EMOJI: Record<string, string> = {

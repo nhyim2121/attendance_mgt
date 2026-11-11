@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
@@ -10,6 +11,7 @@ const MAX = 20 * 1024 * 1024;
 const OK_EXT = /\.(pdf|png|jpe?g|gif|webp|bmp|hwpx?|docx?|xlsx?|pptx?|eml|html?|txt|zip)$/i;
 
 export async function uploadEvidence(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("create");
   const user = await requireUser();
   const name = String(f.get("name") ?? "").trim(), type = String(f.get("type") ?? "출장").trim();
   const from = String(f.get("from") ?? ""), to = String(f.get("to") ?? "") || from;
@@ -30,6 +32,7 @@ export async function uploadEvidence(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function deleteEvidence(id: number): Promise<Res> {
+  await requirePerm("delete");
   await requireUser();
   await store.deleteAttachment(id);
   revalidatePath("/", "layout");

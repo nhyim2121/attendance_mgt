@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 /** 지원자 상세: 진행 단계·면접 점수 바로 바꾸기 (나머지 칸은 지원자 관리 대장의 고치기에서) */
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
@@ -6,6 +7,7 @@ import { addDays, todayKst } from "@/lib/time";
 import * as store from "@/lib/대장/store";
 
 export async function setApplicantStage(f: FormData): Promise<void> {
+  await requirePerm("update");
   await requireAdmin();
   const id = Number(f.get("id"));
   const row = id ? await store.loadRow(id) : null;

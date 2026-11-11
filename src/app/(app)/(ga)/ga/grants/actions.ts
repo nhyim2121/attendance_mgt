@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 /** 지원사업 저장 (관리자만). 저장은 업무 대장 ledger_rows(book = grants). 단계를 바꿔도 앞 단계 첨부는 지우지 않는다. */
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
@@ -31,6 +32,7 @@ async function put(id: number, data: Data) {
 
 /** 등록·고치기 (서랍). 폴더는 단계에 따라 자동, '6·7'을 고르면 그 폴더. 화면에 없는 칸(단계별 서류)은 그대로 둔다. */
 export async function saveGrant(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireAdmin();
   const book = bookOf("grants")!;
   const id0 = Number(f.get("id") || 0);
@@ -53,6 +55,7 @@ export async function saveGrant(_prev: Res, f: FormData): Promise<Res> {
 
 /** 단계 바꾸기 (다음 단계·미선정·협약 해지·되돌리기). 폴더도 따라 바뀌고, 첨부는 그대로. */
 export async function setGrantStage(id: number, stage: string): Promise<void> {
+  await requirePerm("update");
   await requireAdmin();
   const st = stageOf(stage);
   if (!st) throw new Error("없는 단계입니다.");
@@ -74,6 +77,7 @@ const slot = (docs: GrantDocs, stage: string) => (docs[stage] ??= { done: [], ex
 
 /** 서류 준비 완료 표시 켜고 끄기 */
 export async function toggleGrantDoc(id: number, stage: string, doc: string, done: boolean): Promise<void> {
+  await requirePerm("update");
   await requireAdmin();
   await editDocs(id, (docs) => {
     const s = slot(docs, stage);
@@ -83,18 +87,21 @@ export async function toggleGrantDoc(id: number, stage: string, doc: string, don
 
 /** 이 사업에만 필요한 서류 더하기·빼기 (뺄 때 첨부가 있으면 남겨 둔다) */
 export async function addGrantDoc(id: number, stage: string, doc: string): Promise<void> {
+  await requirePerm("create");
   await requireAdmin();
   const name = doc.trim();
   if (!name) return;
   await editDocs(id, (docs) => { const s = slot(docs, stage); if (!s.extra.includes(name)) s.extra.push(name); });
 }
 export async function removeGrantDoc(id: number, stage: string, doc: string): Promise<void> {
+  await requirePerm("delete");
   await requireAdmin();
   await editDocs(id, (docs) => { const s = slot(docs, stage); s.extra = s.extra.filter((x) => x !== doc); s.done = s.done.filter((x) => x !== doc); });
 }
 
 /** 서류 첨부: 올리면 그 서류는 준비 완료로 표시 */
 export async function uploadGrantDoc(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("create");
   await requireAdmin();
   const id = Number(f.get("id")), stage = String(f.get("stage")), doc = String(f.get("doc"));
   const files = filesOf(f);
@@ -107,6 +114,7 @@ export async function uploadGrantDoc(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function deleteGrantFile(fileId: number): Promise<void> {
+  await requirePerm("delete");
   await requireAdmin();
   await deleteFile(fileId);
   revalidatePath("/ga/grants", "layout");

@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
@@ -10,6 +11,7 @@ import { isDateStr, parseHM } from "@/lib/time";
 type Res = { ok?: string; error?: string } | null;
 
 export async function saveRule(_prev: Res, form: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireUser();
   const start = parseHM(String(form.get("start") ?? "")), end = parseHM(String(form.get("end") ?? ""));
   if (start === null || end === null || end <= start) return { error: "출근·퇴근 기준 시각을 확인해 주세요." };
@@ -27,6 +29,7 @@ export async function saveRule(_prev: Res, form: FormData): Promise<Res> {
 
 /** 한 줄에 하나씩: 'YYYY-MM-DD 이름' */
 export async function saveHolidays(_prev: Res, form: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireUser();
   const out: Record<string, string> = {};
   const bad: string[] = [];

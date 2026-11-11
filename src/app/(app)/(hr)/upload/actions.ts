@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireUser } from "@/lib/auth";
@@ -20,6 +21,7 @@ const files = (form: FormData) => form.getAll("files").filter((f): f is File => 
 
 /** 캡스 월별 파일(여러 개) 저장 */
 export async function uploadCaps(_prev: Result | null, form: FormData): Promise<Result> {
+  await requirePerm("create");
   const user = await requireUser();
   const msgs: string[] = [], errors: string[] = [];
   let lastDay = "";
@@ -41,6 +43,7 @@ export async function uploadCaps(_prev: Result | null, form: FormData): Promise<
 
 /** 하이웍스 '근무계획 수립이력'(휴가 신청·취소, 연장근무, 휴일근무) 파일 여러 개 저장. 결재완료만 근태로 쓴다. */
 export async function uploadApprovals(_prev: Result | null, form: FormData): Promise<Result> {
+  await requirePerm("create");
   const user = await requireUser();
   const msgs: string[] = [], errors: string[] = [];
   for (const f of files(form)) {
@@ -66,6 +69,7 @@ export async function uploadApprovals(_prev: Result | null, form: FormData): Pro
 
 /** 하이웍스 '휴가현황(종류별)' 파일 저장: 그 연도의 직원별 생성·사용·잔여를 통째로 바꾼다 */
 export async function uploadLeaveStatus(_prev: Result | null, form: FormData): Promise<Result> {
+  await requirePerm("create");
   const user = await requireUser();
   const f = files(form)[0];
   if (!f) return { errors: ["파일을 골라 주세요."] };
@@ -87,6 +91,7 @@ export async function uploadLeaveStatus(_prev: Result | null, form: FormData): P
 
 /** 근태현황(하이웍스 정리) 파일 저장: 명단·근태를 통째로 교체 */
 export async function uploadHiworks(_prev: Result | null, form: FormData): Promise<Result> {
+  await requirePerm("create");
   const user = await requireUser();
   const f = files(form)[0];
   if (!f) return { errors: ["파일을 골라 주세요."] };
@@ -107,6 +112,7 @@ export async function uploadHiworks(_prev: Result | null, form: FormData): Promi
 }
 
 export async function deleteUploadAction(_prev: Result | null, form: FormData): Promise<Result> {
+  await requirePerm("delete");
   await requireAdmin();
   const id = Number(form.get("id"));
   try {
@@ -119,6 +125,7 @@ export async function deleteUploadAction(_prev: Result | null, form: FormData): 
 }
 
 export async function deleteMonthAction(_prev: Result | null, form: FormData): Promise<Result> {
+  await requirePerm("delete");
   await requireAdmin();
   const month = String(form.get("month"));
   if (form.get("confirm") !== "on") return { errors: [`${month} 삭제를 확인해 주세요.`] };

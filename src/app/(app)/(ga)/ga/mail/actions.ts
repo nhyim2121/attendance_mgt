@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -41,6 +42,7 @@ function readInput(f: FormData): mail.MailInput | string {
 
 /** 새로 적기 / 고치기 (id가 있으면 고친 뒤 목록으로) */
 export async function saveMail(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireAdmin();
   const m = readInput(f);
   if (typeof m === "string") return { error: m };
@@ -57,6 +59,7 @@ export async function saveMail(_prev: Res, f: FormData): Promise<Res> {
 
 /** 줄마다 붙이는 첨부 */
 export async function attachMail(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireAdmin();
   const id = Number(f.get("id"));
   const files = filesOf(f);
@@ -69,18 +72,21 @@ export async function attachMail(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function toggleMailStatus(id: number, status: string): Promise<void> {
+  await requirePerm("update");
   await requireAdmin();
   await mail.setMailStatus(id, status === "처리 중" ? "완료" : "처리 중");
   revalidatePath("/ga", "layout");
 }
 
 export async function removeMail(id: number): Promise<void> {
+  await requirePerm("delete");
   await requireAdmin();
   await mail.deleteMail(id);
   revalidatePath("/ga", "layout");
 }
 
 export async function removeFile(id: number): Promise<void> {
+  await requirePerm("delete");
   await requireAdmin();
   await mail.deleteFile(id);
   revalidatePath("/ga", "layout");
@@ -88,6 +94,7 @@ export async function removeFile(id: number): Promise<void> {
 
 /** 예전 엑셀 대장 가져오기 */
 export async function importLedger(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("create");
   await requireAdmin();
   const file = filesOf(f)[0];
   if (!file) return { error: "엑셀 파일을 골라 주세요." };
@@ -108,6 +115,7 @@ export async function importLedger(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function undoLedger(batch: string): Promise<void> {
+  await requirePerm("update");
   await requireAdmin();
   await mail.undoImport(batch);
   revalidatePath("/ga", "layout");

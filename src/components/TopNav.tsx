@@ -10,8 +10,8 @@ const KEEP = ["month", "from", "to", "dept", "all", "fy", "asof"];
 /** 위쪽 가로 메뉴 (왼쪽 사이드바를 위로 올림, 2026-11-11).
  *  1줄: 로고 · 통합 대시보드 · 업무 영역(마우스를 올리면 그 영역 메뉴가 펼쳐짐) · 사용자 관리 · 로그인한 사람
  *  2줄: 지금 있는 영역의 [대시보드] + 묶음별 메뉴 */
-export default function TopNav({ admin, bid = false, who, logout }: {
-  admin: boolean; bid?: boolean; who: React.ReactNode; logout: React.ReactNode;
+export default function TopNav({ admin, bid = false, who, logout, areas = null }: {
+  admin: boolean; bid?: boolean; who: React.ReactNode; logout: React.ReactNode; areas?: string[] | null;
 }) {
   const path = usePathname();
   const sp = useSearchParams();
@@ -19,8 +19,8 @@ export default function TopNav({ admin, bid = false, who, logout }: {
   KEEP.forEach((k) => sp.get(k) && keep.set(k, sp.get(k)!));
   const qs = keep.toString();
   const cur = areaOfPath(path);
-  const areas = menuFor(admin);
-  const area = areas.find((a) => a.key === cur);
+  const shown = menuFor(admin, areas);
+  const area = shown.find((a) => a.key === cur);
   const href = (key: string, h: string) => (key === "hr" && qs && !h.includes("#") ? `${h}?${qs}` : h);
 
   return (
@@ -31,8 +31,8 @@ export default function TopNav({ admin, bid = false, who, logout }: {
           <Link href="/" className={`tnav-a${path === "/" ? " on" : ""}`}>
             <span className="ch">🏠</span><span className="t">통합 대시보드</span>
           </Link>
-          {areas.map((a, i) => (
-            <div key={a.key} className={`tnav-area${i >= areas.length / 2 ? " r" : ""}${a.groups.reduce((n, g) => n + g.items.length, 0) > 12 ? " wide" : ""}`}>
+          {shown.map((a, i) => (
+            <div key={a.key} className={`tnav-area${i >= shown.length / 2 ? " r" : ""}${a.groups.reduce((n, g) => n + g.items.length, 0) > 12 ? " wide" : ""}`}>
               <Link href={a.dash} style={{ ["--c" as string]: a.color }}
                 className={`tnav-a${cur === a.key ? " on" : ""}`}>
                 <span className="ch">{emojiOf(a.key)}</span><span className="t">{a.label}</span><span className="caret">▾</span>

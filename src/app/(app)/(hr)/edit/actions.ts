@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
@@ -11,6 +12,7 @@ const FIELDS = ["clock_in", "in_type", "clock_out", "out_type", "place", "note",
 
 /** changes: [{employee, day, 필드: 값, mates?}] 바뀐 필드만. mates(같이 근무한 직원)에게는 같은 날 근무지·인원·업무내용을 함께 넣는다. */
 export async function saveEdits(changes: (store.OverrideChange & { mates?: string[] })[]): Promise<{ ok?: string; error?: string }> {
+  await requirePerm("update");
   const user = await requireUser();
   const bad: string[] = [];
   const clean = changes.filter((c) => isDateStr(c.day) && c.employee).map((c) => {
@@ -58,6 +60,7 @@ export async function saveEdits(changes: (store.OverrideChange & { mates?: strin
 }
 
 export async function revertEdits(employee: string, days: string[]): Promise<{ ok?: string; error?: string }> {
+  await requirePerm("update");
   await requireUser();
   const ds = days.filter(isDateStr);
   if (!ds.length) return { error: "되돌릴 날짜를 골라 주세요." };

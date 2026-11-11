@@ -2,7 +2,9 @@
 
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
-import { checkPasswordRule, createAccount, loginEmail, requireAdmin, requireUser, ROLES } from "@/lib/auth";
+import { checkPasswordRule, createAccount, loadPerms, loginEmail, requireAdmin, requireUser, ROLES } from "@/lib/auth";
+import { type AreaPerms, PERM_ACTIONS, PERM_AREAS, type PermTable } from "@/lib/perm";
+import { setSetting } from "@/lib/store";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 type Res = { ok?: string; error?: string } | null;
@@ -65,4 +67,30 @@ export async function deleteUser(_prev: Res, form: FormData): Promise<Res> {
   await admin.from("legacy_users").delete().eq("login_id", id);
   revalidatePath("/users");
   return { ok: `${id} 계정을 삭제했습니다.` };
+}
+
+/** 계정별 권한 저장 (lib/perm.ts). mode 'role' = 역할 기본값으로 되돌리기, 'custom' = 표대로. 관리자 역할만. */
+export async function savePerms(loginId: string, mode: "role" | "custom", perms: Record<string, string[]>): Promise<Res> {
+  const me = await requireUser();
+  if (me.role !== "관리자") return { error: "관리자만 권한을 바꿀 수 있습니다." };
+  const admin = createAdminClient();
+  const { data: who } = await admin.from("profiles").select("role").eq("login_id", loginId).maybeSingle();
+  if (!who) return { error: "없는 계정입니다." };
+  if (who.role === "관리자") return { error: "관리자 계정은 언제나 모든 권한을 가집니다 (잠김 방지)." };
+  const table = await loadPerms();
+  const next: PermTable = { ...table };
+  if (mode === "role") delete next[loginId];
+  else {
+    const clean: AreaPerms = {};
+    for (const a of PERM_AREAS) {
+      const acts = PERM_ACTIONS.filter((x) => perms[a.key]?.includes(x));
+      // 등록·수정·삭제가 있으면 읽기도 같이 준다
+      if (acts.length && !acts.includes("read")) acts.unshift("read");
+      if (acts.length) clean[a.key] = acts;
+    }
+    next[loginId] = clean;
+  }
+  await setSetting("perms", next);
+  revalidatePath("/", "layout");
+  return { ok: mode === "role" ? `${loginId}: 역할 기본값으로 되돌렸습니다.` : `${loginId}: 권한을 저장했습니다.` };
 }

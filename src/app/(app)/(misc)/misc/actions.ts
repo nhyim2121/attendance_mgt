@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 /** 기타(내 업무) 저장: 주간업무일지 · 업무협조 · 개인일정. 관리팀 계정(관리자·담당자) 모두 쓴다. */
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -17,6 +18,7 @@ const done = () => revalidatePath("/", "layout");
 
 // ---------------------------------------------------------------- 주간업무일지
 export async function saveWeek(monday: string, rows: WRow[], issue: string, request: string): Promise<Res> {
+  await requirePerm("update");
   const me = await requireUser();
   if (!isDay(monday)) return { error: "주를 알 수 없습니다." };
   const clean: WRow[] = (Array.isArray(rows) ? rows : []).slice(0, 60).map((r) => ({
@@ -30,6 +32,7 @@ export async function saveWeek(monday: string, rows: WRow[], issue: string, requ
   return { ok: `저장했습니다 (${log.updatedAt.slice(11, 16)}).` };
 }
 export async function removeWeek(monday: string): Promise<void> {
+  await requirePerm("delete");
   const me = await requireUser();
   if (isDay(monday)) await deleteLog(me.id, monday);
   done();
@@ -37,6 +40,7 @@ export async function removeWeek(monday: string): Promise<void> {
 
 // ---------------------------------------------------------------- 업무협조
 export async function saveCoopForm(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   const me = await requireUser();
   const id = str(f, "id");
   const old = id ? await loadCoop(id) : null;
@@ -59,6 +63,7 @@ export async function saveCoopForm(_prev: Res, f: FormData): Promise<Res> {
   return { ok: "저장했습니다." };
 }
 export async function setCoopStatus(id: string, status: string): Promise<void> {
+  await requirePerm("update");
   const me = await requireUser();
   const c = await loadCoop(id);
   if (!c || !(COOP_STATUS as readonly string[]).includes(status) || c.status === status) return;
@@ -68,6 +73,7 @@ export async function setCoopStatus(id: string, status: string): Promise<void> {
   done();
 }
 export async function addCoopLog(id: string, text: string): Promise<void> {
+  await requirePerm("create");
   const me = await requireUser();
   const c = await loadCoop(id);
   const t = String(text ?? "").trim().slice(0, 2000);
@@ -76,6 +82,7 @@ export async function addCoopLog(id: string, text: string): Promise<void> {
   done();
 }
 export async function removeCoop(id: string): Promise<void> {
+  await requirePerm("delete");
   await requireUser();
   await deleteCoop(id);
   done();
@@ -84,6 +91,7 @@ export async function removeCoop(id: string): Promise<void> {
 
 // ---------------------------------------------------------------- 개인일정
 export async function savePlanForm(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   const me = await requireUser();
   const id = str(f, "id");
   const title = str(f, "title"), day = str(f, "day");
@@ -105,12 +113,14 @@ export async function savePlanForm(_prev: Res, f: FormData): Promise<Res> {
 }
 /** 일정 끝냄 표시 (반복 일정은 그 회차만) */
 export async function togglePlanDone(id: string, start: string): Promise<void> {
+  await requirePerm("update");
   const me = await requireUser();
   const list = await loadPlans(me.id);
   await savePlans(me.id, list.map((p) => (p.id !== id ? p : { ...p, done: p.done.includes(start) ? p.done.filter((d) => d !== start) : [...p.done, start].slice(-400) })));
   done();
 }
 export async function removePlan(id: string): Promise<void> {
+  await requirePerm("delete");
   const me = await requireUser();
   await savePlans(me.id, (await loadPlans(me.id)).filter((p) => p.id !== id));
   done();

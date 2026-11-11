@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 /** 보호구·피복 관리 저장 (관리자만). 저장은 업무 대장 ledger_rows: ppe(지급) · ppepeople(사이즈·일용직) · ppestock(입고). */
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -26,6 +27,7 @@ async function put(bookKey: string, id: number, raw: Data): Promise<string | nul
 
 /** 지급 (한 사람이든 여러 사람이든). who = "이름|구분|사이즈" 여러 개, 사람마다 사이즈 칸 size_<이름>으로 고칠 수 있다. */
 export async function givePpe(f: FormData): Promise<void> {
+  await requirePerm("create");
   await requireAdmin();
   const back = backOf(f);
   const day = s(f, "day"), item = s(f, "item"), kind = s(f, "kind") || "정기 지급", qty = s(f, "qty") || "1";
@@ -49,6 +51,7 @@ export async function givePpe(f: FormData): Promise<void> {
 
 /** 지급 기록 고치기 (개인 화면). 서명 칸(sign·signHow·signAt)과 서명 이미지는 그대로 둔다. */
 export async function savePpeRow(f: FormData): Promise<void> {
+  await requirePerm("update");
   await requireAdmin();
   const back = backOf(f);
   const id = Number(s(f, "id"));
@@ -66,6 +69,7 @@ const signRef = (id: number) => `${store.rowRef(id)}/sign`;
 
 /** 수령 확인 켜고 끄기 (종이에 서명받은 경우 '받음'). 끄면 전자서명 이미지도 지운다. */
 export async function signPpe(id: number, signed: boolean): Promise<void> {
+  await requirePerm("update");
   await requireAdmin();
   const row = await store.loadRow(id);
   if (!row || row.book !== "ppe") throw new Error("없는 지급 기록입니다.");
@@ -79,6 +83,7 @@ export async function signPpe(id: number, signed: boolean): Promise<void> {
 /** 전자서명: 화면에 그린 서명(PNG)을 고른 지급 기록마다 저장하고 '받음 · 전자서명 · 서명 일시'로 표시한다.
  *  같은 사람의 기록만 받는다 (다른 사람 기록 번호가 섞이면 거절). */
 export async function signPpeImage(name: string, ids: number[], png: string): Promise<{ ok?: string; error?: string }> {
+  await requirePerm("update");
   await requireAdmin();
   const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(png);
   if (!m) return { error: "서명 이미지를 읽지 못했습니다. 다시 서명해 주세요." };
@@ -99,6 +104,7 @@ export async function signPpeImage(name: string, ids: number[], png: string): Pr
 
 /** 서명 안 받은 것 한꺼번에 '받음' */
 export async function signPpeMany(f: FormData): Promise<void> {
+  await requirePerm("update");
   await requireAdmin();
   const ids = f.getAll("id").map(Number).filter(Boolean);
   for (const id of ids) {
@@ -111,6 +117,7 @@ export async function signPpeMany(f: FormData): Promise<void> {
 
 /** 개인 사이즈 저장 · 일용직 등록/고치기 (이름이 같은 줄이 있으면 고친다) */
 export async function savePpePerson(f: FormData): Promise<void> {
+  await requirePerm("update");
   await requireAdmin();
   const back = backOf(f);
   const name = s(f, "name");
@@ -128,6 +135,7 @@ export async function savePpePerson(f: FormData): Promise<void> {
 
 /** 입고 기록 */
 export async function addPpeStock(f: FormData): Promise<void> {
+  await requirePerm("create");
   await requireAdmin();
   const back = backOf(f);
   const raw: Data = Object.fromEntries(["day", "item", "size", "qty", "vendor", "price", "kcs", "note"].map((k) => [k, s(f, k)]));

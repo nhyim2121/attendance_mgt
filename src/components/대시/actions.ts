@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
@@ -9,6 +10,7 @@ type Res = { ok?: string; error?: string } | null;
 
 /** 바로가기 추가 */
 export async function addLink(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("create");
   await requireUser();
   const scope = String(f.get("scope"));
   if (!isScope(scope)) return { error: "없는 대시보드입니다." };
@@ -26,6 +28,7 @@ export async function addLink(_prev: Res, f: FormData): Promise<Res> {
 
 /** 바로가기 지우기 (순서 번호 + 이름이 같아야 지움) */
 export async function deleteLink(scope: string, index: number, name: string): Promise<void> {
+  await requirePerm("delete");
   await requireUser();
   if (!isScope(scope)) return;
   const list = await loadLinks(scope);
@@ -36,6 +39,7 @@ export async function deleteLink(scope: string, index: number, name: string): Pr
 
 // ---------------------------------------------------------------- 할 일 4칸 (내 것만)
 export async function addTodo4(text: string, q: number): Promise<void> {
+  await requirePerm("create");
   const u = await requireUser();
   const t = text.trim().slice(0, 200);
   if (!t || !isQuad(q)) return;
@@ -43,17 +47,20 @@ export async function addTodo4(text: string, q: number): Promise<void> {
   revalidatePath("/", "layout");
 }
 export async function toggleTodo4(id: string): Promise<void> {
+  await requirePerm("update");
   const u = await requireUser();
   await saveTodo4(u.id, (await loadTodo4(u.id)).map((x) => (x.id === id ? { ...x, done: !x.done } : x)));
   revalidatePath("/", "layout");
 }
 export async function deleteTodo4(id: string): Promise<void> {
+  await requirePerm("delete");
   const u = await requireUser();
   await saveTodo4(u.id, (await loadTodo4(u.id)).filter((x) => x.id !== id));
   revalidatePath("/", "layout");
 }
 /** 끝낸 일 한꺼번에 치우기 */
 export async function clearDoneTodo4(): Promise<void> {
+  await requirePerm("delete");
   const u = await requireUser();
   await saveTodo4(u.id, (await loadTodo4(u.id)).filter((x) => !x.done));
   revalidatePath("/", "layout");
@@ -61,6 +68,7 @@ export async function clearDoneTodo4(): Promise<void> {
 
 // ---------------------------------------------------------------- 메모 (내 것만)
 export async function addMemo(text: string): Promise<void> {
+  await requirePerm("create");
   const u = await requireUser();
   const t = text.trim().slice(0, 300);
   if (!t) return;
@@ -68,11 +76,13 @@ export async function addMemo(text: string): Promise<void> {
   revalidatePath("/", "layout");
 }
 export async function starMemo(id: string): Promise<void> {
+  await requirePerm("update");
   const u = await requireUser();
   await saveMemos(u.id, (await loadMemos(u.id)).map((x) => (x.id === id ? { ...x, star: !x.star } : x)));
   revalidatePath("/", "layout");
 }
 export async function deleteMemo(id: string): Promise<void> {
+  await requirePerm("delete");
   const u = await requireUser();
   await saveMemos(u.id, (await loadMemos(u.id)).filter((x) => x.id !== id));
   revalidatePath("/", "layout");

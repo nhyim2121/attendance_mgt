@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 /** 직무기술서 저장·삭제·복사 (settings 'job_descs'). 처음 저장하면 예시 목록이 함께 저장된다. */
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
@@ -10,6 +11,7 @@ type R = { ok?: string; error?: string; id?: string };
 const done = (ok: string, id?: string): R => { revalidatePath("/jobs", "layout"); return { ok, id }; };
 
 export async function saveJob(j: JobDesc): Promise<R> {
+  await requirePerm("update");
   const u = await requireAdmin();
   const c = cleanJob(j);
   if (!c.name) return { error: "직무명을 적어 주세요." };
@@ -22,6 +24,7 @@ export async function saveJob(j: JobDesc): Promise<R> {
 }
 
 export async function deleteJob(id: string): Promise<R> {
+  await requirePerm("delete");
   await requireAdmin();
   const { jobs } = await loadJobs();
   await saveJobs(jobs.filter((x) => x.id !== id));
@@ -29,6 +32,7 @@ export async function deleteJob(id: string): Promise<R> {
 }
 
 export async function copyJob(id: string): Promise<R> {
+  await requirePerm("create");
   await requireAdmin();
   const { jobs } = await loadJobs();
   const j = jobs.find((x) => x.id === id);
@@ -40,6 +44,7 @@ export async function copyJob(id: string): Promise<R> {
 
 /** 순서 바꾸기 */
 export async function moveJob(id: string, dir: -1 | 1): Promise<R> {
+  await requirePerm("update");
   await requireAdmin();
   const { jobs } = await loadJobs();
   const i = jobs.findIndex((x) => x.id === id);
@@ -53,6 +58,7 @@ export async function moveJob(id: string, dir: -1 | 1): Promise<R> {
 
 /** 지운 예시를 다시 넣기 (이미 있는 것은 그대로) */
 export async function restoreExamples(): Promise<R> {
+  await requirePerm("update");
   await requireAdmin();
   const { jobs } = await loadJobs();
   const add = JD_EXAMPLES.filter((e) => !jobs.some((x) => x.id === e.id));

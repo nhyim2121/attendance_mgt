@@ -1,4 +1,5 @@
 "use server";
+import { requirePerm } from "@/lib/auth";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -27,6 +28,7 @@ async function saveFiles(id: number, files: File[]) {
 
 /** 적기·고치기 */
 export async function saveLedger(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await guardBook(String(f.get("book")));
   const book = bookOf(String(f.get("book")));
   if (!book) return { error: "없는 대장입니다." };
@@ -45,6 +47,7 @@ export async function saveLedger(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function attachLedger(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("update");
   await requireBid();
   const id = Number(f.get("id")), files = filesOf(f);
   if (!id || !files.length) return { error: "파일을 골라 주세요." };
@@ -56,6 +59,7 @@ export async function attachLedger(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function removeLedgerRow(id: number): Promise<void> {
+  await requirePerm("delete");
   await requireBid();
   await store.deleteRow(id);
   revalidatePath("/", "layout");
@@ -63,6 +67,7 @@ export async function removeLedgerRow(id: number): Promise<void> {
 
 /** 예전 엑셀 대장 가져오기: 머리글 이름으로 칸을 맞춘다 */
 export async function importLedgerFile(_prev: Res, f: FormData): Promise<Res> {
+  await requirePerm("create");
   await guardBook(String(f.get("book")));
   const book = bookOf(String(f.get("book")));
   const file = filesOf(f)[0];
@@ -88,6 +93,7 @@ export async function importLedgerFile(_prev: Res, f: FormData): Promise<Res> {
 }
 
 export async function undoLedgerImport(book: string, batch: string): Promise<void> {
+  await requirePerm("update");
   await guardBook(book);
   await store.undoBatch(book, batch);
   revalidatePath("/", "layout");

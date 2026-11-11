@@ -24,13 +24,13 @@ function scramble() {
   });
 }
 
-export default function TopBar({ admin }: { admin: boolean }) {
+export default function TopBar({ admin, areas = null }: { admin: boolean; areas?: string[] | null }) {
   const path = usePathname();
   const router = useRouter();
   const [rail, setRail] = useState(false);
   const [dense, setDense] = useState(false);
   const [q, setQ] = useState("");
-  const items = menuFor(admin).flatMap((a) => a.groups.flatMap((g) => g.items.map((it) => ({ ...it, area: a.label }))));
+  const items = menuFor(admin, areas).flatMap((a) => a.groups.flatMap((g) => g.items.map((it) => ({ ...it, area: a.label }))));
 
   useEffect(() => {
     const r = read("rail"), d = read("dense");
