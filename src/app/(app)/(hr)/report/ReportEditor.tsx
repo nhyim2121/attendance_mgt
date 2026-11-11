@@ -152,8 +152,15 @@ export default function ReportEditor(p: Props) {
       types: g.types, title: hTitle(g), note: g.note, value: g.kind === "연장" ? (g.until ? `연장|~${g.until}` : "연장") : "",
     })));
     // 휴가일정: 출근 예정은 날짜에서 자동 계산
-    const sch = rows.map((r) => (r.section === "휴가일정" && r.types
-      ? { ...r, value: isPartialSchedule(r.title) ? "" : returnDays(splitReportTypes(r.types), isWorkday).map((d) => dayLabel(d)).join(", ") } : r));
+    const sch = rows.map((r) => {
+      if (r.section === "휴가일정" && r.types)
+        return { ...r, value: isPartialSchedule(r.title) ? "" : returnDays(splitReportTypes(r.types), isWorkday).map((d) => dayLabel(d)).join(", ") };
+      if (r.section === "도제") { // 예전 비고 '사유(11/11~11/27)'에도 '총 N일'을 붙인다
+        const nt = splitDojeNote(r.note, p.day);
+        return nt.from ? { ...r, note: joinDojeNote(nt.reason.trim(), nt.from, nt.to) } : r;
+      }
+      return r;
+    });
     return [...att, ...sch, ...hw].filter((r) => r.name.trim()).map((r) => ({
       ...r, dept: r.dept || p.deptOf[r.name] || "", rank: r.rank || p.ranks[r.name] || "",
       ord: (ord[r.section] = (ord[r.section] ?? 0) + 1),
@@ -532,16 +539,16 @@ export default function ReportEditor(p: Props) {
         )}
         {tab === "도제" && (
           <div className="rg-list">
-            <div className="rg-appr-day">
-              {APPR_DAYS.includes(weekday(p.day))
-                ? <><b>{dayLabel(p.day)}</b> 도제 출근일 · {APPR_TIME}</>
-                : <><b>{dayLabel(p.day)}</b> 도제 근무일 아님 · 다음 출근 {dayLabel(nextApprDay(p.day))}</>}
-              <span className="muted"> (근무: 매주 {APPR_DAYS_TEXT} {APPR_TIME})</span>
-            </div>
             {idx.length === 0 && <p className="caption" style={{ margin: "6px 2px" }}>아직 도제 학생 줄이 없습니다. 아래 [+ 학생 추가]를 누르거나, [전일 보고서에서 도제·휴가일정 가져오기]를 누르세요.</p>}
             {idx.map(([r, i], n) => {
-              const done = toDate(r.value, p.day);
               const apprWeek = apprWeekOf(p.day);
+              const absent = r.value.trim() === "-";
+              const picked = absent ? [] : r.value.split(",").map((x) => toDate(x, p.day)).filter(Boolean);
+              const legacyVal = !absent && !picked.length && r.value.trim();
+              const toggleDay = (d: string) => {
+                const next = (picked.includes(d) ? picked.filter((x) => x !== d) : [...picked, d]).sort();
+                set(i, { value: next.map((x) => dayLabel(x)).join(", ") });
+              };
               const nt = splitDojeNote(r.note, p.day);
               const setNote = (x: Partial<typeof nt>) => {
                 const v = { ...nt, ...x };
@@ -559,22 +566,24 @@ export default function ReportEditor(p: Props) {
                     <button type="button" className="rg-del" onClick={() => remove(i)} title="이 학생 줄 삭제">삭제</button>
                   </div>
                   <div className="rg-body">
-                    <div className="rg-cell"><span className="rg-lbl">근무 기준</span>
-                      <span className="rg-auto">{APPR_DAYS_TEXT} {APPR_TIME}</span></div>
-                    <div className="rg-cell"><span className="rg-lbl">출근일</span>
+                    <div className="rg-cell"><span className="rg-lbl">출근일 (출근한 날을 모두 누르세요)</span>
                       <span className="row" style={{ gap: 4, flexWrap: "nowrap" }}>
                         {apprWeek.map((d) => (
-                          <button key={d} type="button" className={`rg-t${done === d ? " on" : ""}`}
-                            onClick={() => set(i, { value: done === d ? "" : dayLabel(d) })}>{dayLabel(d)}</button>
+                          <button key={d} type="button" className={`rg-t${picked.includes(d) ? " on" : ""}`} onClick={() => toggleDay(d)}>{dayLabel(d)}</button>
                         ))}
-                        <input type="date" value={done && !apprWeek.includes(done) ? done : ""} title="다른 날짜" style={{ width: 132 }}
-                          onChange={(e) => set(i, { value: e.target.value ? dayLabel(e.target.value) : "" })} />
-                        <button type="button" className={`rg-t${r.value.trim() === "-" ? " on" : ""}`} title="출근일 해당 없음"
-                          onClick={() => set(i, { value: r.value.trim() === "-" ? "" : "-" })}>해당 없음</button>
+                        <span className="rg-sep" />
+                        <button type="button" className={`rg-t rg-none${absent ? " on" : ""}`} title="이번 주 출근하지 않음 (사유·기간을 적습니다)"
+                          onClick={() => set(i, { value: absent ? "" : "-" })}>해당 없음</button>
                       </span>
-                      {done && !APPR_DAYS.includes(weekday(done)) && <span className="rg-hint" style={{ alignSelf: "flex-start", color: "#c46a00" }}>수·목·금이 아닌 날입니다.</span>}
-                      {!done && r.value.trim() && r.value.trim() !== "-" && <span className="rg-hint" style={{ alignSelf: "flex-start" }}>예전 입력: {r.value}</span>}
+                      {legacyVal && <span className="rg-hint" style={{ alignSelf: "flex-start" }}>예전 입력: {legacyVal}</span>}
                     </div>
+                    {!absent && (
+                      <label className="rg-cell" style={{ flex: 1, minWidth: 200 }}><span className="rg-lbl">비고 (선택)</span>
+                        {text(i, "note", "필요할 때만 적으세요", 200)}</label>
+                    )}
+                  </div>
+                  {absent && (
+                  <div className="rg-body rg-absent">
                     <label className="rg-cell"><span className="rg-lbl">사유</span>
                       <input type="text" value={nt.reason} placeholder="예: 외부평가 준비기간" style={{ width: 200 }}
                         onChange={(e) => setNote({ reason: e.target.value })} /></label>
@@ -591,6 +600,7 @@ export default function ReportEditor(p: Props) {
                     <div className="rg-cell" style={{ flex: 1, minWidth: 180 }}><span className="rg-lbl">보고서 비고 (자동)</span>
                       <span className="rg-auto" style={{ fontWeight: 600 }}>{r.note.trim() || "-"}</span></div>
                   </div>
+                  )}
                 </div>
               );
             })}
@@ -606,7 +616,7 @@ export default function ReportEditor(p: Props) {
           <span className="caption" style={{ margin: 0 }}>
             {tab === "근태" && "근태 한 건마다 카드 한 장입니다. 종류를 누르고, 같은 출장·휴가에 해당하는 사람은 [+ 인원]으로 고르세요. 기간을 정하면 그 기간의 다른 근무일 보고서에도 같은 줄이 들어갑니다. 부서·직급은 직원 명부에서 자동으로 채웁니다."}
             {tab === "휴가일정" && "한 사람의 휴가 한 건마다 카드 한 장: 종류를 누르고 날짜를 여러 개 넣으세요. 출근 예정은 자동으로 계산됩니다."}
-            {tab === "도제" && `학생 한 명마다 카드 한 장: 도제는 매주 ${APPR_DAYS_TEXT} ${APPR_TIME} 근무입니다. 출근일은 이번 주 수·목·금 중에서 누르거나 달력에서 고르고(없으면 [해당 없음]), 사유와 기간을 넣으면 보고서 비고가 '사유(기간)'으로 자동으로 만들어집니다.`}
+            {tab === "도제" && "학생 한 명마다 카드 한 장: 이번 주 수·목·금 중 출근한 날을 모두 누르세요. 출근하지 않았으면 [해당 없음]을 누르고 사유·기간을 넣으면, 보고서 비고가 '사유(기간 총 N일)'로 자동으로 만들어집니다."}
             {tab === "휴일근무" && "작업 한 건마다 카드 한 장: 휴일근무·연장근무를 고르고 날짜를 누르세요. 같이 일한 사람은 [+ 인원]으로 고릅니다. 연장 신청 시각은 직원별 근태의 퇴근 근무형태로 들어갑니다."}
           </span>
         </div>
@@ -681,19 +691,11 @@ const SLOTS = Array.from({ length: 31 }, (_, i) => `${String(7 + Math.floor(i / 
 const OT_SLOTS = Array.from({ length: 13 }, (_, i) => `${String(18 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 /** 일학습병행(도제) 근무 기준: 매주 수·목·금 08:30~16:30 (설정 emp_rules와 같게) */
 const APPR_DAYS = [2, 3, 4]; // 월=0
-const APPR_DAYS_TEXT = "수·목·금";
-const APPR_TIME = "08:30~16:30";
 /** 보고일이 든 주의 수·목·금 (주말이면 다음 주) */
 function apprWeekOf(day: string): string[] {
   const w = weekday(day);
   const mon = addDays(day, w >= 5 ? 7 - w : -w);
   return APPR_DAYS.map((k) => addDays(mon, k));
-}
-/** 보고일 다음의 첫 도제 출근일 */
-function nextApprDay(day: string): string {
-  let d = addDays(day, 1);
-  while (!APPR_DAYS.includes(weekday(d))) d = addDays(d, 1);
-  return d;
 }
 
 /** 보고일 기준으로 연도를 붙여 'M/D' 글자를 날짜로 (반년 넘게 앞이면 지난해로 본다) */
@@ -711,16 +713,19 @@ function toDate(v: string, base: string): string {
   return m ? mdToDate(+m[1], +m[2], base) : "";
 }
 const md = (d: string) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
-/** 도제 비고 '사유(11/11~11/27)' ↔ 사유·기간 */
+/** 도제 비고 '사유(11/11~11/27 총 17일)' ↔ 사유·기간 ('총 N일'이 없던 예전 글자도 읽음) */
 function splitDojeNote(note: string, base: string): { reason: string; from: string; to: string } {
-  const m = /^(.*?)\s*\((\d{1,2})\/(\d{1,2})\s*~\s*(\d{1,2})\/(\d{1,2})\)\s*$/.exec(note);
+  const m = /^(.*?)\((\d{1,2})\/(\d{1,2})\s*~\s*(\d{1,2})\/(\d{1,2})(?:\s*총\s*\d+일)?\)\s*$/.exec(note);
   if (!m) return { reason: note, from: "", to: "" };
   const from = mdToDate(+m[2], +m[3], base);
   return { reason: m[1], from, to: from ? mdToDate(+m[4], +m[5], base, from) : "" };
 }
 function joinDojeNote(reason: string, from: string, to: string): string {
-  const per = from ? `(${md(from)}~${md(to || from)})` : "";
-  return `${reason.trim()}${per}`;
+  // 입력 중 띄어쓰기가 사라지지 않게 사유는 다듬지 않는다
+  const t = to || from;
+  const n = from ? Math.round((Date.parse(t) - Date.parse(from)) / 864e5) + 1 : 0;
+  const per = from ? `(${md(from)}~${md(t)} 총 ${n}일)` : "";
+  return `${reason}${per}`;
 }
 
 const slotSel = (v: string, on: (x: string) => void, opts = SLOTS) => (
