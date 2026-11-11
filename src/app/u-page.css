@@ -239,6 +239,10 @@
 .rg-vert .gf-two { flex-direction: column; gap: 8px; }
 .rg-vert .rg-absent { padding: 0 14px; }
 @media (max-width: 640px) { .rg-vert .rg-body > .rg-cell, .rg-vert .gf, .rg-plan-f { grid-template-columns: 1fr; row-gap: 4px; } }
+/* 홈 > 어제 근무 현황: 부서별 표 (이름은 작게, 줄바꿈 허용) */
+.tbl.ydept td { white-space: normal; vertical-align: top; }
+.tbl.ydept td .muted { font-size: .8rem; }
+.tbl.ydept td:first-child { white-space: nowrap; }
 .rg-sep { width: 1px; align-self: stretch; background: #e1e7f0; margin: 2px 4px; }
 .rg-t.rg-none.on { background: #8a6d3b; border-color: #8a6d3b; }
 .rg-absent { margin-top: 10px; padding: 10px 12px; background: #fbf8f2; border: 1px solid #efe5d3; border-radius: 10px; }

@@ -107,6 +107,33 @@ export default async function Home() {
   let yday = addDays(today, -1);
   while (isHoliday(yday, rule, holidays) && yday > addDays(today, -14)) yday = addDays(yday, -1);
   const y = dayLists(days, yday, rule);
+  // 어제 현황은 현장 부서별로 (2026-11-11 사용자 결정): 생산팀, 품질팀(김동수 제외), 영업팀(이병욱 제외), 연구소
+  const yBoard = dailyBoard(days, base.leaves, await staffOn(yday, records), yday, rule);
+  const Y_DEPTS: [string, (dept: string, emp: string) => boolean][] = [
+    ["생산팀", (d) => d === "생산팀"],
+    ["품질팀", (d, e) => d === "품질팀" && e !== "김동수"],
+    ["영업팀", (d, e) => d === "영업팀" && e !== "이병욱"],
+    ["연구소", (d) => d.includes("연구소")],
+  ];
+  const yDeptOf = new Map(yBoard.map((b) => [b.emp, b.dept]));
+  const yGroup = (emp: string, dept = yDeptOf.get(emp) ?? "") => Y_DEPTS.find(([, ok]) => ok(dept, emp))?.[0] ?? "";
+  // 연장근무자 = 평일 연장·휴일근로 + 야간근무(22:00~06:00)를 한 명단으로
+  const nightOf = new Map(y.night.map((o) => [o.emp, o]));
+  const otAll = [...new Set([...y.overtime.map((o) => o.emp), ...y.night.map((o) => o.emp)])].map((emp) => {
+    const o = y.overtime.find((x) => x.emp === emp), n = nightOf.get(emp);
+    return { emp, out: o?.out ?? n?.out ?? 0, hours: o?.hours ?? 0, night: n?.hours ?? 0, grp: yGroup(emp, o?.dept ?? n?.dept) };
+  }).filter((o) => o.grp);
+  const yRows = Y_DEPTS.map(([dp]) => {
+    const g = yBoard.filter((b) => yGroup(b.emp) === dp);
+    return {
+      dept: dp,
+      trip: g.filter((b) => b.group === "출장·교육").map((b) => b.emp),
+      leave: g.filter((b) => b.group === "휴가").map((b) => b.emp),
+      noOut: y.noOut.filter((d) => yGroup(d.emp, d.dept) === dp).map((d) => d.emp),
+      ot: otAll.filter((o) => o.grp === dp).sort((a, b) => b.hours + b.night - a.hours - a.night),
+    };
+  });
+  const ySum = (k: "trip" | "leave" | "noOut" | "ot") => yRows.reduce((t, r) => t + r[k].length, 0);
 
   // ---------------------------------------------------------------- 이번 주·이번 달·올해
   const week = weekHours(days, today, rule);
@@ -261,30 +288,29 @@ export default async function Home() {
           <section className="card">
             <div className="card-title">어제 근무 현황 <span className="muted" style={{ fontWeight: 400 }}>{dayLabel(yday)}</span></div>
             <div className="tiles4">
-              <Tile label="지각" n={y.late.length} warn people={y.late.map((d) => [d.emp, tsHM(d.in)])} href={`/daily?day=${yday}`} />
-              <Tile label="조기퇴근" n={y.early.length} warn people={y.early.map((d) => [d.emp, tsHM(d.out)])} />
-              <Tile label="퇴근미체크" n={y.noOut.length} warn people={y.noOut.map((d) => [d.emp, `출근 ${tsHM(d.in)}`])}
+              <Tile label="출장" n={ySum("trip")} people={yRows.flatMap((r) => r.trip.map((e) => [e, r.dept] as [string, string]))} href="/evidence" />
+              <Tile label="휴가" n={ySum("leave")} people={yRows.flatMap((r) => r.leave.map((e) => [e, r.dept] as [string, string]))} href="/leave" />
+              <Tile label="퇴근미체크" n={ySum("noOut")} warn people={yRows.flatMap((r) => r.noOut.map((e) => [e, r.dept] as [string, string]))}
                 href={`/sheets?tab=edit&month=${yday.slice(0, 7)}`} />
-              <Tile label="결근" n={y.absent.length} warn people={y.absent.map((d) => [d.emp, d.dept])} />
+              <Tile label="연장근무" n={ySum("ot")} people={yRows.flatMap((r) => r.ot.map((o) => [o.emp, r.dept] as [string, string]))} />
             </div>
-            <div className="grid2" style={{ marginTop: 16 }}>
-              <div>
-                <div className="sub-title">연장근무자 <span className="muted">({y.overtime.length}명)</span></div>
-                {y.overtime.length ? (
-                  <table className="tbl"><thead><tr><th>이름 (부서)</th><th>퇴근</th><th className="num">연장근무시간</th></tr></thead>
-                    <tbody>{y.overtime.map((o) => <tr key={o.emp}><td>{o.emp} <span className="muted">({o.dept})</span></td>
-                      <td>{tsHM(o.out)}</td><td className="num">{h1(o.hours)}</td></tr>)}</tbody></table>
-                ) : <Empty />}
-              </div>
-              <div>
-                <div className="sub-title">야간근무자 <span className="muted">({y.night.length}명) 22:00~06:00</span></div>
-                {y.night.length ? (
-                  <table className="tbl"><thead><tr><th>이름 (부서)</th><th>퇴근</th><th className="num">야간근무시간</th></tr></thead>
-                    <tbody>{y.night.map((o) => <tr key={o.emp}><td>{o.emp} <span className="muted">({o.dept})</span></td>
-                      <td>{tsHM(o.out)}</td><td className="num">{h1(o.hours)}</td></tr>)}</tbody></table>
-                ) : <Empty />}
-              </div>
-            </div>
+            <table className="tbl ydept" style={{ marginTop: 14 }}>
+              <thead><tr><th>부서</th><th>출장</th><th>휴가</th><th>퇴근 미체크</th><th>연장근무</th></tr></thead>
+              <tbody>{yRows.map((r) => (
+                <tr key={r.dept}><td><b>{r.dept}</b></td>
+                  {([r.trip, r.leave, r.noOut, r.ot.map((o) => o.emp)] as string[][]).map((list, i) => (
+                    <td key={i}>{list.length ? <><b>{list.length}</b>명 <span className="muted">{list.join(", ")}</span></> : <span className="muted">-</span>}</td>
+                  ))}</tr>
+              ))}</tbody>
+            </table>
+            <div className="sub-title" style={{ marginTop: 16 }}>연장근무자 <span className="muted">({otAll.length}명 · 야간 22:00~06:00 포함)</span></div>
+            {otAll.length ? (
+              <table className="tbl"><thead><tr><th>부서</th><th>이름</th><th>퇴근</th><th className="num">연장근무시간</th></tr></thead>
+                <tbody>{yRows.flatMap((r) => r.ot.map((o, i) => (
+                  <tr key={o.emp}><td>{i ? "" : <b>{r.dept}</b>}</td><td>{o.emp}</td><td>{tsHM(o.out)}</td>
+                    <td className="num">{h1(o.hours)}{o.night > 0 && <span className="muted"> (야간 {h1(o.night)})</span>}</td></tr>
+                )))}</tbody></table>
+            ) : <Empty />}
           </section>
         </div>
 
