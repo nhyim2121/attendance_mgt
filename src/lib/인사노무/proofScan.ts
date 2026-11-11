@@ -11,17 +11,21 @@ import { addDays, todayKst } from "../time";
 
 const C = (name: string) => SHEET_COLUMNS.indexOf(name);
 export interface Missing { emp: string; day: string; kinds: string[] }
+/** 신청서 없음을 할 일로 띄우는 부서 (2026-11-11 사용자 결정: 현장 부서만) */
+export const PROOF_DEPTS = ["생산팀", "품질팀", "영업팀"];
 
 /** PROOF_FROM(또는 최근 62일 중 늦은 날)부터 오늘까지 신청서가 없는 휴일·연장근무 */
 export const missingProofs = cache(async (): Promise<Missing[]> => {
   const today = todayKst();
   const from = [PROOF_FROM, addDays(today, -62)].sort()[1];
   if (from > today) return [];
-  const [rule, holidays, records, atts] = await Promise.all([getRule(), getHolidays(), getRecords(from, today), store.loadAttachments(from, today)]);
+  const [rule, holidays, records, atts, emps] = await Promise.all([getRule(), getHolidays(), getRecords(from, today), store.loadAttachments(from, today), store.loadEmployees()]);
+  const deptOf = new Map(emps.map((e) => [e.name, e.dept]));
   const days = await computeDays(records, rule);
   const out: Missing[] = [];
   for (const emp of [...new Set(days.map((d) => d.emp))]) {
     const mine = days.filter((d) => d.emp === emp);
+    if (!PROOF_DEPTS.includes(deptOf.get(emp) ?? mine[0]?.dept ?? "")) continue; // 명부 부서 (없으면 캡스 부서)
     const sheet = employeeRows(mine, rule);
     for (const d of mine) {
       if (d.day < from) continue;
