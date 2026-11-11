@@ -25,14 +25,15 @@ export const missingProofs = cache(async (): Promise<Missing[]> => {
   const out: Missing[] = [];
   for (const emp of [...new Set(days.map((d) => d.emp))]) {
     const mine = days.filter((d) => d.emp === emp);
-    if (!PROOF_DEPTS.includes(deptOf.get(emp) ?? mine[0]?.dept ?? "")) continue; // 명부 부서 (없으면 캡스 부서)
+    const dept = deptOf.get(emp) ?? mine[0]?.dept ?? ""; // 명부 부서 (없으면 캡스 부서)
+    if (!PROOF_DEPTS.includes(dept)) continue;
     const sheet = employeeRows(mine, rule);
     for (const d of mine) {
       if (d.day < from) continue;
       const r = sheet.filter((x) => x[C("발생일자")] === d.day);
       const ins = r.find((x) => x[C("모드")] === "출근"), outs = r.find((x) => x[C("모드")] === "퇴근");
       const kinds = kindsOf(d, outs?.[C("근무형태")] ?? "", isHoliday(d.day, rule, holidays, emp), ins?.[C("근무형태")] ?? "");
-      const p = proofOf(emp, d.day, kinds, atts, noProofFor(rule, emp));
+      const p = proofOf(emp, d.day, kinds, atts, noProofFor(rule, emp), dept);
       if (p.missing.length) out.push({ emp, day: d.day, kinds: p.missing });
     }
   }

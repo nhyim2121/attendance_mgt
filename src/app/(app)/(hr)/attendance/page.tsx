@@ -163,7 +163,7 @@ export default async function Home() {
           <PrintButton className="pill print" label="인쇄" />
       </PageHead>
       {noProof.length > 0 && (
-        <div className="msg warn">📎 신청서 없는 휴일·연장근무 <b>{noProof.length}건</b>은 <b>미인정</b>으로 표시됩니다 (시간 합계에는 들어감):{" "}
+        <div className="msg warn">📎 신청서 없는 휴일·연장근무·조출 <b>{noProof.length}건</b>은 <b>미인정</b>으로 표시됩니다 (시간 합계에는 들어감):{" "}
           {noProof.slice(0, 6).map((m, i) => (
             <span key={`${m.emp}${m.day}`}>{i ? ", " : ""}<Link href={`/sheets?tab=edit&month=${m.day.slice(0, 7)}&emp=${encodeURIComponent(m.emp)}`}>{m.emp} {+m.day.slice(5, 7)}/{+m.day.slice(8)} {m.kinds.join("·")}</Link></span>
           ))}{noProof.length > 6 && ` 외 ${noProof.length - 6}건`} · 근태 기입에서 [+ 신청서]로 첨부하면 바로 인정됩니다.</div>

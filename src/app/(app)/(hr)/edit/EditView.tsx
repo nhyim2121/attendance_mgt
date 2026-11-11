@@ -132,7 +132,7 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
         edited: o ? `${o.editedBy} ${shortKst(o.editedAt)}` : "",
       };
     }).map((r) => ({
-      ...r, proof: proofOf(emp, r.day, r.kinds, atts, noProofFor(rule, emp)),
+      ...r, proof: proofOf(emp, r.day, r.kinds, atts, noProofFor(rule, emp), me?.dept ?? ""),
       files: atts.filter((a) => a.name === emp && a.dayFrom <= r.day && a.dayTo >= r.day).map((a) => ({ id: a.id, fileName: a.fileName, type: a.type })),
     }));
 
