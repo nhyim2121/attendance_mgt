@@ -4,7 +4,7 @@ import PageHead from "@/components/대시/PageHead";
 import PrintButton from "@/components/PrintButton";
 import { requireAdminPage } from "@/lib/auth";
 import { BASICS, blankJob, type JobDesc, NCS_SOURCE, shareSum } from "@/lib/인사노무/jobdesc";
-import { loadJobs, loadUnits, peopleOf, type Unit, unitLabel } from "@/lib/인사노무/jobdescData";
+import { groupByDept, loadJobs, loadUnits, teamText, type Unit, unitLabel } from "@/lib/인사노무/jobdescData";
 import * as store from "@/lib/store";
 
 export const metadata = { title: "직무기술서 · 인사노무 · 통합관리시스템" };
@@ -20,7 +20,7 @@ function Sheet({ j, units, company, blank }: { j: JobDesc; units: Unit[]; compan
         <tbody>
           <tr className="sec"><th colSpan={4}>1. 직무 확인</th></tr>
           <tr><th>직무명</th><td><b>{j.name}</b></td><th>소속</th><td>{unitLabel(j, units)}</td></tr>
-          <tr><th>담당자</th><td colSpan={3}>{peopleOf(j, units).join(", ")}</td></tr>
+          <tr><th>주 담당</th><td>{blank ? "" : teamText(j, units).main}</td><th>보조 담당</th><td>{blank ? "" : teamText(j, units).sub}</td></tr>
           <tr><th>보고 대상</th><td>{j.reportTo}</td><th>대상 직급</th><td>{j.grade}</td></tr>
           <tr><th>NCS 분류</th><td colSpan={3} className="sm">{j.ncs}</td></tr>
           <tr><th>NCS 능력단위</th><td colSpan={3} className="sm">{j.ncsUnits.join(" · ")}</td></tr>
@@ -71,7 +71,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
   const [{ jobs }, { units }, co] = await Promise.all([loadJobs(), loadUnits(), store.getSetting<{ name?: string }>("org_company", {})]);
   const company = co.name || "(주)에쓰엔";
   const blank = sp.blank === "1";
-  const list = blank ? [{ ...blankJob(), tasks: [] }] : sp.all === "1" ? jobs : jobs.filter((j) => j.id === sp.id);
+  const list = blank ? [{ ...blankJob(), tasks: [] }] : sp.all === "1" ? groupByDept(jobs, units).flatMap(([, js]) => js) : jobs.filter((j) => j.id === sp.id);
   const one = list.length === 1 && !blank ? list[0] : null;
   return (
     <>

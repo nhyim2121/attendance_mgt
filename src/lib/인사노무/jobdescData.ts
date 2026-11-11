@@ -3,16 +3,16 @@ import "server-only";
 import ExcelJS from "exceljs";
 import * as store from "../store";
 import { todayKst } from "../time";
-import { BASICS, JD_EXAMPLES, JD_SKIP_UNITS, NCS_SOURCE, type JobDesc, shareSum } from "./jobdesc";
+import { BASICS, JD_DEPTS, JD_EXAMPLES, JD_EXCLUDE_PEOPLE, JD_SKIP_UNITS, NCS_SOURCE, type JobDesc, shareSum } from "./jobdesc";
 import { buildOrg, defaultNodes, type OrgBox, type OrgNode } from "./org";
 
 export async function loadJobs(): Promise<{ jobs: JobDesc[]; saved: boolean }> {
   const saved = await store.getSetting<JobDesc[] | null>("job_descs", null);
-  return saved ? { jobs: saved.map((j) => ({ ...j, ncsUnits: j.ncsUnits ?? [] })), saved: true } : { jobs: JD_EXAMPLES, saved: false };
+  return saved ? { jobs: saved.map((j) => ({ ...j, ncsUnits: j.ncsUnits ?? [], dept: j.dept ?? "", main: j.main ?? [], sub: j.sub ?? [] })), saved: true } : { jobs: JD_EXAMPLES, saved: false };
 }
 export const saveJobs = (jobs: JobDesc[]) => store.setSetting("job_descs", jobs);
 
-export interface Unit { id: string; label: string; path: string; people: string[] } // people: '직급 이름'
+export interface Unit { id: string; label: string; kind: string; path: string; people: string[]; members: { name: string; rank: string }[] } // people: '이름 직급'
 /** 조직도 상자 → 그 상자에 바로 있는 사람 (하위 상자 사람은 빼고) */
 export async function loadUnits(day = todayKst()): Promise<{ units: Unit[]; all: string[] }> {
   const [emps, saved] = await Promise.all([store.loadEmployees(), store.getSetting<OrgNode[] | null>("org_nodes", null)]);
@@ -21,17 +21,47 @@ export async function loadUnits(day = todayKst()): Promise<{ units: Unit[]; all:
   const units: Unit[] = [];
   const walk = (b: OrgBox, path: string[]) => {
     const p = [...path, b.node.label];
-    const ppl = [...(b.head ? [b.head] : []), ...b.people].map((x) => [x.name, x.rank].filter(Boolean).join(" "));
-    units.push({ id: b.node.id, label: b.node.label, path: p.join(" › "), people: ppl });
+    const members = [...(b.head ? [b.head] : []), ...b.people].map((x) => ({ name: x.name, rank: x.rank }));
+    units.push({ id: b.node.id, label: b.node.label, kind: b.node.kind, path: p.join(" › "), members,
+      people: members.map((x) => [x.name, x.rank].filter(Boolean).join(" ")) });
     b.children.forEach((c) => walk(c, p));
   };
   roots.forEach((r) => walk(r, []));
-  const all = units.filter((u) => !JD_SKIP_UNITS.includes(u.id)).flatMap((u) => u.people);
+  // 직무기술서가 있어야 할 사람: 대전지사·뺄 사람 제외 (이름만)
+  const all = [...new Set(units.filter((u) => !JD_SKIP_UNITS.includes(u.id)).flatMap((u) => u.members.map((m) => m.name)))]
+    .filter((n) => !JD_EXCLUDE_PEOPLE.includes(n));
   return { units, all };
 }
 
-export const peopleOf = (j: JobDesc, units: Unit[]) => units.filter((u) => j.units.includes(u.id)).flatMap((u) => u.people);
-export const unitLabel = (j: JobDesc, units: Unit[]) => units.filter((u) => j.units.includes(u.id)).map((u) => u.label).join(", ");
+const rankOf = (name: string, units: Unit[]) => units.flatMap((u) => u.members).find((m) => m.name === name)?.rank ?? "";
+export const personLabel = (name: string, units: Unit[]) => [name, rankOf(name, units)].filter(Boolean).join(" ");
+/** 주 담당·보조 담당 (이름). 따로 안 정했으면 조직도 상자 사람: 첫 사람(책임자) 주 담당, 나머지 보조 */
+export function teamOf(j: JobDesc, units: Unit[]): { main: string[]; sub: string[] } {
+  const ok = (n: string) => !JD_EXCLUDE_PEOPLE.includes(n);
+  if (j.main?.length || j.sub?.length) return { main: (j.main ?? []).filter(ok), sub: (j.sub ?? []).filter(ok) };
+  const names = units.filter((u) => j.units.includes(u.id)).flatMap((u) => u.members.map((m) => m.name)).filter(ok);
+  return { main: names.slice(0, 1), sub: names.slice(1) };
+}
+/** 담당자 이름 전부 (빠진 사람 알림용) */
+export const peopleOf = (j: JobDesc, units: Unit[]) => { const t = teamOf(j, units); return [...t.main, ...t.sub]; };
+export const teamText = (j: JobDesc, units: Unit[]) => {
+  const t = teamOf(j, units), L = (xs: string[]) => xs.map((n) => personLabel(n, units)).join(", ");
+  return { main: L(t.main), sub: L(t.sub) };
+};
+/** 소속: 부서 (+ 반·파트) — 예: '생산팀 · 조립' */
+export function unitLabel(j: JobDesc, units: Unit[]): string {
+  const us = units.filter((u) => j.units.includes(u.id));
+  const dept = j.dept || us.find((u) => u.kind !== "sub")?.label || us[0]?.label || "";
+  const subs = us.filter((u) => u.kind === "sub").map((u) => u.label).filter((l) => l !== dept);
+  return [dept, ...subs].filter(Boolean).join(" · ");
+}
+/** 부서별로 묶기 (JD_DEPTS 순서, 나머지는 뒤에) */
+export function groupByDept(jobs: JobDesc[], units: Unit[]): [string, JobDesc[]][] {
+  const key = (j: JobDesc) => unitLabel(j, units).split(" · ")[0] || "기타";
+  const order = (d: string) => { const i = JD_DEPTS.indexOf(d); return i < 0 ? 99 : i; };
+  const ds = [...new Set(jobs.map(key))].sort((a, b) => order(a) - order(b));
+  return ds.map((d) => [d, jobs.filter((j) => key(j) === d)]);
+}
 
 /** 엑셀: 직무마다 시트 한 장 (양식 꼴). 맨 앞에 목록 시트 */
 export async function buildJobsXlsx(jobs: JobDesc[], units: Unit[]): Promise<Uint8Array> {
@@ -46,17 +76,18 @@ export async function buildJobsXlsx(jobs: JobDesc[], units: Unit[]): Promise<Uin
     ws.addRow([`${company} 직무기술서 목록`]).font = { bold: true, size: 14 };
     ws.addRow([`${todayKst()} 기준`]).font = { color: { argb: "FF6B7280" }, size: 9 };
     ws.addRow([]);
-    const h = ws.addRow(["번호", "직무명", "소속", "담당자", "직무 목적", "작성·개정일"]);
+    const h = ws.addRow(["번호", "소속", "직무명", "주 담당", "보조 담당", "직무 목적", "작성·개정일"]);
     h.eachCell((c) => { c.font = { bold: true }; c.fill = HEAD; c.border = box; c.alignment = { horizontal: "center" }; });
-    jobs.forEach((j, i) => {
-      const r = ws.addRow([i + 1, j.name, unitLabel(j, units), peopleOf(j, units).join(", "), j.purpose, j.updated]);
+    groupByDept(jobs, units).flatMap(([, js]) => js).forEach((j, i) => {
+      const tt = teamText(j, units);
+      const r = ws.addRow([i + 1, unitLabel(j, units), j.name, tt.main, tt.sub, j.purpose, j.updated]);
       r.eachCell((c) => { c.border = box; c.alignment = { vertical: "top", wrapText: true }; });
     });
-    ws.columns = [{ width: 6 }, { width: 22 }, { width: 14 }, { width: 28 }, { width: 60 }, { width: 12 }];
+    ws.columns = [{ width: 6 }, { width: 16 }, { width: 24 }, { width: 18 }, { width: 30 }, { width: 60 }, { width: 12 }];
   }
 
   const used = new Set<string>();
-  for (const j of jobs) {
+  for (const j of groupByDept(jobs, units).flatMap(([, js]) => js)) {
     let name = (j.name || "직무").replace(/[\\/*?:[\]]/g, "·").slice(0, 28);
     while (used.has(name)) name += "_";
     used.add(name);
@@ -81,7 +112,8 @@ export async function buildJobsXlsx(jobs: JobDesc[], units: Unit[]): Promise<Uin
     const lines = (xs: string[]) => xs.map((x) => `• ${x}`).join("\n");
     ws.addRow([]);
     sec("1. 직무 확인");
-    line("직무명", j.name); line("소속", unitLabel(j, units)); line("담당자", peopleOf(j, units).join(", "));
+    line("직무명", j.name); line("소속", unitLabel(j, units));
+    { const tt = teamText(j, units); line("주 담당", tt.main); line("보조 담당", tt.sub); }
     line("대상 직급", j.grade); line("보고 대상", j.reportTo); line("NCS 분류", j.ncs, 30);
     line("NCS 능력단위", j.ncsUnits.join(", "), 15 * Math.max(2, Math.ceil(j.ncsUnits.length / 3)) + 4);
     sec("2. 직무 개요");

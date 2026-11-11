@@ -7,7 +7,10 @@ export interface JobTask { name: string; detail: string; share: number; cycle: s
 export interface JobDesc {
   id: string;
   name: string;          // 직무명 (예: 조립)
-  units: string[];       // 조직도 상자 id (담당자 자동)
+  dept: string;          // 부서 (소속 칸·목록 묶음, 예: 생산팀)
+  units: string[];       // 조직도 상자 id (반·팀, 담당자를 따로 안 정하면 여기 사람을 씀)
+  main: string[];        // 주 담당 (이름)
+  sub: string[];         // 보조 담당 (이름)
   grade: string;         // 대상 직급 (예: 사원~과장)
   reportTo: string;      // 보고 대상
   ncs: string;           // NCS 분류 (대>중>소>세, 세분류 번호)
@@ -32,6 +35,10 @@ export interface JobDesc {
 
 /** 직무기술서를 쓰지 않는 조직도 상자 (빠진 사람 알림에서도 뺀다): 대전지사 (2026-11-11 요청) */
 export const JD_SKIP_UNITS = ["dj"];
+/** 직무기술서에서 빼는 사람 (담당자·빠진 사람 알림 모두): 2026-11-11 요청 */
+export const JD_EXCLUDE_PEOPLE = ["임채웅", "김창범", "임향미", "김진희"];
+/** 목록을 부서별로 묶는 순서 */
+export const JD_DEPTS = ["기업부설연구소", "생산팀", "품질팀", "영업팀", "관리팀", "일학습병행", "산업기능요원"];
 
 /** NCS 직업기초능력 10가지 */
 export const BASICS = ["의사소통능력", "수리능력", "문제해결능력", "자기개발능력", "자원관리능력", "대인관계능력", "정보능력", "기술능력", "조직이해능력", "직업윤리"];
@@ -39,7 +46,8 @@ export const CYCLES = ["매일", "수시", "주간", "월간", "분기", "반기
 
 /** 양식 항목 설명 (화면 '작성 안내'와 빈 양식 인쇄에 쓴다) */
 export const JD_GUIDE: [item: string, how: string][] = [
-  ["직무명·소속", "조직도의 반·팀 이름과 같게. 한 사람이 여러 직무를 하면 직무마다 따로 씁니다."],
+  ["직무명·소속", "소속은 부서(생산팀·품질팀 등)로, 반·파트는 직무명에. 한 사람이 여러 직무를 하면 직무마다 따로 씁니다."],
+  ["주 담당·보조 담당", "주 담당 = 그 직무를 책임지고 하는 사람, 보조 담당 = 함께 하거나 대신하는 사람. 부재 시 대행자를 정하는 근거가 됩니다."],
   ["직무 목적", "이 직무가 왜 있는지 한두 문장. '무엇을 위해 무엇을 한다' 꼴로 (예: 납기와 품질을 지키기 위해 전동기를 조립·시험한다)."],
   ["주요 업무·비중", "5~8개. '~을 한다' 동사로 끝맺고, 시간 비중(%) 합이 100이 되게. 주기(매일·월간 등)도 적습니다."],
   ["책임과 권한", "결정할 수 있는 것(작업 중지, 불량 판정, 발주 금액 한도 등)과 책임지는 결과."],
@@ -62,7 +70,7 @@ export const JD_LINKS: [name: string, url: string, note: string][] = [
 ];
 
 const t = (name: string, detail: string, share: number, cycle: string): JobTask => ({ name, detail, share, cycle });
-const base = { ncs: "", ncsUnits: [] as string[], grade: "", reportTo: "", authority: "", updated: "", writer: "", example: true };
+const base = { dept: "", main: [] as string[], sub: [] as string[], ncs: "", ncsUnits: [] as string[], grade: "", reportTo: "", authority: "", updated: "", writer: "", example: true };
 
 /** NCS 분류·능력단위 (근거: ncs.go.kr '개발현황' 엑셀, 2026-11-11 내려받아 확인한 공식 분류번호·능력단위명).
  *  능력단위의 필요지식·기술·태도 원문은 ncs.go.kr에서 능력단위 번호로 찾아볼 수 있다. */
@@ -99,6 +107,9 @@ const NCS_MAP: Record<string, { ncs: string; ncsUnits: string[] }> = {
   "jd-acct": { ncs: "02.경영·회계·사무 > 03.재무·회계 > 02.회계 > 01.회계·감사 (02030201) · 02.세무 (02030202)", ncsUnits: [
     "0203020101 전표관리", "0203020102 자금관리", "0203020104 결산처리", "0203020105 회계정보시스템 운용", "0203020112 재무제표작성",
     "0203020201 적격증빙관리", "0203020204 원천징수", "0203020205 부가가치세 신고", "0203020214 법인세 신고", "0202020109 급여지급"] },
+  "jd-appr-inc": { ncs: "훈련 과정의 NCS를 따름 (예: 19.전기·전자 > 01.전기 > 05.전기기기제작 > 02.전기기기제작, 19010502)", ncsUnits: [] },
+  "jd-smr": { ncs: "배치 분야의 NCS를 따름 (예: 19.전기·전자 > 01.전기 > 05.전기기기제작 > 02.전기기기제작, 19010502)", ncsUnits: [
+    "1901050203 전기기기 권선 작업", "1901050207 전기기기 반제품 조립", "1901050208 전기기기 완제품 조립"] },
   "jd-appr": { ncs: "일학습병행 훈련 과정의 NCS를 따름 (예: 19.전기·전자 > 01.전기 > 05.전기기기제작 > 02.전기기기제작, 19010502)", ncsUnits: [
     "1901050201 전기기기 제작준비", "1901050203 전기기기 권선 작업", "1901050207 전기기기 반제품 조립"] },
 };
@@ -112,14 +123,34 @@ const JD_ACCT: JobDesc = { ...base, id: "jd-acct", name: "회계·재무", units
     attitudes: ["정확성·정직", "기한 준수", "비밀 유지"], basics: ["수리능력", "정보능력", "직업윤리"], edu: "전문학사 이상 (회계·경영 우대)", career: "회계 실무 경력 우대",
     licenses: ["전산회계·전산세무 (국가공인 민간자격, 우대)", "재경관리사 (국가공인 민간자격, 우대)"], env: "사무실. 주간 (신고·결산 기간 바쁨)", kpis: ["신고 기한 준수", "결산 마감일", "지급 오류 0건"],
     training: ["세법 개정 교육", "회계 프로그램 교육"] };
-const JD_APPR: JobDesc = { ...base, id: "jd-appr", name: "일학습병행 학습근로자 (도제)", units: ["appr"], grade: "학습근로자", reportTo: "기업현장교사",
-    purpose: "일학습병행 훈련 계획에 따라 현장(OJT)·현장 외(Off-JT) 훈련을 받으며 직무 능력을 익힌다.",
+const JD_APPR: JobDesc = { ...base, id: "jd-appr", name: "일학습병행 도제학생 (학습근로자)", units: ["appr"], grade: "학습근로자 (도제학생)", reportTo: "기업현장교사",
+    purpose: "특성화고 도제학생으로서 일학습병행 훈련 계획에 따라 회사 현장훈련(OJT)과 학교 현장외훈련(Off-JT)을 받으며 직무 능력을 익힌다.",
     tasks: [t("현장 훈련(OJT)", "기업현장교사 지도 아래 훈련 과제 수행", 60, "매일"), t("현장 외 훈련(Off-JT)", "학교·훈련기관 수업", 25, "주간"),
       t("학습 기록", "훈련일지·학습 결과 정리", 10, "매일"), t("평가 준비", "내부·외부 평가 준비", 5, "분기")],
     authority: "없음 (지도 아래 작업)", knowledge: ["훈련 과정의 능력단위"], skills: ["기초 공구 사용", "작업표준 이해"], attitudes: ["배우려는 자세", "안전 수칙 준수", "시간 약속"],
     basics: ["자기개발능력", "기술능력", "직업윤리"], edu: "특성화고 재학 (도제학교)", career: "없음", licenses: ["훈련 과정 연계 자격 (취득 목표)"],
     env: "공장. 근로계약상 근무일·시간 (예: 수·목·금 08:30~16:30). 연소자 보호 규정 확인", kpis: ["훈련 출석률", "평가 합격"],
     training: ["안전보건 채용 시 교육", "훈련 과정 Off-JT"] };
+const JD_APPR_INC: JobDesc = { ...base, id: "jd-appr-inc", name: "일학습병행 재직자 (학습근로자)", units: [], grade: "재직 근로자 (훈련 참여자)", reportTo: "기업현장교사",
+    purpose: "재직 중인 직원이 일학습병행 재직자 과정 훈련 계획에 따라 현장훈련(OJT)·현장외훈련(Off-JT)을 받으며 맡은 직무의 숙련도를 높이고 평가를 거쳐 자격을 얻는다.",
+    tasks: [t("본래 직무 수행", "소속 부서의 맡은 업무 (해당 직무기술서 따름)", 60, "매일"), t("현장 훈련(OJT)", "기업현장교사 지도 아래 훈련 과제 수행, 훈련 결과 기록", 25, "주간"),
+      t("현장 외 훈련(Off-JT)", "공동훈련센터·훈련기관 수업", 10, "월간"), t("평가 준비", "내부평가·외부평가 준비", 5, "분기")],
+    authority: "본래 직무의 권한과 같음", knowledge: ["훈련 과정 능력단위 (NCS)", "소속 직무의 지식"], skills: ["소속 직무의 기술", "훈련 기록 작성"],
+    attitudes: ["배우려는 자세", "훈련 일정 준수", "안전 수칙 준수"], basics: ["자기개발능력", "기술능력", "직업윤리"], edu: "무관", career: "재직자 (과정별 참여 요건 확인)",
+    licenses: ["훈련 과정 연계 자격 (외부평가 합격 시 취득)"], env: "소속 부서 근무지. 훈련 시간은 근로시간으로 관리", kpis: ["훈련 출석률", "내부·외부평가 합격"],
+    training: ["훈련 과정 OJT·Off-JT", "소속 직무 법정 교육"] };
+const JD_SMR: JobDesc = { ...base, id: "jd-smr", name: "산업기능요원 (병역지정업체)", units: [], grade: "산업기능요원 (현역 편입·보충역 편입)", reportTo: "생산팀장 (복무 지도)",
+    purpose: "병역지정업체의 산업기능요원으로서 편입 당시 정해진 분야(제조·생산)에서 의무 종사기간 동안 성실히 근무하여 병역의무를 이행한다.",
+    tasks: [t("지정 분야 생산 업무", "편입된 분야의 제조·생산 업무 (조립·권선 등 배치 반의 직무기술서 따름)", 80, "매일"),
+      t("작업 기록", "작업일보·안전 점검 기록", 10, "매일"), t("복무 관리 협조", "출근·복무 상황 확인, 병무청 복무 실태조사 대응, 교육 이수", 10, "수시")],
+    authority: "배치 반 직무의 권한과 같음",
+    knowledge: ["배치 반 직무 지식 (조립·권선 등)", "산업기능요원 복무 규정 (지정업체·지정 분야 밖 근무 금지)", "안전 수칙"],
+    skills: ["배치 반 직무 기술"], attitudes: ["복무 규정 준수", "근태 성실", "안전 수칙 준수"], basics: ["기술능력", "직업윤리", "조직이해능력"],
+    edu: "무관", career: "현역 편입은 기술자격 분야, 보충역 편입은 제조·생산 분야 (병무청 기준 확인)",
+    licenses: ["현역 편입: 편입 분야 국가기술자격 (필수, 병무청 기준)", "보충역 편입: 자격 필요 없음"],
+    env: "공장 (배치 반과 같음). 주간. 지정업체·지정 분야 밖 근무나 다른 업무를 하면 연장복무·편입 취소 대상",
+    kpis: ["복무 위반 0건", "근태 (무단결근 0)", "배치 반 성과 지표"],
+    training: ["산업기능요원 복무 교육 (병무청)", "정기 안전보건교육", "배치 반 직무 교육"] };
 
 /** 예시 (2026-11-11 홈페이지 snco.co.kr의 사업영역·정비 공정·시험 항목·인증·연구 분야와 조직도로 만든 초안 — 실제 업무에 맞게 고쳐 쓰기)
  *  회사: 전동기·발전기 정비-수리(계획예방정비·재권선·특성 시험 및 진단)와 고압/저압/하이브리드 방수형 전동기·발전기·EV 전동기 제작·연구개발.
@@ -243,12 +274,30 @@ const RAW_EXAMPLES: JobDesc[] = [
     kpis: ["급여·근태 마감 오류 0건", "법정 교육·신고 기한 준수", "인증 갱신 누락 0건", "지원사업 선정 건수"],
     training: ["개인정보보호 교육", "노동법 개정 교육", "ISO 내부심사원 교육"] },
   JD_ACCT,
+  JD_APPR_INC,
   JD_APPR,
+  JD_SMR,
 ];
-export const JD_EXAMPLES: JobDesc[] = RAW_EXAMPLES.map((j) => ({ ...j, ...NCS_MAP[j.id] }));
+/** 부서·주 담당·보조 담당 (2026-11-11 요청: 임택권 이사 = 영업관리 총괄·영업팀 소속, 김동수 전무 = 품질팀 소속).
+ *  주 담당은 책임자(직급 높은 사람) 기준 초안 — 실제 업무에 맞게 고쳐 쓰기 */
+const PEOPLE_MAP: Record<string, { dept: string; main: string[]; sub: string[] }> = {
+  "jd-lab": { dept: "기업부설연구소", main: ["석지천"], sub: ["나성진", "변진수", "김효정", "김수현", "오세희", "전동민"] },
+  "jd-prod-head": { dept: "생산팀", main: ["조진호"], sub: [] },
+  "jd-assy": { dept: "생산팀", main: ["명로완"], sub: ["김환복", "박민수", "유치현", "조승연", "김동주", "남궁욱"] },
+  "jd-wind": { dept: "생산팀", main: ["유재민"], sub: ["이정헌"] },
+  "jd-pc": { dept: "생산팀", main: ["가도영"], sub: [] },
+  "jd-qa": { dept: "품질팀", main: ["김동수", "신용재"], sub: ["최일호", "장경천"] },
+  "jd-sales": { dept: "영업팀", main: ["임택권", "김운경"], sub: ["이병욱"] },
+  "jd-hr": { dept: "관리팀", main: ["김도아"], sub: ["윤정아"] },
+  "jd-acct": { dept: "관리팀", main: ["윤정아"], sub: ["김도아"] },
+  "jd-appr-inc": { dept: "일학습병행", main: [], sub: [] },
+  "jd-appr": { dept: "일학습병행", main: ["김진호"], sub: [] },
+  "jd-smr": { dept: "산업기능요원", main: [], sub: [] },
+};
+export const JD_EXAMPLES: JobDesc[] = RAW_EXAMPLES.map((j) => ({ ...j, ...NCS_MAP[j.id], ...PEOPLE_MAP[j.id] }));
 
 export const blankJob = (): JobDesc => ({
-  id: `jd-${Date.now()}`, name: "", units: [], grade: "", reportTo: "", ncs: "", ncsUnits: [], purpose: "", tasks: [t("", "", 0, "매일")], authority: "",
+  id: `jd-${Date.now()}`, name: "", dept: "", units: [], main: [], sub: [], grade: "", reportTo: "", ncs: "", ncsUnits: [], purpose: "", tasks: [t("", "", 0, "매일")], authority: "",
   knowledge: [], skills: [], attitudes: [], basics: [], edu: "", career: "", licenses: [], env: "", kpis: [], training: [], updated: "", writer: "",
 });
 
@@ -259,7 +308,8 @@ export function cleanJob(j: Partial<JobDesc>): JobDesc {
   const s = (x: unknown, n = 300) => String(x ?? "").trim().slice(0, n);
   const list = (x: unknown) => (Array.isArray(x) ? x : String(x ?? "").split("\n")).map((v) => s(v, 200)).filter(Boolean).slice(0, 30);
   return {
-    id: s(j.id, 40) || `jd-${Date.now()}`, name: s(j.name, 60), units: (j.units ?? []).map((u) => s(u, 40)).filter(Boolean),
+    id: s(j.id, 40) || `jd-${Date.now()}`, name: s(j.name, 60), dept: s(j.dept, 40), units: (j.units ?? []).map((u) => s(u, 40)).filter(Boolean),
+    main: (j.main ?? []).map((x) => s(x, 30)).filter(Boolean), sub: (j.sub ?? []).map((x) => s(x, 30)).filter((x) => x && !(j.main ?? []).includes(x)),
     grade: s(j.grade, 60), reportTo: s(j.reportTo, 60), ncs: s(j.ncs, 300), ncsUnits: list(j.ncsUnits), purpose: s(j.purpose, 600),
     tasks: (j.tasks ?? []).map((x) => ({ name: s(x.name, 100), detail: s(x.detail, 300), share: Math.max(0, Math.min(100, Math.round(Number(x.share) || 0))), cycle: s(x.cycle, 10) }))
       .filter((x) => x.name).slice(0, 15),

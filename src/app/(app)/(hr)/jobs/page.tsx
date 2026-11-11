@@ -3,7 +3,7 @@ import Link from "next/link";
 import PageHead from "@/components/대시/PageHead";
 import { requireAdminPage } from "@/lib/auth";
 import { JD_GUIDE, JD_LINKS, shareSum } from "@/lib/인사노무/jobdesc";
-import { loadJobs, loadUnits, peopleOf, unitLabel } from "@/lib/인사노무/jobdescData";
+import { groupByDept, loadJobs, loadUnits, peopleOf, teamText, unitLabel } from "@/lib/인사노무/jobdescData";
 import JobRowActions, { RestoreExamples } from "./JobRowActions";
 
 export const metadata = { title: "직무기술서 · 인사노무 · 통합관리시스템" };
@@ -14,6 +14,7 @@ export default async function JobsPage() {
   const covered = new Set(jobs.flatMap((j) => peopleOf(j, units)));
   const missing = all.filter((p) => !covered.has(p));
   const examples = jobs.filter((j) => j.example).length;
+  let n = 0;
 
   return (
     <>
@@ -38,27 +39,32 @@ export default async function JobsPage() {
         </div>
         <div className="tbl-wrap">
           <table className="tbl jd-tbl">
-            <thead><tr><th>#</th><th>직무명</th><th>소속 (조직도)</th><th>담당자</th><th>직무 목적</th><th>업무</th><th>작성·개정</th><th /></tr></thead>
+            <thead><tr><th>#</th><th>소속</th><th>직무명</th><th>주 담당</th><th>보조 담당</th><th>직무 목적</th><th>업무</th><th>작성·개정</th><th /></tr></thead>
             <tbody>
-              {jobs.map((j, i) => {
-                const sum = shareSum(j);
-                return (
-                  <tr key={j.id}>
-                    <td className="c">{i + 1}</td>
-                    <td><Link href={`/jobs/view?id=${j.id}`}><b>{j.name}</b></Link>{j.example && <span className="jd-ex">예시</span>}</td>
-                    <td>{unitLabel(j, units) || <span className="muted">—</span>}</td>
-                    <td className="jd-ppl">{peopleOf(j, units).join(", ") || <span className="muted">—</span>}</td>
-                    <td className="jd-pur">{j.purpose}</td>
-                    <td className="c">{j.tasks.length}개{sum !== 100 && <div className="red" style={{ fontSize: ".74rem" }}>비중 {sum}%</div>}</td>
-                    <td className="c">{j.updated || "—"}{j.writer && <div className="muted" style={{ fontSize: ".74rem" }}>{j.writer}</div>}</td>
-                    <td><JobRowActions id={j.id} name={j.name} first={i === 0} last={i === jobs.length - 1} /></td>
-                  </tr>
-                );
-              })}
+              {groupByDept(jobs, units).map(([dept, js]) => [
+                <tr key={`g-${dept}`} className="jd-grp"><td colSpan={9}>{dept} <small>{js.length}개</small></td></tr>,
+                ...js.map((j, i) => {
+                  const sum = shareSum(j), tt = teamText(j, units);
+                  n++;
+                  return (
+                    <tr key={j.id}>
+                      <td className="c">{n}</td>
+                      <td>{unitLabel(j, units) || <span className="muted">—</span>}</td>
+                      <td><Link href={`/jobs/view?id=${j.id}`}><b>{j.name}</b></Link>{j.example && <span className="jd-ex">예시</span>}</td>
+                      <td className="jd-ppl"><b>{tt.main || <span className="muted">—</span>}</b></td>
+                      <td className="jd-ppl">{tt.sub || <span className="muted">—</span>}</td>
+                      <td className="jd-pur">{j.purpose}</td>
+                      <td className="c">{j.tasks.length}개{sum !== 100 && <div className="red" style={{ fontSize: ".74rem" }}>비중 {sum}%</div>}</td>
+                      <td className="c">{j.updated || "—"}{j.writer && <div className="muted" style={{ fontSize: ".74rem" }}>{j.writer}</div>}</td>
+                      <td><JobRowActions id={j.id} name={j.name} first={i === 0} last={i === js.length - 1} /></td>
+                    </tr>
+                  );
+                }),
+              ])}
             </tbody>
           </table>
         </div>
-        {missing.length > 0 && <p className="caption" style={{ marginTop: 8 }}>직무기술서와 이어지지 않은 사람: {missing.join(", ")} — 직무기술서의 <b>소속</b>에서 조직도 상자를 고르면 이어집니다.</p>}
+        {missing.length > 0 && <p className="caption" style={{ marginTop: 8 }}>직무기술서와 이어지지 않은 사람: {missing.join(", ")} — 직무기술서 <b>고치기</b>에서 주 담당이나 보조 담당으로 고르면 이어집니다.</p>}
         <RestoreExamples />
       </div>
 

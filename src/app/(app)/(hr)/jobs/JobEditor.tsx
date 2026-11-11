@@ -9,7 +9,8 @@ import { saveJob } from "./actions";
 type Unit = { id: string; path: string; people: string[] };
 type ListKey = "ncsUnits" | "knowledge" | "skills" | "attitudes" | "licenses" | "kpis" | "training";
 
-export default function JobEditor({ job, units, isNew }: { job: JobDesc; units: Unit[]; isNew: boolean }) {
+type Staff = { name: string; label: string; unit: string };
+export default function JobEditor({ job, units, staff, depts, isNew }: { job: JobDesc; units: Unit[]; staff: Staff[]; depts: string[]; isNew: boolean }) {
   const router = useRouter();
   const [j, setJ] = useState<JobDesc>(job);
   const [lists, setLists] = useState<Record<ListKey, string>>(() => ({
@@ -51,6 +52,9 @@ export default function JobEditor({ job, units, isNew }: { job: JobDesc; units: 
       <section className="card">
         <div className="card-title">1. 직무 확인</div>
         <div className="jd-grid">
+          <label className="jd-f"><span>소속 부서 *</span>
+            <input list="jd-depts" value={j.dept} onChange={(e) => set("dept", e.target.value)} placeholder="예: 생산팀" />
+            <datalist id="jd-depts">{depts.map((d) => <option key={d} value={d} />)}</datalist></label>
           {text("name", "직무명 *", "예: 조립")}
           {text("grade", "대상 직급", "예: 사원~과장")}
           {text("reportTo", "보고 대상", "예: 생산팀장")}
@@ -59,7 +63,24 @@ export default function JobEditor({ job, units, isNew }: { job: JobDesc; units: 
         <div className="jd-f wide"><span>NCS 능력단위 <small>(한 줄에 하나, &quot;번호 이름&quot; — <a href="https://www.ncs.go.kr" target="_blank" rel="noreferrer">ncs.go.kr</a>에서 찾기)</small></span>
           <textarea rows={4} value={lists.ncsUnits} onChange={(e) => setLists((x) => ({ ...x, ncsUnits: e.target.value }))}
             placeholder={"1901050203 전기기기 권선 작업\n1901050204 전기기기 함침 건조 작업"} /></div>
-        <div className="jd-f wide"><span>소속 (조직도 상자) — 고르면 담당자가 자동으로 이어집니다</span>
+        <div className="jd-f wide"><span>담당자 — 이름을 누를 때마다 <b className="jd-m">주 담당</b> → <b className="jd-s">보조 담당</b> → 빼기</span>
+          <div className="jd-units">
+            {staff.map((p) => {
+              const st = j.main.includes(p.name) ? "m" : j.sub.includes(p.name) ? "s" : "";
+              const next = () => {
+                const main = j.main.filter((x) => x !== p.name), sub = j.sub.filter((x) => x !== p.name);
+                if (st === "") main.push(p.name); else if (st === "m") sub.push(p.name);
+                setJ((x) => ({ ...x, main, sub }));
+              };
+              return (
+                <button type="button" key={p.name} className={`jd-pp ${st}`} onClick={next} title={p.unit}>
+                  {st === "m" ? "주 " : st === "s" ? "보조 " : ""}{p.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="jd-f wide"><span>조직도 상자 (반·팀) — 담당자를 고르지 않았을 때 이 상자 사람을 씁니다</span>
           <div className="jd-units">
             {units.map((u) => (
               <label key={u.id} className={j.units.includes(u.id) ? "on" : ""} title={u.people.join(", ")}>

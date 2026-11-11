@@ -42,7 +42,9 @@ export async function copyJob(id: string): Promise<R> {
 export async function moveJob(id: string, dir: -1 | 1): Promise<R> {
   await requireAdmin();
   const { jobs } = await loadJobs();
-  const i = jobs.findIndex((x) => x.id === id), k = i + dir;
+  const i = jobs.findIndex((x) => x.id === id);
+  let k = i + dir; // 같은 부서 안에서만 (목록이 부서별로 묶여 보인다)
+  while (i >= 0 && k >= 0 && k < jobs.length && (jobs[k].dept ?? "") !== (jobs[i].dept ?? "")) k += dir;
   if (i < 0 || k < 0 || k >= jobs.length) return {};
   const out = [...jobs]; [out[i], out[k]] = [out[k], out[i]];
   await saveJobs(out);
