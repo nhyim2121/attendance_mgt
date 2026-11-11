@@ -213,6 +213,56 @@ export default async function Home() {
         <Stat icon="cal" label="연차 사용률" value={usedRate} unit="%" sub={`${fy}${policy.fyStartMonth === 1 ? "년" : "회계연도"}`} />
       </section>
 
+      <section className="card hero home-row">
+        <div className="card-title">오늘 근무 현황<span className="spacer" />
+          <details className="pop">
+            <summary className="btn sm">부서별 현황 보기</summary>
+            <div className="pop-body">
+              <table className="tbl"><thead><tr>
+                <th>부서</th><th className="num">재직</th><th className="num">출근</th><th className="num">지각</th>
+                <th className="num">휴가</th><th className="num">출장·교육</th><th className="num">미출근</th>
+              </tr></thead><tbody>
+                {depts.map((dp) => {
+                  const g = board.filter((b) => (b.dept || "(부서 없음)") === dp);
+                  return (
+                    <tr key={dp}><td>{dp}</td><td className="num">{g.length}</td>
+                      <td className="num">{g.filter((b) => b.in !== null).length}</td>
+                      <td className="num">{g.filter((b) => b.late).length}</td>
+                      <td className="num">{g.filter((b) => b.group === "휴가").length}</td>
+                      <td className="num">{g.filter((b) => b.group === "출장·교육").length}</td>
+                      <td className="num">{g.filter((b) => b.group === "기록 없음").length}</td></tr>
+                  );
+                })}
+              </tbody></table>
+            </div>
+          </details>
+        </div>
+        <div className="hero-body">
+          <div>
+            <div className="sub-title">근무 계획</div>
+            <div className="plan">
+              <Tile label="근무자" n={working.length} people={working.map((b) => [b.emp, b.dept])} />
+              <Tile label="휴가자" n={by("휴가").length} people={by("휴가").map((b) => [b.emp, b.leave])} />
+              <Tile label="휴무자" n={by("휴무").length} people={by("휴무").map((b) => [b.emp, b.dept])} />
+              <Tile label="연장신청" n={board.filter((b) => b.overtime).length}
+                people={board.filter((b) => b.overtime).map((b) => [b.emp, b.leaveContent])} />
+            </div>
+          </div>
+          <div>
+            <div className="sub-title">근태 현황</div>
+            <div className="tiles2">
+              <Tile label="출근" n={board.filter((b) => b.in !== null).length} href={`/daily?day=${today}`}
+                people={board.filter((b) => b.in !== null).sort((a, b) => a.in! - b.in!).map((b) => [b.emp, tsHM(b.in)])} />
+              <Tile label="지각" n={board.filter((b) => b.late).length} warn href={`/daily?day=${today}`}
+                people={board.filter((b) => b.late).map((b) => [b.emp, tsHM(b.in)])} />
+              <Tile label="조기퇴근" n={early.length} warn people={early.map((d) => [d.emp, tsHM(d.out)])} />
+              <Tile label="미출근" n={by("기록 없음").length} warn href={`/daily?day=${today}`}
+                people={by("기록 없음").map((b) => [b.emp, b.dept])} />
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div className="grid2 home-row">
         <section className="card">
           <div className="card-title"><Ico name="bars" />부서별 인원 현황</div>
@@ -238,55 +288,6 @@ export default async function Home() {
 
       <div className="dash">
         <div className="stack">
-          <section className="card hero">
-            <div className="card-title">오늘 근무 현황<span className="spacer" />
-              <details className="pop">
-                <summary className="btn sm">부서별 현황 보기</summary>
-                <div className="pop-body">
-                  <table className="tbl"><thead><tr>
-                    <th>부서</th><th className="num">재직</th><th className="num">출근</th><th className="num">지각</th>
-                    <th className="num">휴가</th><th className="num">출장·교육</th><th className="num">미출근</th>
-                  </tr></thead><tbody>
-                    {depts.map((dp) => {
-                      const g = board.filter((b) => (b.dept || "(부서 없음)") === dp);
-                      return (
-                        <tr key={dp}><td>{dp}</td><td className="num">{g.length}</td>
-                          <td className="num">{g.filter((b) => b.in !== null).length}</td>
-                          <td className="num">{g.filter((b) => b.late).length}</td>
-                          <td className="num">{g.filter((b) => b.group === "휴가").length}</td>
-                          <td className="num">{g.filter((b) => b.group === "출장·교육").length}</td>
-                          <td className="num">{g.filter((b) => b.group === "기록 없음").length}</td></tr>
-                      );
-                    })}
-                  </tbody></table>
-                </div>
-              </details>
-            </div>
-            <div className="hero-body">
-              <div>
-                <div className="sub-title">근무 계획</div>
-                <div className="plan">
-                  <Tile label="근무자" n={working.length} people={working.map((b) => [b.emp, b.dept])} />
-                  <Tile label="휴가자" n={by("휴가").length} people={by("휴가").map((b) => [b.emp, b.leave])} />
-                  <Tile label="휴무자" n={by("휴무").length} people={by("휴무").map((b) => [b.emp, b.dept])} />
-                  <Tile label="연장신청" n={board.filter((b) => b.overtime).length}
-                    people={board.filter((b) => b.overtime).map((b) => [b.emp, b.leaveContent])} />
-                </div>
-              </div>
-              <div>
-                <div className="sub-title">근태 현황</div>
-                <div className="tiles2">
-                  <Tile label="출근" n={board.filter((b) => b.in !== null).length} href={`/daily?day=${today}`}
-                    people={board.filter((b) => b.in !== null).sort((a, b) => a.in! - b.in!).map((b) => [b.emp, tsHM(b.in)])} />
-                  <Tile label="지각" n={board.filter((b) => b.late).length} warn href={`/daily?day=${today}`}
-                    people={board.filter((b) => b.late).map((b) => [b.emp, tsHM(b.in)])} />
-                  <Tile label="조기퇴근" n={early.length} warn people={early.map((d) => [d.emp, tsHM(d.out)])} />
-                  <Tile label="미출근" n={by("기록 없음").length} warn href={`/daily?day=${today}`}
-                    people={by("기록 없음").map((b) => [b.emp, b.dept])} />
-                </div>
-              </div>
-            </div>
-          </section>
 
           <section className="card">
             <div className="card-title">어제 근무 현황 <span className="muted" style={{ fontWeight: 400 }}>{dayLabel(yday)}</span></div>
