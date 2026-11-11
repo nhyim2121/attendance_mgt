@@ -115,9 +115,10 @@ export function parseReqItems(text: string): string[] {
 }
 
 /** 사이트에서 바로 만들 수 있는 자료 (직원 명부로 엑셀 생성) */
-export type GenKind = "org" | "headcount" | "roster";
-export const GEN_LABEL: Record<GenKind, string> = { org: "조직도·부서별 인원", headcount: "연말 기준 근로자 수", roster: "직원 명부" };
+export type GenKind = "org" | "headcount" | "roster" | "jd";
+export const GEN_LABEL: Record<GenKind, string> = { org: "조직도·부서별 인원", headcount: "연말 기준 근로자 수", roster: "직원 명부", jd: "직무기술서" };
 export function genKindOf(item: string): GenKind | null {
+  if (/직무\s*기술서|직무\s*명세|직무\s*분석/.test(item)) return "jd"; // 인사노무 > 직무기술서 (/jobs) 전체
   if (/조직도|부서.*인원|팀별 인원/.test(item)) return "org";
   if (/(근로자|직원|종업원|인원).*(수|현황)/.test(item) && /\d{4}|연말|년/.test(item)) return "headcount";
   if (/직원 명부|인원 현황|근로자 명부/.test(item)) return "roster";

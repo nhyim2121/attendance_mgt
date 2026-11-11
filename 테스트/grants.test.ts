@@ -34,6 +34,7 @@ describe("자료 요청 메일 → 목록", () => {
     expect(genKindOf("조직도 (부서/팀별 인원 포함)")).toBe("org");
     expect(genKindOf("최근 3개년(2023~2025) 근로자 총 인원 수 (연말 기준)")).toBe("headcount");
     expect(genKindOf("사업자등록증 사본")).toBeNull();
+    expect(genKindOf("직무기술서 또는 유사 자료")).toBe("jd");
     expect(yearsIn("최근 3개년(2023~2025)", 2026)).toEqual([2023, 2024, 2025]);
   });
 });

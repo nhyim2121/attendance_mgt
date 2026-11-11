@@ -5,6 +5,7 @@ import { loadEmployees } from "../store";
 import type { Employee } from "../인사노무/employees";
 import { todayKst } from "../time";
 import { type GenKind, yearsIn } from "./grants";
+import { buildJobsXlsx, loadJobs, loadUnits } from "../인사노무/jobdescData";
 
 const active = (e: Employee, day: string) => (!e.joinDate || e.joinDate <= day) && (!e.leaveDate || e.leaveDate >= day);
 const head = (ws: ExcelJS.Worksheet, row: number) => ws.getRow(row).eachCell((c) => {
@@ -17,6 +18,10 @@ const title = (ws: ExcelJS.Worksheet, text: string, sub: string) => {
 
 export async function buildGrantFile(kind: GenKind, item: string): Promise<{ name: string; data: Uint8Array }> {
   const today = todayKst();
+  if (kind === "jd") { // 인사노무 > 직무기술서 전체 (직무마다 시트 한 장)
+    const [{ jobs }, { units }] = await Promise.all([loadJobs(), loadUnits()]);
+    return { name: `직무기술서_${today}.xlsx`, data: await buildJobsXlsx(jobs, units) };
+  }
   const emps = (await loadEmployees()).filter((e) => e.name);
   const wb = new ExcelJS.Workbook();
   const sub = `(주)에쓰엔 · ${today} 기준 · 통합관리시스템 직원 명부에서 만듦`;

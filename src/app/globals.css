@@ -1224,3 +1224,55 @@ html[data-print="port"] .edit-print .ep-tbl { table-layout: fixed; }
 .rq-new input, .rq-new textarea { padding: 6px 9px; border: 1px solid #d6dce8; border-radius: 7px; font: inherit; font-size: .86rem; }
 .rq-new textarea { grid-column: 1 / -1; min-height: 90px; }
 .rq.busy { opacity: .6; } .rq-note { width: 100%; min-width: 110px; padding: 4px 7px; border: 1px solid transparent; border-radius: 6px; font: inherit; font-size: .82rem; background: transparent; } .rq-note:hover, .rq-note:focus { border-color: #d6dce8; background: #fff; }
+
+/* ---------------------------------------------------------------- 직무기술서 (/jobs, 2026-11-11) */
+.jd-note { background: #fff8e6; border: 1px solid #f5d99a; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: .9rem; }
+.jd-ex { display: inline-block; margin-left: 6px; font-size: .7rem; font-weight: 700; color: #b45309; border: 1px solid #f5c26b; background: #fff8e6; border-radius: 8px; padding: 0 6px; vertical-align: 1px; }
+.jd-tbl td { vertical-align: top; font-size: .86rem; }
+.jd-tbl .c, .jd-tasks .c { text-align: center; }
+.jd-tbl .jd-pur { min-width: 260px; max-width: 420px; color: var(--ink-2); }
+.jd-tbl .jd-ppl { min-width: 120px; max-width: 220px; }
+.jd-acts { display: inline-flex; flex-wrap: wrap; gap: 3px; white-space: nowrap; }
+.jd-acts.busy, .jd-ed.busy { opacity: .6; }
+.jd-guide th { width: 120px; text-align: left; white-space: nowrap; vertical-align: top; font-size: .84rem; }
+.jd-guide td { font-size: .84rem; }
+.jd-links { margin: 0 0 8px; padding-left: 18px; line-height: 1.5; font-size: .88rem; }
+.jd-links li { margin-bottom: 6px; }
+.jd-links .muted { font-size: .8rem; }
+.jd-ed section.card { margin-bottom: 14px; }
+.jd-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 14px; }
+.jd-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 14px; }
+@media (max-width: 900px) { .jd-grid, .jd-grid3 { grid-template-columns: 1fr; } }
+.jd-f { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.jd-f.wide { grid-column: 1 / -1; }
+.jd-f > span { font-size: .8rem; font-weight: 700; color: var(--ink-2); }
+.jd-f > span small { font-weight: 400; color: var(--muted); }
+.jd-f input, .jd-f textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: .9rem; }
+.jd-units { display: flex; flex-wrap: wrap; gap: 6px; }
+.jd-units label { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line-2); border-radius: 8px; padding: 3px 9px; font-size: .84rem; cursor: pointer; background: #fff; }
+.jd-units label.on { border-color: var(--blue); background: #eef3fc; color: #0a2b70; font-weight: 600; }
+.jd-units label small { color: var(--muted); }
+.jd-tasks input, .jd-tasks select { width: 100%; box-sizing: border-box; }
+.jd-tasks td:nth-child(2) { width: 22%; } .jd-tasks td:nth-child(4) { width: 80px; } .jd-tasks td:nth-child(5) { width: 90px; } .jd-tasks td:nth-child(6) { width: 90px; white-space: nowrap; }
+.jd-bar { position: sticky; bottom: 0; display: flex; gap: 8px; align-items: center; padding: 10px 0; background: linear-gradient(transparent, #f2f4f9 30%); }
+/* 인쇄 양식 */
+.jd-sheet { max-width: 900px; margin: 0 auto 16px; }
+.jd-h { text-align: center; font-size: 1.6rem; letter-spacing: .3em; margin: 0 0 12px; }
+.jd-t { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 6px; font-size: .84rem; }
+.jd-t th, .jd-t td { border: 1px solid #9ca3af; padding: 5px 7px; vertical-align: middle; line-height: 1.4; word-break: keep-all; overflow-wrap: anywhere; }
+.jd-t th { background: #eef3fc; font-weight: 700; text-align: center; }
+.jd-t tr.sec th { background: #0c3994; color: #fff; text-align: left; padding: 4px 8px; }
+.jd-t tr.hd th { background: #dde7f7; }
+.jd-t td.c { text-align: center; } .jd-t td.sm { font-size: .76rem; } .jd-t td.tall { height: 2.8em; }
+.jd-t td { height: 1.6em; }
+.jd-t ul { margin: 0; padding-left: 16px; }
+.jd-t td:has(ul) { vertical-align: top; }
+.jd-empty { height: 4.5em; }
+.jd-basics { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.jd-foot { display: flex; gap: 22px; align-items: baseline; margin-top: 10px; font-size: .84rem; color: var(--ink-2); }
+.jd-foot b { margin-left: auto; font-size: 1rem; color: #0a2b70; }
+@media print {
+  .jd-sheet { max-width: none; margin: 0; }
+  .jd-t th, .jd-t td { padding: 3px 6px; }
+  .jd-t th, .jd-t tr.sec th, .jd-t tr.hd th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

@@ -35,8 +35,9 @@ const HR: DutyGroup[] = [
     { task: "근로자대표 서면합의 (탄력·선택근무·연차 대체 등) 갱신", cycle: "매년" },
     { task: "고충·진정 접수와 처리, 산재 신고", cycle: "수시", note: "산재 3일 이상 휴업 시 1개월 안 보고" },
   ] },
-  { no: "3-5", name: "조직 관리", emoji: "🌳", desc: "직원 명부·조직도·업무분장 개정", books: ["revisions"], links: [["직원 관리", "/employees"], ["조직도", "/org"]], duties: [
+  { no: "3-5", name: "조직 관리", emoji: "🌳", desc: "직원 명부·조직도·직무기술서·업무분장 개정", books: ["revisions"], links: [["직원 관리", "/employees"], ["조직도", "/org"], ["직무기술서", "/jobs"]], duties: [
     { task: "직원 명부·조직도 최신화 (입퇴사·발령 반영)", cycle: "변경 때" },
+    { task: "직무기술서 작성·개정 (조직·업무 변경 반영)", cycle: "연간" },
     { task: "업무분장·사내 규정 개정 이력 정리", cycle: "변경 때" },
     { task: "비상연락망 갱신·배포", cycle: "반기" },
   ] },
