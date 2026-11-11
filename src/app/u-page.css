@@ -209,32 +209,36 @@
 .rg-o.early { border-color: #f0b46b; background: #fffaf2; } .rg-o.early i { color: #c2410c; }
 .rg-o.none { color: #9aa3b5; border-style: dashed; }
 .rg-meta { align-self: center; font-size: .8rem; color: #7a8396; white-space: nowrap; display: inline-flex; gap: 4px; }
-.rg-plan { margin-top: 10px; padding: 10px 12px; background: #f7f9fd; border: 1px solid #e3e9f3; border-radius: 10px; display: flex; flex-direction: column; gap: 6px; }
-.rg-plan-h, .rg-plan-r { display: grid; grid-template-columns: 110px minmax(160px, 1fr) minmax(160px, 1fr); gap: 8px; align-items: center; }
-.rg-plan-h span { font-size: .72rem; font-weight: 700; color: #3b4a6b; }
-.rg-plan-r b { font-size: .86rem; font-variant-numeric: tabular-nums; }
-.rg-plan-r b small { color: #0c3994; font-size: .7rem; margin-left: 4px; }
-.rg-plan-r.today input { border-color: #9db4e3; }
-.rg-plan-r input { width: 100%; min-width: 0; }
-@media (max-width: 640px) { .rg-plan-h { display: none; } .rg-plan-r { grid-template-columns: 1fr; } }
-/* 가로/세로 보기 전환 */
-.rg-view { display: inline-flex; border: 1px solid #dfe5f0; border-radius: 8px; overflow: hidden; margin-top: 4px; }
-.rg-view button { background: #fff; border: 0; padding: 5px 12px; font-size: .8rem; color: #5b6578; cursor: pointer; }
-.rg-view button + button { border-left: 1px solid #dfe5f0; }
-.rg-view button.on { background: #0c3994; color: #fff; font-weight: 700; }
-/* 세로 보기: 칸마다 한 줄 (왼쪽 이름표 / 오른쪽 입력) */
+/* 날짜마다 근무지가 다를 때: 날짜별 묶음 */
+.rg-plan { margin-top: 10px; border: 1px solid #e3e9f3; border-radius: 10px; overflow: hidden; background: #fff; }
+.rg-plan-d + .rg-plan-d { border-top: 1px solid #e3e9f3; }
+.rg-plan-t { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #f7f9fd; border-bottom: 1px solid #e3e9f3; }
+.rg-plan-t b { font-size: .88rem; font-variant-numeric: tabular-nums; }
+.rg-plan-d.today .rg-plan-t b { color: #0c3994; }
+.rg-plan-t small { font-size: .7rem; color: #0c3994; background: #e3eafa; border-radius: 999px; padding: 1px 8px; }
+.rg-plan-f { display: grid; grid-template-columns: 130px minmax(0, 1fr); align-items: center; column-gap: 12px; padding: 8px 14px; }
+.rg-plan-f + .rg-plan-f { border-top: 1px solid #eef1f6; }
+.rg-plan-f input { width: min(100%, 460px); }
+/* 세로 배치 (2026-11-11 시안): 칸마다 한 줄, 왼쪽 이름표 / 오른쪽 입력 */
+.rg-vert .rg-head { align-items: center; }
+.rg-title { font-size: 1rem; font-weight: 800; color: #141a26; white-space: nowrap; }
+.rg-sum { font-size: .82rem; color: #5b6578; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rg-vert .rg-types { flex-direction: column; align-items: flex-start; gap: 6px; }
-.rg-vert .rg-body { flex-direction: column; align-items: stretch; gap: 8px; }
-.rg-vert .rg-body > .rg-cell { display: grid; grid-template-columns: 130px minmax(0, 1fr); align-items: center; column-gap: 12px; flex: none !important; min-width: 0 !important; max-width: none; }
+.rg-vert .rg-tgroup small { width: 30px; }
+.rg-vert .rg-body { flex-direction: column; align-items: stretch; gap: 0; padding-top: 2px; }
+.rg-vert .rg-body > .rg-cell { display: grid; grid-template-columns: 130px minmax(0, 1fr); align-items: center; column-gap: 12px; padding: 9px 0; border-bottom: 1px solid #eef1f6; flex: none !important; min-width: 0 !important; max-width: none; }
+.rg-vert .rg-body > .rg-cell:last-child { border-bottom: 0; }
 .rg-vert .rg-body > .rg-cell > :not(.rg-lbl) { justify-self: start; }
 .rg-vert .rg-body > .rg-cell > input[type="text"] { width: min(100%, 460px) !important; }
 .rg-vert .rg-body > .rg-cell:not(:has(> .rg-lbl)) { display: block; }
 .rg-vert .rg-body > .rg-cell.rg-hint { display: block; }
+.rg-vert .rg-lbl { font-size: .8rem; }
 .rg-vert .gf { display: grid; grid-template-columns: 130px minmax(0, 1fr); align-items: center; column-gap: 12px; }
+.rg-vert .gf > span { font-size: .8rem; }
 .rg-vert .gf > :not(span) { justify-self: start; max-width: 460px; width: 100%; }
 .rg-vert .gf-two { flex-direction: column; gap: 8px; }
-.rg-vert .rg-cell[style*="align-self"] { align-self: stretch !important; }
-@media (max-width: 640px) { .rg-vert .rg-body > .rg-cell, .rg-vert .gf { grid-template-columns: 1fr; } }
+.rg-vert .rg-absent { padding: 0 14px; }
+@media (max-width: 640px) { .rg-vert .rg-body > .rg-cell, .rg-vert .gf, .rg-plan-f { grid-template-columns: 1fr; row-gap: 4px; } }
 .rg-sep { width: 1px; align-self: stretch; background: #e1e7f0; margin: 2px 4px; }
 .rg-t.rg-none.on { background: #8a6d3b; border-color: #8a6d3b; }
 .rg-absent { margin-top: 10px; padding: 10px 12px; background: #fbf8f2; border: 1px solid #efe5d3; border-radius: 10px; }

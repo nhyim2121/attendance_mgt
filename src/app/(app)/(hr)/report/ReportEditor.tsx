@@ -122,9 +122,6 @@ export default function ReportEditor(p: Props) {
   const router = useRouter();
   // 근태현황 밖의 탭. 예전 휴가일정 줄은 사람·종류·시간별 한 줄로 정리해서 연다
   const [rows, setRows] = useState<ReportRow[]>(() => normDoje(tidySchedule(p.saved.filter((r) => !GROUPED(r.section)), p.day), p.day));
-  const [vert, setVert] = useState(false); // 입력 카드 세로 보기
-  useEffect(() => { try { setVert(localStorage.getItem("rg-vert") === "1"); } catch { /* 저장소 막힘 */ } }, []);
-  const toggleVert = () => setVert((v) => { try { localStorage.setItem("rg-vert", v ? "0" : "1"); } catch { /* */ } return !v; });
   const [hgroups, setHGroups] = useState<HGroup[]>(() => loadCards(p.saved, p.day).hgroups);
   const hset = useMemo(() => new Set(p.holidays), [p.holidays]);
   const isWorkday = (d: string) => weekday(d) < 5 && !hset.has(d);
@@ -306,22 +303,16 @@ export default function ReportEditor(p: Props) {
           onClick={() => autoLoad(false)}>다시 불러오기</button>
       </div>
 
-      <div className={`card${vert ? " rg-vert" : ""}`}>
-        <div className="row" style={{ alignItems: "flex-start", gap: 8 }}>
-          <div className="tabs">
-            {TABS.map(([k, l]) => (
-              <button key={k} className={k === tab ? "on" : ""} onClick={() => setTab(k)}>
-                {l} ({k === "근태" ? groups.reduce((t, g) => t + g.names.length, 0)
-                  : k === "휴일근무" ? hgroups.reduce((t, g) => t + g.names.length, 0)
-                  : rows.filter((r) => r.section === k && r.name).length})
-              </button>
-            ))}
-          </div>
-          <div className="spacer" />
-          <div className="rg-view" role="group" aria-label="입력칸 배치">
-            <button type="button" className={vert ? "" : "on"} onClick={() => vert && toggleVert()} title="입력칸을 옆으로 나란히">가로 보기</button>
-            <button type="button" className={vert ? "on" : ""} onClick={() => !vert && toggleVert()} title="입력칸을 위에서 아래로 한 줄씩">세로 보기</button>
-          </div>
+      {/* 입력 카드는 세로 배치: 칸마다 한 줄 (왼쪽 이름표 / 오른쪽 입력), 2026-11-11 시안 */}
+      <div className="card rg-vert">
+        <div className="tabs">
+          {TABS.map(([k, l]) => (
+            <button key={k} className={k === tab ? "on" : ""} onClick={() => setTab(k)}>
+              {l} ({k === "근태" ? groups.reduce((t, g) => t + g.names.length, 0)
+                : k === "휴일근무" ? hgroups.reduce((t, g) => t + g.names.length, 0)
+                : rows.filter((r) => r.section === k && r.name).length})
+            </button>
+          ))}
         </div>
         {tab === "근태" && (
           <div className="rg-list">
@@ -340,19 +331,24 @@ export default function ReportEditor(p: Props) {
                 <div key={g.id} className={`rg-card${!cur.length && g.names.length ? " warn" : ""}`}>
                   <div className="rg-head">
                     <span className="rg-no">{n + 1}</span>
-                    <div className="rg-types">
-                      {TYPE_GROUPS.map(([label, ts]) => (
-                        <span key={label} className="rg-tgroup">
-                          <small>{label}</small>
-                          {ts.map((t) => (
-                            <button key={t} type="button" className={`rg-t${cur.includes(t) ? " on" : ""}`} onClick={() => toggleGType(g, t)}>{t}</button>
-                          ))}
-                        </span>
-                      ))}
-                    </div>
+                    <span className="rg-title">{cur.join("·") || "근태 종류 미선택"}</span>
+                    <span className="rg-sum">{[g.names.join(", "), gFrom === gTo ? dayLabel(gFrom) : `${md(gFrom)}~${md(gTo)}`].filter(Boolean).join(" · ")}</span>
+                    <span className="spacer" />
                     <button type="button" className="rg-del" onClick={() => setGroups((gs) => gs.filter((x) => x.id !== g.id))} title="이 근태 삭제">삭제</button>
                   </div>
                   <div className="rg-body">
+                    <div className="rg-cell"><span className="rg-lbl">근태 종류</span>
+                      <div className="rg-types">
+                        {TYPE_GROUPS.map(([label, ts]) => (
+                          <span key={label} className="rg-tgroup">
+                            <small>{label}</small>
+                            {ts.map((t) => (
+                              <button key={t} type="button" className={`rg-t${cur.includes(t) ? " on" : ""}`} onClick={() => toggleGType(g, t)}>{t}</button>
+                            ))}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                     <div className="rg-cell rg-who">
                       <span className="rg-lbl">인원</span>
                       <NamePicker names={g.names} all={p.names} toggle={(nm) => toggleName(g, nm)} hint="고른 사람마다 같은 근태·근무지·내용으로 저장됩니다." />
@@ -365,26 +361,29 @@ export default function ReportEditor(p: Props) {
                         <span className="muted">~</span>
                         <input type="date" value={g.to || g.from || p.day} min={g.from || p.day} style={{ width: 132 }}
                           onChange={(e) => setG(g.id, { from: g.from || p.day, to: e.target.value })} />
+                        {gTo > gFrom && <span className="rg-auto">{Math.round((Date.parse(gTo) - Date.parse(gFrom)) / 864e5) + 1}일</span>}
                       </span>
                     </div>
-                    {!cur.length ? <div className="rg-cell rg-hint">위에서 근태 종류를 고르면 장소·사유 칸이 나옵니다.</div>
-                      : !planOn ? <GroupFields g={g} setG={setG} />
-                      : <div className="rg-cell rg-hint" style={{ alignSelf: "flex-end" }}>근무장소·목적은 아래 날짜별 일정에 적습니다.</div>}
                     {multi && (
-                      <div className="rg-cell" style={{ alignSelf: "flex-end" }}>
-                        <button type="button" className={`rg-t${planOn ? " on" : ""}`} title="연속 출장 중 날짜마다 근무장소가 다를 때"
-                          onClick={() => {
-                            if (planOn) { // 끄면 보고일 내용만 남긴다
-                              const t = plan![p.day] ?? Object.values(plan!)[0] ?? [g.title, g.detail];
-                              setG(g.id, { note: "", title: t[0], detail: t[1] });
-                            } else setG(g.id, { note: planNote(Object.fromEntries(planDays.map((d) => [d, [g.title, g.detail]]))) });
-                          }}>날짜마다 근무지 다름</button>
+                      <div className="rg-cell"><span className="rg-lbl">{cat === "edu" ? "교육장소" : "근무지"}</span>
+                        <span className="row" style={{ gap: 4 }}>
+                          {/* 끄면 보고일 내용만 남긴다 */}
+                          <button type="button" className={`rg-t${planOn ? "" : " on"}`} onClick={() => {
+                            if (!planOn) return;
+                            const t = plan![p.day] ?? Object.values(plan!)[0] ?? [g.title, g.detail];
+                            setG(g.id, { note: "", title: t[0], detail: t[1] });
+                          }}>모든 날 같음</button>
+                          <button type="button" className={`rg-t${planOn ? " on" : ""}`} title="연속 출장 중 날짜마다 근무장소가 다를 때" onClick={() => {
+                            if (!planOn) setG(g.id, { note: planNote(Object.fromEntries(planDays.map((d) => [d, [g.title, g.detail]]))) });
+                          }}>날짜마다 다름</button>
+                        </span>
                       </div>
                     )}
+                    {!cur.length ? <div className="rg-cell rg-hint">위에서 근태 종류를 고르면 장소·사유 칸이 나옵니다.</div>
+                      : !planOn ? <GroupFields g={g} setG={setG} /> : null}
                   </div>
                   {planOn && (
                     <div className="rg-plan">
-                      <div className="rg-plan-h"><span>날짜</span><span>{cat === "edu" ? "교육장소" : "근무장소"}</span><span>{cat === "edu" ? "교육목적/내용" : "목적/작업내용"}</span></div>
                       {planDays.map((d) => {
                         const v = plan![d] ?? ["", ""];
                         const put = (k: 0 | 1, x: string) => {
@@ -392,14 +391,16 @@ export default function ReportEditor(p: Props) {
                           setG(g.id, { note: planNote({ ...plan!, [d]: nv }) });
                         };
                         return (
-                          <div key={d} className={`rg-plan-r${d === p.day ? " today" : ""}`}>
-                            <b>{dayLabel(d)}{d === p.day && <small> 보고일</small>}</b>
-                            <input type="text" value={v[0]} placeholder="예: 군산자원회수시설" onChange={(e) => put(0, e.target.value)} />
-                            <input type="text" value={v[1]} placeholder="예: 회사소개" onChange={(e) => put(1, e.target.value)} />
+                          <div key={d} className={`rg-plan-d${d === p.day ? " today" : ""}`}>
+                            <div className="rg-plan-t"><b>{dayLabel(d)}</b>{d === p.day && <small>보고일</small>}</div>
+                            <label className="rg-plan-f"><span className="rg-lbl">{cat === "edu" ? "교육장소" : "근무장소"}</span>
+                              <input type="text" value={v[0]} placeholder="예: 군산자원회수시설" onChange={(e) => put(0, e.target.value)} /></label>
+                            <label className="rg-plan-f"><span className="rg-lbl">{cat === "edu" ? "교육목적/내용" : "목적/작업내용"}</span>
+                              <input type="text" value={v[1]} placeholder="예: 회사소개" onChange={(e) => put(1, e.target.value)} /></label>
                           </div>
                         );
                       })}
-                      <span className="caption" style={{ margin: 0 }}>저장하면 기간 안의 근무일 보고서마다 그날의 장소·내용으로 들어갑니다. 휴일은 빠집니다.</span>
+                      <span className="caption" style={{ margin: "8px 14px" }}>저장하면 기간 안의 근무일 보고서마다 그날의 장소·내용으로 들어갑니다. 휴일은 빠집니다.</span>
                     </div>
                   )}
                 </div>
@@ -424,16 +425,8 @@ export default function ReportEditor(p: Props) {
                   <div className="rg-head">
                     <span className="rg-no">{n + 1}</span>
                     {nameSelect(i, r)}
-                    <div className="rg-types">
-                      {!legacy && SCHED_GROUPS.map(([label, ts]) => (
-                        <span key={label} className="rg-tgroup"><small>{label}</small>
-                          {ts.map((t) => (
-                            <button key={t} type="button" className={`rg-t${kind === t ? " on" : ""}`}
-                              onClick={() => set(i, { title: t, ...(leaveUnit(t) !== unit ? { detail: "" } : {}) })}>{t}</button>
-                          ))}
-                        </span>
-                      ))}
-                    </div>
+                    {!legacy && <span className="rg-sum">{kind}{ds.length ? ` · ${unit === "day" ? `${ds.length}일` : `${ds.length}회`}` : ""}</span>}
+                    <span className="spacer" />
                     <button type="button" className="rg-del" onClick={() => remove(i)} title="이 휴가 삭제">삭제</button>
                   </div>
                   {legacy ? (
@@ -443,6 +436,18 @@ export default function ReportEditor(p: Props) {
                     </div>
                   ) : (
                     <div className="rg-body">
+                      <div className="rg-cell"><span className="rg-lbl">휴가 종류</span>
+                        <div className="rg-types">
+                          {SCHED_GROUPS.map(([label, ts]) => (
+                            <span key={label} className="rg-tgroup"><small>{label}</small>
+                              {ts.map((t) => (
+                                <button key={t} type="button" className={`rg-t${kind === t ? " on" : ""}`}
+                                  onClick={() => set(i, { title: t, ...(leaveUnit(t) !== unit ? { detail: "" } : {}) })}>{t}</button>
+                              ))}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                       <div className="rg-cell"><span className="rg-lbl">날짜</span>
                         <div className="row" style={{ gap: 4, maxWidth: 380 }}>
                           {ds.map((d) => (
@@ -493,14 +498,22 @@ export default function ReportEditor(p: Props) {
                 <div key={g.id} className={`rg-card${g.names.length && !ds.length ? " warn" : ""}`}>
                   <div className="rg-head">
                     <span className="rg-no">{n + 1}</span>
-                    <div className="rg-types">
-                      <span className="rg-tgroup"><small>구분</small>
+                    <span className="rg-title">{g.kind}근무</span>
+                    <span className="rg-sum">{[ds.map((d) => dayLabel(d)).join(", "), g.names.length ? `${g.names.length}명` : ""].filter(Boolean).join(" · ")}</span>
+                    <span className="spacer" />
+                    <button type="button" className="rg-del" onClick={() => setHGroups((gs) => gs.filter((x) => x.id !== g.id))} title="이 작업 삭제">삭제</button>
+                  </div>
+                  <div className="rg-body">
+                    <div className="rg-cell"><span className="rg-lbl">구분</span>
+                      <span className="row" style={{ gap: 4 }}>
                         {(["휴일", "연장"] as const).map((k) => (
                           <button key={k} type="button" className={`rg-t${g.kind === k ? " on" : ""}`}
                             onClick={() => setH(g.id, { kind: k, types: k === g.kind ? g.types : k === "연장" ? p.day : "", until: k === "연장" ? g.until : "" })}>{k}근무</button>
                         ))}
                       </span>
-                      <span className="rg-tgroup"><small>날짜</small>
+                    </div>
+                    <div className="rg-cell"><span className="rg-lbl">날짜</span>
+                      <span className="row" style={{ gap: 4 }}>
                         {opts.map((d) => (
                           <button key={d} type="button" className={`rg-t${ds.includes(d) ? " on" : ""}`} onClick={() => toggleDay(d)}>{dayLabel(d)}</button>
                         ))}
@@ -510,9 +523,6 @@ export default function ReportEditor(p: Props) {
                         }} />
                       </span>
                     </div>
-                    <button type="button" className="rg-del" onClick={() => setHGroups((gs) => gs.filter((x) => x.id !== g.id))} title="이 작업 삭제">삭제</button>
-                  </div>
-                  <div className="rg-body">
                     <div className="rg-cell rg-who"><span className="rg-lbl">명단</span>
                       <NamePicker names={g.names} all={p.names} hint="고른 사람마다 같은 날짜·근무지·작업내용으로 저장됩니다."
                         toggle={(nm) => setH(g.id, { names: g.names.includes(nm) ? g.names.filter((x) => x !== nm) : [...g.names, nm] })} />
@@ -575,7 +585,8 @@ export default function ReportEditor(p: Props) {
               const toggleDay = (d: string) => {
                 const next = (picked.includes(d) ? picked.filter((x) => x !== d) : [...picked, d]).sort();
                 set(i, { value: next.map((x) => dayLabel(x)).join(", "), ...(next.length ? { note: "" } : {}) });
-              };              const nt = splitDojeNote(r.note, p.day);
+              };
+              const nt = splitDojeNote(r.note, p.day);
               const setNote = (x: Partial<typeof nt>) => {
                 const v = { ...nt, ...x };
                 set(i, { note: joinDojeNote(v.reason, v.from, v.to) });
@@ -588,11 +599,11 @@ export default function ReportEditor(p: Props) {
                     <span className="rg-no">{n + 1}</span>
                     {nameSelect(i, r, p.apprentices)}
                     {meta.length > 0 && <span className="rg-meta">{meta.map((x) => <span key={x} className="rg-tag">{x}</span>)}</span>}
-                    <div className="rg-types" />
+                    <span className="spacer" />
                     <button type="button" className="rg-del" onClick={() => remove(i)} title="이 학생 줄 삭제">삭제</button>
                   </div>
                   <div className="rg-body">
-                    <div className="rg-cell"><span className="rg-lbl">출근일 (출근한 날을 모두 누르세요)</span>
+                    <div className="rg-cell"><span className="rg-lbl">출근일</span>
                       <span className="row" style={{ gap: 4, flexWrap: "nowrap" }}>
                         {apprWeek.map((d) => (
                           <button key={d} type="button" className={`rg-t${picked.includes(d) ? " on" : ""}`} onClick={() => toggleDay(d)}>{dayLabel(d)}</button>
@@ -604,7 +615,7 @@ export default function ReportEditor(p: Props) {
                       {legacyVal && <span className="rg-hint" style={{ alignSelf: "flex-start" }}>예전 입력: {legacyVal}</span>}
                     </div>
                     {!absent && (
-                      <label className="rg-cell" style={{ flex: 1, minWidth: 200 }}><span className="rg-lbl">비고 (선택)</span>
+                      <label className="rg-cell" style={{ flex: 1, minWidth: 200 }}><span className="rg-lbl">비고</span>
                         {text(i, "note", "필요할 때만 적으세요", 200)}</label>
                     )}
                   </div>
@@ -623,7 +634,7 @@ export default function ReportEditor(p: Props) {
                         {days > 0 && <span className="rg-auto">{days}일</span>}
                       </span>
                     </div>
-                    <div className="rg-cell" style={{ flex: 1, minWidth: 180 }}><span className="rg-lbl">보고서 비고 (자동)</span>
+                    <div className="rg-cell" style={{ flex: 1, minWidth: 180 }}><span className="rg-lbl">보고서 비고</span>
                       <span className="rg-auto" style={{ fontWeight: 600 }}>{r.note.trim() || "-"}</span></div>
                   </div>
                   )}
