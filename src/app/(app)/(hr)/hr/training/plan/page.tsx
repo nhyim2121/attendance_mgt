@@ -3,6 +3,7 @@
 import Link from "next/link";
 import PageHead from "@/components/대시/PageHead";
 import PrintButton from "@/components/PrintButton";
+import DocHead, { SdH } from "@/components/인사노무/DocHead";
 import { requireAdminPage } from "@/lib/auth";
 import { loadBooks } from "@/lib/대장/store";
 import { loadBase } from "@/lib/인사노무/data";
@@ -31,7 +32,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
     return (
       <div className="home">
         <div className="noprint">
-          <PageHead href="/hr/training/plan" title="교육/훈련 계획서" mark={`${y}년`} emoji="🎓" desc="연간 교육 계획 대장으로 회사 양식 계획서를 만듭니다. 팀명·작성일자는 아래에서 바꿔 인쇄하세요.">
+          <PageHead href="/hr/training/plan" title="교육/훈련 계획서" mark={`${y}년`} emoji="🎓" desc="연간 교육 계획 대장으로 계획서를 만듭니다. 팀명·작성일자는 아래에서 바꿔 인쇄하세요.">
             <Link className="pill" href={`?y=${y}`}>계획·실적표</Link>
             <Link className="pill" href={`?y=${y + 1}&view=doc`}>{y + 1}년</Link>
             <Link className="pill" href="/hr/b/trainplan#form">+ 계획 추가</Link>
@@ -44,29 +45,21 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
             <button className="btn sm">바꾸기</button>
           </form>
         </div>
-        <div className="tr-paper rep">
-          <table className="tr-rh"><tbody>
-            <tr>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <td rowSpan={3} className="logo"><img src="/logo.png" alt="회사 로고" /></td>
-              <td rowSpan={3} className="ttl" style={{ letterSpacing: ".15em" }}>( {y} )년 교육 / 훈련<br />계획서</td>
-              <th>작 성</th><th>검 토</th><th>승 인</th>
-            </tr>
-            <tr><td className="sg" /><td className="sg" /><td className="sg" /></tr>
-            <tr><td className="dt">/ &nbsp; /</td><td className="dt">/ &nbsp; /</td><td className="dt">/ &nbsp; /</td></tr>
-          </tbody></table>
-          <table className="tr-rb"><tbody><tr>
-            <th>팀 명</th><td>{team}</td><th>작성일자</th><td>{wrote.replaceAll("-", ".")}</td><th>작성자</th><td>{user.name}</td>
-          </tr></tbody></table>
-          <table className="tr-rb pl"><thead><tr><th>NO</th><th>교육대상</th><th>교육과정명</th><th>교육시간</th><th>교육월</th><th>교육기관<br />(장소)</th><th>비 고</th></tr></thead>
+        <div className="doc-page sd-doc">
+          <DocHead eyebrow="3-7 교육훈련 · 교육·훈련 계획서" title={`${y}년 교육·훈련 계획서`} appr
+            chips={[team, `작성 ${wrote.replaceAll("-", ".")} · ${user.name}`, `${plans.length}개 과정`, `예산 ${plans.reduce((s, p) => s + (+p.data.budget || 0), 0).toLocaleString()}원`]} />
+          <SdH>교육 과정</SdH>
+          <table className="doc-tbl full sd-tbl">
+            <thead><tr><th style={{ width: 40 }}>No</th><th>교육월</th><th>구분</th><th className="l">교육과정명</th><th>교육대상</th><th>교육시간</th><th>교육기관·장소</th><th className="l">비고</th></tr></thead>
             <tbody>
               {plans.map((p, i) => (
-                <tr key={p.id}><td>{i + 1}</td><td>{p.data.target}</td><td className="l">{p.data.name}</td><td>{p.data.hours}</td>
-                  <td>{+(p.day ?? "").slice(5, 7)}</td><td>{p.data.org}</td><td className="l">{(p.data.note ?? "").split("\n")[0]}</td></tr>
+                <tr key={p.id}><td>{i + 1}</td><td className="b">{+(p.day ?? "").slice(5, 7)}월</td><td>{p.data.kind}</td><td className="l b">{p.data.name}</td>
+                  <td>{p.data.target}</td><td>{p.data.hours}</td><td>{p.data.org}</td><td className="l">{(p.data.note ?? "").split("\n")[0]}</td></tr>
               ))}
-              {Array.from({ length: Math.max(0, 14 - plans.length) }, (_, i) => <tr key={`e${i}`}><td>&nbsp;</td><td /><td /><td /><td /><td /><td /></tr>)}
+              {!plans.length && <tr><td colSpan={8} className="muted">연간 교육 계획 대장에 {y}년 계획이 없습니다.</td></tr>}
             </tbody>
           </table>
+          <p className="sd-foot">통합관리시스템 · 연간 교육 계획 대장 기준</p>
         </div>
       </div>
     );

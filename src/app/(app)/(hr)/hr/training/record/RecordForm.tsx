@@ -165,20 +165,25 @@ export default function RecordForm({ init, plans, kinds, people, absent, today }
       </div>
 
       <aside className="tr-rec-r">
-        <div className="muted" style={{ fontSize: ".8rem", fontWeight: 700, marginBottom: 6 }}>미리보기 · 교육결과 보고서 (저장하면 회사 양식 인쇄 화면으로)</div>
-        <div className="tr-paper sm">
-          <h2>교육결과 보고서</h2>
-          <table className="tr-doc"><tbody>
-            <tr><th>교육명</th><td colSpan={3}>{v.name || "　"}</td></tr>
-            <tr><th>교육일시</th><td>{v.day} {v.time}</td><th>시간</th><td>{v.hours ? `${v.hours}시간` : ""}</td></tr>
-            <tr><th>장소·방법</th><td>{v.place}</td><th>강사</th><td>{v.by}</td></tr>
-            <tr><th>대상·인원</th><td colSpan={3}>{staff.length}명 중 {n}명 참석{v.kind ? ` · ${v.kind}` : ""}</td></tr>
-            <tr><th style={{ height: 54 }}>교육 내용</th><td colSpan={3} style={{ whiteSpace: "pre-line" }}>{v.content}</td></tr>
-          </tbody></table>
-          <h3>참석자 서명부</h3>
-          <table className="tr-doc c"><thead><tr><th>No</th><th>부서</th><th>성명</th><th>서명</th><th>No</th><th>부서</th><th>성명</th><th>서명</th></tr></thead>
+        <div className="muted" style={{ fontSize: ".8rem", fontWeight: 700, marginBottom: 6 }}>미리보기 · 교육결과 보고서 (저장하면 인쇄 화면으로)</div>
+        <div className="doc-page sd-doc">
+          <div className="sd-head"><div className="sd-hl">
+            <span className="sd-eb">3-7 교육훈련 · 교육결과 보고서</span>
+            <h1>{v.name || "교육명"}</h1>
+            <div className="sd-chips">{[v.day, v.hours && `${v.hours}시간`, v.kind, v.place].filter(Boolean).map((c, i) => <span key={i} className="sd-chip">{c}</span>)}</div>
+          </div></div>
+          <div className="sd-rule" />
+          <dl className="sd-info two">
+            <div><dt>교육일시</dt><dd>{v.day} {v.time}</dd></div>
+            <div><dt>강사·기관</dt><dd>{v.by || "-"}</dd></div>
+            <div><dt>참석 인원</dt><dd>{staff.length}명 중 {n}명</dd></div>
+            <div><dt>효과성 평가</dt><dd>{v.effect || "-"}</dd></div>
+          </dl>
+          <div className="sd-box" style={{ minHeight: 60 }}>{v.content || <span className="muted">교육 내용</span>}</div>
+          <table className="doc-tbl full sd-tbl"><thead><tr><th>No</th><th>부서</th><th>성명</th><th>평가</th><th>No</th><th>부서</th><th>성명</th><th>평가</th></tr></thead>
             <tbody>{pairs.slice(0, 8).map(([a, b], i) => (
-              <tr key={i}><td>{a ? i * 2 + 1 : ""}</td><td>{a?.dept}</td><td>{a?.name}</td><td /><td>{b ? i * 2 + 2 : ""}</td><td>{b?.dept}</td><td>{b?.name}</td><td /></tr>
+              <tr key={i}><td>{a ? i * 2 + 1 : ""}</td><td>{a?.dept}</td><td className="b">{a?.name}</td><td className={`g ${a ? grades[a.name] ?? "" : ""}`}>{a ? grades[a.name] : ""}</td>
+                <td>{b ? i * 2 + 2 : ""}</td><td>{b?.dept}</td><td className="b">{b?.name}</td><td className={`g ${b ? grades[b.name] ?? "" : ""}`}>{b ? grades[b.name] : ""}</td></tr>
             ))}</tbody></table>
           {pairs.length > 8 && <small className="muted">… {chosen.length}명까지 이어짐</small>}
         </div>

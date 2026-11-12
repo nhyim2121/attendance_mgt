@@ -36,7 +36,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
       </PageHead>
       <TrainTabs on="matrix" />
 
-      <div className="tr-chips noprint">
+      <div className="seg noprint" style={{ marginBottom: 14, marginLeft: 10 }}>
         <Link href={q({ dept: "" })} className={!dept ? "on" : ""}>전체 {v.people.length}</Link>
         {depts.map((d) => <Link key={d} href={q({ dept: d })} className={dept === d ? "on" : ""}>{d} {v.people.filter((p) => (p.emp.dept || "(부서 없음)") === d).length}</Link>)}
       </div>

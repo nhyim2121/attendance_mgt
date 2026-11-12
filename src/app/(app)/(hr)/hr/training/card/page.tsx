@@ -3,6 +3,7 @@
 import Link from "next/link";
 import PageHead from "@/components/대시/PageHead";
 import PrintButton from "@/components/PrintButton";
+import DocHead, { SdH } from "@/components/인사노무/DocHead";
 import { requireAdminPage } from "@/lib/auth";
 import { attendeesOf, historyOf, LEGAL, trainingView } from "@/lib/인사노무/training";
 import { daysBetween, todayKst } from "@/lib/time";
@@ -70,62 +71,63 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
         </PageHead>
       </div>
 
-      <div className="tr-paper rep card">
-        <table className="tr-rh"><tbody><tr>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <td className="logo"><img src="/logo.png" alt="회사 로고" /></td>
-          <td className="ttl">개인별 교육이력카드</td>
-          <td className="dt" style={{ width: "20%" }}>출력일 {dot(today)}</td>
-        </tr></tbody></table>
+      <div className="doc-page sd-doc">
+        <DocHead eyebrow="3-7 교육훈련 · 개인별 교육이력카드" title={`개인별 교육이력카드 · ${name}`}
+          chips={[[e?.dept, e?.rank, e?.position].filter(Boolean).join(" "), e?.joinDate && `입사 ${dot(e.joinDate)} (${tenure})`, `교육 ${h.items.length}건 · 수료 ${h.items.filter((i) => i.st === "수료").length}건`,
+            me && me.need ? [`${tv.year}년 법정 ${Math.round((me.done / me.need) * 100)}%`, me.done >= me.need ? "ok" : "warn"] : null, `출력 ${dot(today)}`]} />
 
-        <h3 className="tr-st-t">1. 인적 사항</h3>
-        <table className="tr-rb"><tbody>
-          <tr><th>성 명</th><td><b>{name}</b></td><th>부 서</th><td>{e?.dept}</td><th>직급·직책</th><td>{[e?.rank, e?.position].filter(Boolean).join(" · ")}</td></tr>
-          <tr><th>입 사 일</th><td>{dot(e?.joinDate)}</td><th>근 속</th><td>{tenure}</td><th>사 번</th><td>{e?.empId}</td></tr>
-          <tr><th>안전보건교육<br />기준</th><td colSpan={5} className="l">
+        <SdH>인적 사항</SdH>
+        <dl className="sd-info">
+          <div><dt>성명</dt><dd className="b">{name}</dd></div>
+          <div><dt>부서</dt><dd>{e?.dept || "-"}</dd></div>
+          <div><dt>직급·직책</dt><dd>{[e?.rank, e?.position].filter(Boolean).join(" · ") || "-"}</dd></div>
+          <div><dt>사번</dt><dd>{e?.empId || "-"}</dd></div>
+          <div><dt>입사일</dt><dd>{dot(e?.joinDate) || "-"}</dd></div>
+          <div><dt>근속</dt><dd>{tenure || "-"}</dd></div>
+          <div className="full"><dt>안전보건교육 기준</dt><dd>
             {me ? (SAFE.hours!(me.emp, h.opts) === 6 ? "사무직" : "현장직 등") : "-"} · 반기 {me ? (tv.noAccident.on ? SAFE.hours!(me.emp, h.opts) / 2 : SAFE.hours!(me.emp, h.opts)) : "-"}시간
-            {tv.noAccident.on ? " (무재해 50% 감면)" : ""}{me && me.cells.super.st !== "na" ? " · 관리감독자 연 16시간" : ""}</td></tr>
-        </tbody></table>
+            {tv.noAccident.on ? " (무재해 50% 감면)" : ""}{me && me.cells.super.st !== "na" ? " · 관리감독자 연 16시간" : ""}</dd></div>
+        </dl>
 
-        <h3 className="tr-st-t">2. {tv.year}년 법정의무교육 이수</h3>
-        <table className="tr-sx"><thead><tr>{LEGAL.map((d) => <th key={d.key} className="cn" style={{ whiteSpace: "pre-line" }}>{d.short}</th>)}<th>이수율</th></tr></thead>
-          <tbody><tr>{LEGAL.map((d) => {
+        <SdH>{tv.year}년 법정의무교육 이수</SdH>
+        <div className="sd-legal">
+          {LEGAL.map((d) => {
             const c = me?.cells[d.key];
-            return <td key={d.key} className={c?.st === "no" || c?.st === "part" ? "bad" : c?.st === "na" ? "na" : ""}>{c ? (c.st === "ok" ? `수료 ${c.text}` : c.text) : "-"}</td>;
-          })}<td><b>{me && me.need ? `${Math.round((me.done / me.need) * 100)}%` : "-"}</b></td></tr></tbody>
-        </table>
+            const st = c?.st ?? "na";
+            return <div key={d.key} className={st}><small>{d.short.replace("\n", " ")}</small><b>{st === "ok" ? "수료" : st === "na" ? "대상 아님" : st === "part" ? "시간 부족" : "미이수"}</b><span>{st === "ok" ? c?.text : st === "part" ? c?.text : ""}</span></div>;
+          })}
+        </div>
 
-        <div className="tr-two">
+        <div className="sd-two">
           <div>
-            <h3 className="tr-st-t">3. 연도별 교육 시간</h3>
-            <table className="tr-sx"><thead><tr><th>연도</th><th>수료 과정</th><th>총 시간</th><th>법정교육 시간</th></tr></thead>
-              <tbody>{byYear.map((b) => <tr key={b.y}><td>{b.y}</td><td>{b.n}</td><td><b>{b.hours}</b>h</td><td>{b.legal}h</td></tr>)}
-                {!byYear.length && <tr><td colSpan={4}>기록 없음</td></tr>}</tbody>
+            <SdH>연도별 교육 시간</SdH>
+            <table className="doc-tbl full sd-tbl"><thead><tr><th>연도</th><th>수료 과정</th><th>총 시간</th><th>법정교육</th></tr></thead>
+              <tbody>{byYear.map((b) => <tr key={b.y}><td className="b">{b.y}</td><td>{b.n}</td><td className="b">{b.hours}h</td><td>{b.legal}h</td></tr>)}
+                {!byYear.length && <tr><td colSpan={4} className="muted">기록 없음</td></tr>}</tbody>
             </table>
           </div>
           <div>
-            <h3 className="tr-st-t">4. 자격증 · 선임</h3>
-            <table className="tr-sx"><thead><tr><th>자격증</th><th>취득일</th><th>선임</th><th>보수교육·갱신</th></tr></thead>
+            <SdH>자격증 · 선임</SdH>
+            <table className="doc-tbl full sd-tbl"><thead><tr><th className="l">자격증</th><th>취득일</th><th>선임</th><th>보수교육·갱신</th></tr></thead>
               <tbody>{h.licenses.map((l) => (
-                <tr key={l.id}><td className="l">{l.data.name}{l.data.grade ? ` (${l.data.grade})` : ""}</td><td>{dot(l.data.got)}</td>
+                <tr key={l.id}><td className="l b">{l.data.name}{l.data.grade ? ` (${l.data.grade})` : ""}</td><td>{dot(l.data.got)}</td>
                   <td>{l.data.role && l.data.role !== "선임 아님" ? l.data.role : "-"}</td>
-                  <td className={l.data.renew && l.data.renew < today ? "bad" : ""}>{dot(l.data.renew)}</td></tr>
-              ))}{!h.licenses.length && <tr><td colSpan={4}>등록된 자격증 없음</td></tr>}</tbody>
+                  <td className={l.data.renew && l.data.renew < today ? "red b" : ""}>{dot(l.data.renew)}</td></tr>
+              ))}{!h.licenses.length && <tr><td colSpan={4} className="muted">등록된 자격증 없음</td></tr>}</tbody>
             </table>
           </div>
         </div>
 
-        <h3 className="tr-st-t">5. 교육 이력 <span className="muted" style={{ fontWeight: 400, fontSize: ".8rem" }}>{h.items.length}건 · 수료 {h.items.filter((i) => i.st === "수료").length}건</span></h3>
-        <table className="tr-sx"><thead><tr><th>No</th><th>교육일</th><th>교육명</th><th>구분</th><th>시간</th><th>교육기관·강사</th><th>결과</th><th>평가</th><th>수료증</th></tr></thead>
+        <SdH>교육 이력</SdH>
+        <table className="doc-tbl full sd-tbl"><thead><tr><th style={{ width: 36 }}>No</th><th>교육일</th><th className="l">교육명</th><th>구분</th><th>시간</th><th>교육기관·강사</th><th>결과</th><th>평가</th><th>수료증</th></tr></thead>
           <tbody>{h.items.map((i, n) => (
             <tr key={i.row.id}><td>{n + 1}</td><td>{dot(i.row.day)}</td>
-              <td className="l"><Link href={`/hr/training/sheet?id=${i.row.id}`}>{i.row.data.name}</Link>{i.legal.length ? <span className="tr-lgl">법정</span> : null}</td>
+              <td className="l b"><Link href={`/hr/training/sheet?id=${i.row.id}`}>{i.row.data.name}</Link>{i.legal.length ? <span className="sd-tag">법정</span> : null}</td>
               <td>{i.row.data.kind}</td><td>{i.row.data.hours ? `${i.row.data.hours}h` : ""}</td><td>{i.row.data.by}</td>
-              <td className={i.st === "미수료" ? "bad" : ""}>{i.st}</td><td>{i.grade}</td><td className="cf">{i.cert ? "O" : ""}</td></tr>
-          ))}{!h.items.length && <tr><td colSpan={9}>교육 기록이 없습니다.</td></tr>}</tbody>
+              <td><span className={`sd-pill ${i.st === "수료" ? "ok" : "bad"}`}>{i.st}</span></td><td className={`g ${i.grade}`}>{i.grade}</td><td>{i.cert ? <span className="sd-pill ok">제출</span> : ""}</td></tr>
+          ))}{!h.items.length && <tr><td colSpan={9} className="muted">교육 기록이 없습니다.</td></tr>}</tbody>
         </table>
-        <p className="tr-st-foot">※ 교육 실시 대장의 참석자·수강 대상자 기준 · 미수료: 수강 대상이었으나 수료하지 않은 과정</p>
-      </div>
-    </div>
+        <p className="sd-foot">교육 실시 대장의 참석자·수강 대상자 기준 · 미수료: 수강 대상이었으나 수료하지 않은 과정 · 통합관리시스템</p>
+      </div>    </div>
   );
 }
