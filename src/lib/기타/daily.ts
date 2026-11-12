@@ -50,3 +50,16 @@ export function stateOf(done: number, all: number): DayState {
   return done >= all ? "완료" : done ? "진행 중" : "시작 전";
 }
 export const cycleText = (r: Routine) => (r.cycle === "daily" ? "매일" : r.cycle === "weekly" ? `매주 ${"월화수목금토일"[r.wd ?? 0]}` : `매월 ${r.md}일`);
+
+/** 그날 보드 한 칸: 반복 업무 + (오늘이면) 사이트가 찾아 준 기한 + 오늘만 할 일, 완료 수·상태 */
+export interface SysTodo { id: string; text: string; sub: string; href: string; left: number }
+export function dayView(data: DailyData, day: DateStr, sys: SysTodo[]) {
+  const d = data.days[day] ?? { items: [], rdone: [] };
+  const rs = routinesOn(data.routines, day);
+  const all = rs.length + d.items.length + sys.length;
+  const done = rs.filter((r) => d.rdone.includes(r.id)).length + d.items.filter((i) => i.done).length + sys.filter((s) => d.rdone.includes(s.id)).length;
+  return {
+    day, routines: rs.map((r) => ({ id: r.id, text: r.text, done: d.rdone.includes(r.id) })), items: d.items,
+    sys: sys.map((s) => ({ ...s, done: d.rdone.includes(s.id) })), memo: d.memo ?? "", done, all, state: stateOf(done, all) as string,
+  };
+}

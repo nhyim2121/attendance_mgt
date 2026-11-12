@@ -1,11 +1,11 @@
 /** 대장만 있는 영역(환경안전보건·기타)의 대시보드: 대장별 숫자 카드 + 다가오는 기한 + 최근 기록 */
-import AreaDash from "./AreaDash";
+import AreaDash, { type AreaLayout, type HeroBig } from "./AreaDash";
 import { Card, type KpiProps, MiniTable, Tag } from "./parts";
 import { bookStats, ddayText, ddayTone, recentRows, todos } from "@/lib/대시/data";
 import { menuOf } from "@/lib/대시/menu";
 import { dayLabel } from "@/lib/time";
 
-export default async function BookArea({ area }: { area: "ehs" | "it" | "misc" }) {
+export default async function BookArea({ area, layout, hero }: { area: "ehs" | "it" | "misc"; layout?: AreaLayout; hero?: HeroBig }) {
   const m = menuOf(area);
   const [stats, list, recent, openRows] = await Promise.all([bookStats(area), todos(true), recentRows(area, 6), recentRows(area, 6, true)]);
   const mine = list.filter((t) => t.area === area);
@@ -22,7 +22,7 @@ export default async function BookArea({ area }: { area: "ehs" | "it" | "misc" }
   ];
   const quick: [string, string][] = stats.map((s) => [`${s.href}#form`, `${s.title.replace(/ (관리|대장|일지)$/, "")} 기록`]);
   return (
-    <AreaDash area={area} kpis={kpis} quick={quick}>
+    <AreaDash area={area} kpis={kpis} quick={quick} layout={layout} hero={hero}>
       {stats.length === 1 ? (
         <Card en="IN PROGRESS" title="진행 중인 일" more={["전체", stats[0].href]}>
           <MiniTable empty="진행 중인 일이 없습니다." rows={openRows.map(({ r, name }) => ({

@@ -422,3 +422,22 @@ export function HandoverDoc({ me, h, areaOpts, duties, projects, files, today, p
     </div>
   );
 }
+
+// ---------------------------------------------------------------- 대시보드용 작은 '오늘 할 일' (체크 가능)
+export function TodayMini({ today, info, href = "/misc/board" }: { today: string; info: WeekDay; href?: string }) {
+  const { toggle, on } = useFlip(info);
+  const rows = [
+    ...info.routines.map((r) => ({ ...r, k: "r" })), ...info.sys.map((s) => ({ id: s.id, text: s.text, done: s.done, k: "s" })), ...info.items.map((i) => ({ ...i, k: "t" })),
+  ];
+  const done = rows.filter((r) => on(today, r.id, r.done)).length;
+  const pct = rows.length ? Math.round((done / rows.length) * 100) : 0;
+  return (
+    <section className="card db-mini">
+      <div className="db-th"><b>오늘 할 일</b><Link href={href} className="more">보드 ›</Link></div>
+      <div className="db-prog"><div><span style={{ width: `${pct}%` }} className={pct >= 100 ? "ok" : ""} /></div><b>{done}/{rows.length}</b></div>
+      {rows.slice(0, 12).map((r) => <Check small key={r.id} on={on(today, r.id, r.done)} label={<>{r.k === "s" && <em className="db-k s">기한</em>}{r.k === "r" && <em className="db-k r">반복</em>}{r.text}</>} onClick={() => toggle(today, r.id)} />)}
+      {!rows.length && <p className="muted" style={{ fontSize: ".8rem" }}>오늘 할 일이 없습니다. <Link href={href}>보드에서 적기 ›</Link></p>}
+      {rows.length > 12 && <Link href={href} className="muted" style={{ fontSize: ".78rem" }}>… {rows.length - 12}개 더</Link>}
+    </section>
+  );
+}

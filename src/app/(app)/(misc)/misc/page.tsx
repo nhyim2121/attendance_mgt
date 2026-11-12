@@ -13,6 +13,9 @@ import { addDays, dayLabel, todayKst } from "@/lib/time";
 import { monthCal } from "@/lib/기타/calendar";
 import { coopLeft, DEPT_COLOR, DEPT_EMOJI, DEPTS, isOpen, logAvg, mondayOf, occurrences, PLAN_COLOR, statusTone, timeText, weekTitle } from "@/lib/기타/work";
 import { allLogs, loadCoops, loadPlans, people } from "@/lib/기타/workStore";
+import { dayView, loadDaily } from "@/lib/기타/daily";
+import { todos } from "@/lib/대시/data";
+import { TodayMini } from "./board/BoardClient";
 
 export const metadata = { title: "기타 · 통합관리시스템" };
 
@@ -23,9 +26,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   const today = todayKst();
   const mon = mondayOf(today);
   const month = sp.m && /^\d{4}-\d{2}$/.test(sp.m) ? sp.m : today.slice(0, 7);
-  const [cal, holidays, plans, coops, logs, team, links, tasks] = await Promise.all([
+  const [cal, holidays, plans, coops, logs, team, links, tasks, daily, sysAll] = await Promise.all([
     monthCal(me, month), getHolidays(), loadPlans(me.id), loadCoops(), allLogs(), people(), loadLinks("misc"), admin ? recentRows("misc", 6, true) : Promise.resolve([]),
+    loadDaily(me.id), todos(admin),
   ]);
+  const todayBoard = dayView(daily, today, sysAll.filter((t) => t.left !== null && t.left <= 7).slice(0, 8).map((t) => ({ id: `sys:${t.href}`, text: t.title, sub: t.sub, href: t.href, left: t.left! })));
   const area = menuFor(admin).find((a) => a.key === "misc")!;
 
   const week = plans.flatMap((p) => occurrences(p, mon, addDays(mon, 6)));
@@ -57,6 +62,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
           : <div className="u-note"><b>오늘의 한 줄</b>기한이 걸린 업무협조가 없습니다.</div>}
       </header>
       <Kpis items={kpis} />
+      {/* 05 사이드바 레이아웃 (2026-11-12): 왼쪽 오늘 할 일(데일리 체크 보드) · 오른쪽 일정·캘린더·협조·일지 */}
+      <div className="lay-side">
+      <div className="col side">
+        <TodayMini today={today} info={todayBoard} />
+        <QuickAdd items={[["/misc/board", "데일리 체크 보드"], ["/misc/weekly", "주간업무일지 쓰기"], ["/misc/coop#form", "업무협조 등록"], [`/misc/plan?d=${today}#form`, "일정 넣기"]]} />
+      </div>
+      <div className="col">
       <div className="u-grid">
         <Clock strip={strip} stripLabel="이번 주 요일별 내 일정 (건)" next={next7[0] ? { title: next7[0].p.title, when: dayLabel(next7[0].day), href: `/misc/plan?d=${next7[0].day}` } : null} />
         <Win en="TODAY" ko="오늘 · 다가오는 7일 일정" more={["일정표", "/misc/plan"]} className="s6">
@@ -67,7 +79,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
             </ul>
           ) : <p className="muted">7일 안에 잡힌 일정이 없습니다. <Link href="/misc/plan#form">일정 넣기 ›</Link></p>}
         </Win>
-        <QuickAdd className="s3" items={[["/misc/weekly", "주간업무일지 쓰기"], ["/misc/coop#form", "업무협조 등록"], [`/misc/plan?d=${today}#form`, "일정 넣기"], ["/misc/calendar", "월별 캘린더"]]} />
 
         <Win en="CALENDAR" ko="월별 캘린더 · 한 일과 잡힌 일, 주마다 업무일지" more={["크게 보기", `/misc/calendar?m=${month}`]} className="s12">
           <MonthCal month={month} cal={cal} today={today} base="/misc" holidays={holidays} max={3} />
@@ -112,6 +123,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
         )}
         <LinksCard scope="misc" links={links} className={admin ? "s4" : "s12"} />
         <AreaMenu area={area} />
+      </div>
+      </div>
       </div>
     </div>
   );

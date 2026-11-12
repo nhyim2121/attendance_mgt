@@ -109,7 +109,9 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
         <Stat icon="alert" label="잔여 5일 이상" value={promote.length} unit="명" sub="사용 촉진 참고" />
       </section>
 
-      <div className="grid2 home-row">
+      {/* 03 스플릿 (2026-11-12): 왼쪽 달력·그래프(넓게) / 오른쪽 사람별 목록 — 인쇄는 두 장 그대로 */}
+      <div className="lay-split">
+        <div className="col">
         <section className="card">
           <div className="card-title"><Ico name="week" />이번 주 휴가<span className="spacer" />
             <Link className="btn sm noprint" href="/leave/calendar">캘린더</Link></div>
@@ -134,46 +136,12 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
             </p>
           )}
         </section>
+        </div>
+        <div className="col">
         <section className="card">
           <div className="card-title"><Ico name="pie" />휴가 유형별 <span className="muted" style={{ fontWeight: 400 }}>(건수, 예정 포함)</span></div>
           {byType.length ? <StatusBars data={byType} total={byType.reduce((t, x) => t + x.n, 0)} unit="건" />
             : <p className="muted">이 회계연도 휴가가 없습니다.</p>}
-        </section>
-      </div>
-
-      </div>
-      <div className="print-chunk">
-      <div className="grid2 home-row">
-        <section className="card">
-          <div className="card-title"><Ico name="chart" />월별 휴가 사용 <span className="muted" style={{ fontWeight: 400 }}>(차감 일수)</span></div>
-          <MonthlyLeaveBars data={monthly} />
-        </section>
-        <section className="card">
-          <div className="card-title"><Ico name="bars" />부서별 연차 <span className="muted" style={{ fontWeight: 400 }}>(합계 일수)</span></div>
-          {deptData.length ? <TwoBars data={deptData} x="dept" a={["total", "부여"]} b={["used", "사용"]} unit="일" />
-            : <p className="muted">대상이 없습니다.</p>}
-        </section>
-      </div>
-
-      <div className="grid3 home-row">
-        <section className="card">
-          <div className="card-title"><Ico name="clip" />신청서가 빠진 휴가
-            <span className="muted" style={{ fontWeight: 400 }}>최근 60일 · {missing.length}건</span>
-            <span className="spacer" /><Link className="btn sm noprint" href="/leave/evidence?missing=1">신청서 첨부</Link></div>
-          {missing.length ? (
-            <div className="chips">{missing.slice(0, 16).map((t) => (
-              <Link key={`${t.name}|${t.from}|${t.type}`} className="chip-l" href={`/leave/evidence?emp=${encodeURIComponent(t.name)}&missing=1`}
-                style={{ "--tc": TYPE_COLOR[t.type] ?? "#0c3994" } as React.CSSProperties}>
-                <b>{t.name}</b><span>{t.type}</span>
-                <small>{t.from === t.to ? dayLabel(t.from) : `${dayLabel(t.from)}~${dayLabel(t.to)}`}</small>
-              </Link>
-            ))}{missing.length > 16 && <span className="muted" style={{ alignSelf: "center" }}>외 {missing.length - 16}건</span>}</div>
-          ) : <p className="muted">모든 휴가에 신청서가 첨부되어 있습니다.</p>}
-        </section>
-        <section className="card">
-          <div className="card-title"><Ico name="bars" />연차 사용률 분포 <span className="muted" style={{ fontWeight: 400 }}>(인원 · {bal.length}명)</span>
-            <span className="spacer" /><Link className="btn sm noprint" href="/leave/status">연차 현황</Link></div>
-          <StatusBars data={buckets} total={bal.length} />
         </section>
         <section className="card">
           <div className="card-title"><Ico name="alert" />잔여 연차가 많은 직원
@@ -191,6 +159,43 @@ export default async function LeaveHome({ searchParams }: { searchParams: Promis
             ))}</div>
           ) : <p className="muted">잔여 5일 이상인 직원이 없습니다.</p>}
         </section>
+        </div>
+      </div>
+      </div>
+      <div className="print-chunk">
+      <div className="lay-split">
+        <div className="col">
+        <section className="card">
+          <div className="card-title"><Ico name="chart" />월별 휴가 사용 <span className="muted" style={{ fontWeight: 400 }}>(차감 일수)</span></div>
+          <MonthlyLeaveBars data={monthly} />
+        </section>
+        <section className="card">
+          <div className="card-title"><Ico name="bars" />부서별 연차 <span className="muted" style={{ fontWeight: 400 }}>(합계 일수)</span></div>
+          {deptData.length ? <TwoBars data={deptData} x="dept" a={["total", "부여"]} b={["used", "사용"]} unit="일" />
+            : <p className="muted">대상이 없습니다.</p>}
+        </section>
+        </div>
+        <div className="col">
+        <section className="card">
+          <div className="card-title"><Ico name="bars" />연차 사용률 분포 <span className="muted" style={{ fontWeight: 400 }}>(인원 · {bal.length}명)</span>
+            <span className="spacer" /><Link className="btn sm noprint" href="/leave/status">연차 현황</Link></div>
+          <StatusBars data={buckets} total={bal.length} />
+        </section>
+        <section className="card">
+          <div className="card-title"><Ico name="clip" />신청서가 빠진 휴가
+            <span className="muted" style={{ fontWeight: 400 }}>최근 60일 · {missing.length}건</span>
+            <span className="spacer" /><Link className="btn sm noprint" href="/leave/evidence?missing=1">신청서 첨부</Link></div>
+          {missing.length ? (
+            <div className="chips">{missing.slice(0, 16).map((t) => (
+              <Link key={`${t.name}|${t.from}|${t.type}`} className="chip-l" href={`/leave/evidence?emp=${encodeURIComponent(t.name)}&missing=1`}
+                style={{ "--tc": TYPE_COLOR[t.type] ?? "#0c3994" } as React.CSSProperties}>
+                <b>{t.name}</b><span>{t.type}</span>
+                <small>{t.from === t.to ? dayLabel(t.from) : `${dayLabel(t.from)}~${dayLabel(t.to)}`}</small>
+              </Link>
+            ))}{missing.length > 16 && <span className="muted" style={{ alignSelf: "center" }}>외 {missing.length - 16}건</span>}</div>
+          ) : <p className="muted">모든 휴가에 신청서가 첨부되어 있습니다.</p>}
+        </section>
+        </div>
       </div>
       </div>
     </div>

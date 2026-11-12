@@ -1,4 +1,5 @@
 /** 인증 대시보드 (F안, 관리자만): 유효 인증 수·90일 안 일정·만료 임박, 인증 목록과 일정 */
+import Link from "next/link";
 import AreaDash from "@/components/대시/AreaDash";
 import { Card, MiniTable, Tag } from "@/components/대시/parts";
 import { requireAdminPage } from "@/lib/auth";
@@ -18,8 +19,19 @@ export default async function Page() {
   const valid = items.filter((c) => c.status === "유효");
   const expiring = alerts.filter(({ a }) => a.kind === "만료" && a.left <= 30);
   const cats = [...new Set(valid.map((c) => c.category))];
+  const top = alerts[0];
   return (
-    <AreaDash area="cert"
+    <AreaDash area="cert" layout="mag" feature={top ? (
+      <Link href={`/cert/item?id=${top.c.id}`} className="mag-feature" style={{ ["--hc" as string]: top.a.left <= 30 ? "#b42318" : "#b45309" }}>
+        <small>가장 가까운 일정 · {top.a.label}</small>
+        <h2>{top.c.name}</h2>
+        <span className="big">{ddayText(top.a.left)}</span>
+        <p>{top.a.day.replaceAll("-", ".")} · {top.c.category}{top.c.expires ? ` · 유효기간 ${top.c.expires}` : ""}</p>
+        <p style={{ fontSize: ".85rem" }}>그다음: {alerts.slice(1, 4).map(({ c, a }) => `${c.name} ${a.label} ${ddayText(a.left)}`).join(" · ") || "없음"}</p>
+      </Link>
+    ) : (
+      <div className="mag-feature" style={{ ["--hc" as string]: "#15803d" }}><small>90일 안 일정</small><h2>다가오는 심사·갱신이 없습니다</h2><p>유효한 인증 {valid.length}개</p></div>
+    )}
       kpis={[
         { label: "유효한 인증", n: valid.length, unit: "개", sub: cats.slice(0, 3).map((k) => `${k} ${valid.filter((c) => c.category === k).length}`).join(" · ") || "인증 현황", icon: "medal", color: "#15803d", href: "/cert" },
         { label: "90일 안 일정", n: alerts.length, unit: "건", sub: "사후심사·갱신·만료", icon: "calendarStar", color: "#b45309", warn: alerts.length > 0, href: "/cert" },

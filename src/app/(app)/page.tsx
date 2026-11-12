@@ -13,6 +13,8 @@ import { loadLinks } from "@/lib/대시/links";
 import { menuFor } from "@/lib/대시/menu";
 import { loadMemos, loadTodo4 } from "@/lib/대시/notes";
 import { todayKst } from "@/lib/time";
+import { dayView, loadDaily } from "@/lib/기타/daily";
+import { TodayMini } from "./(misc)/misc/board/BoardClient";
 
 export const metadata = { title: "통합 대시보드 · 통합관리시스템" };
 
@@ -22,7 +24,8 @@ export default async function HubPage({ searchParams }: { searchParams: Promise<
   const areas = await readableAreas(user);
   const denied = (await searchParams).denied; // 권한 없는 영역에서 돌아온 경우 (proxy.ts)
   const today = todayKst();
-  const [hr, list, links, t4, memos] = await Promise.all([hrSnap(), todos(admin), loadLinks("all"), loadTodo4(user.id), loadMemos(user.id)]);
+  const [hr, list, links, t4, memos, daily] = await Promise.all([hrSnap(), todos(admin), loadLinks("all"), loadTodo4(user.id), loadMemos(user.id), loadDaily(user.id)]);
+  const todayBoard = dayView(daily, today, list.filter((t) => t.left !== null && t.left <= 7).slice(0, 8).map((t) => ({ id: `sys:${t.href}`, text: t.title, sub: t.sub, href: t.href, left: t.left! })));
   const { week, later } = splitTodos(list);
   const docs = list.filter((t) => t.cat === "문서");
   const nextDoc = docs.find((d) => d.left !== null);
@@ -53,19 +56,27 @@ export default async function HubPage({ searchParams }: { searchParams: Promise<
       {denied && <div className="msg warn">이 계정은 그 업무 영역을 볼 권한이 없습니다. 필요하면 관리자에게 권한을 요청하세요.</div>}
       <Hello today={today} name={user.name} todo={week.length} note={noteOf(week)} />
       <Kpis items={kpis} />
-      {/* 배치 (2026-11-12): 왼쪽 시계 + 할 일 4칸, 오른쪽 할 일 목록 / 메모·링크·부서별 인원 / 이번 주 휴가·출장 주간 달력 / 일정 / 전체 메뉴 */}
+      {/* 07 대시보드 + 02 벤토 (2026-11-12): 숫자 요약 줄 아래로 크기가 다른 칸을 맞물려 빈 공간 없이.
+          1줄 시계·할 일 4칸 | 오늘 할 일(데일리 체크 보드)·메모 | 이번 주 기한 / 2줄 휴가·출장 주간 달력 | 부서별 인원·바로가기 / 3줄 보안 점검 | 다가오는 일정 */}
       <div className="u-grid">
-        <div className="s6 u-col">
+        <div className="s4 u-col">
           <Clock strip={strip} stripLabel="이번 주 휴가·출장 (명)" bar={hr.ok ? { label: "오늘 출근", n: hr.present, of: hr.staff } : undefined} next={nextOf(week)} />
           <Todo4Card items={t4} />
         </div>
-        <TodoCard items={toViews(week)} />
-        <MemoCard items={memos} />
-        <LinksCard scope="all" links={links} />
-        <Card en="TEAM" title="부서별 인원" more={["조직도", "/org"]} className="s6"><Bars data={hr.depts.map((d) => ({ label: d.dept, n: d.n }))} /></Card>
-        {sec && <Card en="SECURITY" title="PC 보안점검 (PC를 켤 때 자동)" more={["점검 기록", "/it/b/seccheck"]} className="s12"><Security at={sec.at} items={sec.items} /></Card>}
-        <Card en="LEAVE" title="이번 주 휴가·출장" more={["캘린더", "/leave/calendar"]} className="s12"><WeekLeaves items={hr.weekLeaves} today={today} /></Card>
-        <Card en="SCHEDULE" title="다가오는 일정 · 8~90일" className="s12"><Schedule items={schedOf(later, today)} /></Card>
+        <div className="s4 u-col">
+          <TodayMini today={today} info={todayBoard} />
+          <MemoCard items={memos} />
+        </div>
+        <div className="s4 u-col">
+          <TodoCard items={toViews(week)} className="s12" />
+        </div>
+        <Card en="LEAVE" title="이번 주 휴가·출장" more={["캘린더", "/leave/calendar"]} className="s8"><WeekLeaves items={hr.weekLeaves} today={today} /></Card>
+        <div className="s4 u-col">
+          <Card en="TEAM" title="부서별 인원" more={["조직도", "/org"]} className="s12"><Bars data={hr.depts.map((d) => ({ label: d.dept, n: d.n }))} /></Card>
+          <LinksCard scope="all" links={links} className="s12" />
+        </div>
+        {sec && <Card en="SECURITY" title="PC 보안점검 (PC를 켤 때 자동)" more={["점검 기록", "/it/b/seccheck"]} className="s5"><Security at={sec.at} items={sec.items} /></Card>}
+        <Card en="SCHEDULE" title="다가오는 일정 · 8~90일" className={sec ? "s7" : "s12"}><Schedule items={schedOf(later, today)} /></Card>
         <Win en="MENU" ko="업무 영역 전체 메뉴" className="s12"><MenuLists areas={menuFor(admin, areas)} /></Win>
       </div>
       {!hr.ok && <p className="fd-empty">캡스 기록이 아직 없습니다. <Link href="/upload">데이터 관리</Link>에서 올리면 근태 숫자가 채워집니다.</p>}

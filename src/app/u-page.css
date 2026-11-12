@@ -643,4 +643,7 @@ a.tr-c:hover { outline: 2px solid currentColor; }
 @media print {
   .db-hdoc .db-in { border: 0; padding: 0; background: none; appearance: none; -webkit-appearance: none; }
   .db-ho { display: block; }
-}
+}.db-mini { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.db-mini .more { font-size: .8rem; color: var(--blue); text-decoration: none; font-weight: 700; }
+.db-k { font-style: normal; font-size: .6rem; font-weight: 800; padding: 1px 5px; border-radius: 4px; margin-right: 5px; text-decoration: none; display: inline-block; }
+.db-k.r { background: #f1ebfb; color: #6d3fd1; } .db-k.s { background: #fbe7e6; color: #a1231b; }

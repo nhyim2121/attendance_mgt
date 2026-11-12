@@ -34,21 +34,6 @@ export default async function EduHome() {
         <PrintButton className="pill print" label="인쇄" />
       </PageHead>
 
-      <section className={`card tr-na ${na.on ? "on" : ""}`}>
-        <div className="tr-na-ico" aria-hidden="true">{na.on ? "−50%" : "100%"}</div>
-        <div>
-          <b>{na.on ? `무재해 사업장 — 올해 근로자 정기교육 시간 50% 감면 적용` : "근로자 정기교육 시간 100% 적용"}</b>
-          <p>
-            {na.auto
-              ? <>산재 처리 대장에 {na.prevYear}년 재해 기록 <b>{na.injuries}건</b> → {na.on ? "전년도 무재해로 자동 적용" : "전년도에 재해가 있어 감면 없음"}.</>
-              : <>기준 설정에서 직접 {na.on ? "감면 적용" : "감면 안 함"}으로 정했습니다.</>}
-            {" "}반기 정기교육: 사무직 {na.on ? "3시간 (원래 6)" : "6시간"} · 그 밖의 근로자 {na.on ? "6시간 (원래 12)" : "12시간"}.
-          </p>
-          <small>근거: 산업안전보건법 제29조① · 시행규칙 제27조①(전년도 산업재해 미발생 사업장은 그다음 연도 근로자 정기교육 시간의 100분의 50 범위에서 면제) · 별표 4.
-            관리감독자 교육(연 16시간)·채용 시 교육·특별교육은 감면 대상이 아닙니다. 근로기준법에는 교육시간 감면 규정이 없습니다.</small>
-        </div>
-      </section>
-
       <section className="card hstats">
         <Stat icon="clip" label="법정의무교육" value={`${legalDone}/${legalAll}`} unit="완료" sub={legalAll - legalDone ? `남은 ${legalAll - legalDone}개 · 연말 D-${v.legal[0].left}` : "모두 완료"} />
         <Stat icon="week" label={`${half} 정기교육`} value={fill} unit="%" sub={`1인 평균 ${+(dh.got / Math.max(1, v.deptHours.length)).toFixed(1)}h${na.on ? " · 50% 감면" : ""}`} />
@@ -58,7 +43,9 @@ export default async function EduHome() {
         <Stat icon="people" label="교육 대상" value={v.staff.length} unit="명" sub={`관리감독자 ${sups.length}명`} />
       </section>
 
-      <section className="card home-row">
+      {/* 02 벤토 그리드 (2026-11-12): 법정의무교육 현황(크게) · 무재해 감면 · 확인할 일 / 연간 달력(넓게) · 부서별 시간 / 기준 설정 · 관련 사이트 */}
+      <div className="lay-bento">
+      <section className="card w7 h2">
         <div className="card-title"><Ico name="clip" />법정의무교육 현황 <span className="muted" style={{ fontWeight: 400 }}>{year}년 · 교육 실시 대장의 참석자로 자동 계산</span>
           <span className="spacer" /><Link className="btn sm" href="/hr/training/matrix">직원별로 보기</Link></div>
         <div className="tbl-wrap">
@@ -79,8 +66,30 @@ export default async function EduHome() {
           </table>
         </div>
       </section>
-
-      <section className="card home-row">
+      <section className={`card tr-na w5 ${na.on ? "on" : ""}`}>
+        <div className="tr-na-ico" aria-hidden="true">{na.on ? "−50%" : "100%"}</div>
+        <div>
+          <b>{na.on ? `무재해 사업장 — 올해 근로자 정기교육 시간 50% 감면 적용` : "근로자 정기교육 시간 100% 적용"}</b>
+          <p>
+            {na.auto
+              ? <>산재 처리 대장에 {na.prevYear}년 재해 기록 <b>{na.injuries}건</b> → {na.on ? "전년도 무재해로 자동 적용" : "전년도에 재해가 있어 감면 없음"}.</>
+              : <>기준 설정에서 직접 {na.on ? "감면 적용" : "감면 안 함"}으로 정했습니다.</>}
+            {" "}반기 정기교육: 사무직 {na.on ? "3시간 (원래 6)" : "6시간"} · 그 밖의 근로자 {na.on ? "6시간 (원래 12)" : "12시간"}.
+          </p>
+          <small>근거: 산업안전보건법 제29조① · 시행규칙 제27조①(전년도 산업재해 미발생 사업장은 그다음 연도 근로자 정기교육 시간의 100분의 50 범위에서 면제) · 별표 4.
+            관리감독자 교육(연 16시간)·채용 시 교육·특별교육은 감면 대상이 아닙니다. 근로기준법에는 교육시간 감면 규정이 없습니다.</small>
+        </div>
+      </section>
+        <section className="card w5">
+          <div className="card-title"><Ico name="alert" />확인할 일 <span className="muted" style={{ fontWeight: 400 }}>{v.todos.length}건</span></div>
+          {v.todos.length ? v.todos.slice(0, 10).map((t, i) => (
+            <Link key={i} href={t.href} className="tr-todo">
+              <span className={`tr-tag ${t.tone}`}>{t.kind}</span>
+              <span><b>{t.title}</b><small>{t.sub}</small></span>
+            </Link>
+          )) : <p className="muted">확인할 일이 없습니다.</p>}
+        </section>
+      <section className="card w8">
         <div className="card-title"><Ico name="cal" />연간 교육 달력 <span className="muted" style={{ fontWeight: 400 }}>연간 계획 + 실시 기록</span>
           <span className="spacer" /><span className="tr-lg done">● 실시</span><span className="tr-lg plan">○ 계획</span><span className="tr-lg late">◇ 연기·취소</span></div>
         <div className="tr-cal">
@@ -93,9 +102,7 @@ export default async function EduHome() {
           ))}
         </div>
       </section>
-
-      <div className="grid2 home-row">
-        <section className="card">
+        <section className="card w4">
           <div className="card-title"><Ico name="bars" />부서별 {half} 정기교육 <span className="muted" style={{ fontWeight: 400 }}>1인 평균 · 법정 시간 대비</span></div>
           {v.deptHours.length ? (
             <div className="sbars">
@@ -110,19 +117,7 @@ export default async function EduHome() {
           ) : <p className="muted">교육 대상 직원이 없습니다.</p>}
           <p className="muted" style={{ fontSize: ".78rem", margin: "8px 0 0" }}>사무직 부서: {opts.officeDepts.join(", ") || "없음"} (반기 {na.on ? 3 : 6}시간) · 그 밖 반기 {na.on ? 6 : 12}시간</p>
         </section>
-        <section className="card">
-          <div className="card-title"><Ico name="alert" />확인할 일 <span className="muted" style={{ fontWeight: 400 }}>{v.todos.length}건</span></div>
-          {v.todos.length ? v.todos.slice(0, 10).map((t, i) => (
-            <Link key={i} href={t.href} className="tr-todo">
-              <span className={`tr-tag ${t.tone}`}>{t.kind}</span>
-              <span><b>{t.title}</b><small>{t.sub}</small></span>
-            </Link>
-          )) : <p className="muted">확인할 일이 없습니다.</p>}
-        </section>
-      </div>
-
-      <div className="grid2 home-row">
-        <section className="card">
+        <section className="card w6">
           <div className="card-title"><Ico name="org" />교육 기준 설정</div>
           <form action={saveTrainOpts} className="tr-opts">
             <label>무재해 감면 (근로자 정기교육 50%)
@@ -144,7 +139,7 @@ export default async function EduHome() {
             <div><button className="btn primary sm">저장</button></div>
           </form>
         </section>
-        <section className="card">
+        <section className="card w6">
           <div className="card-title"><Ico name="clip" />관련 사이트</div>
           {(HR_SITES.edu ?? []).length ? <SiteLinks sites={HR_SITES.edu} big /> : <p className="muted">등록한 사이트가 없습니다.</p>}
           <p className="muted" style={{ fontSize: ".78rem", marginTop: 10 }}>법정교육 판정은 교육명에 들어간 말로 합니다: {LEGAL.map((d) => d.name.replace(/ \(.*\)/, "")).filter((x, i, a) => a.indexOf(x) === i).join(" · ")}. 안전보건 정기교육은 &apos;안전보건&apos;·&apos;산업안전&apos;·&apos;정기교육&apos;이 들어간 교육(관리감독자·채용 시·특별교육 제외)의 시간을 반기별로 더합니다.</p>

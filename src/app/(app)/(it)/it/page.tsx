@@ -28,7 +28,7 @@ export default async function Page() {
     [`${st("backups").href}#form`, "백업 확인"], [`${st("visitors").href}#form`, "방문자 기록"], [`${st("itassets").href}#form`, "전산장비 등록"],
   ];
   return (
-    <AreaDash area="it" kpis={kpis} quick={quick}>
+    <AreaDash area="it" kpis={kpis} quick={quick} layout="split">
       <Card en="DUTIES" title="업무분장 IT-1 ~ IT-7" more={["업무 목록", "/it/duties"]}>
         <MiniTable rows={IT_DUTIES.map((g) => {
           const ss = g.books.map(st);

@@ -18,7 +18,7 @@ export default async function GaHome() {
   const gaDue = list.filter((t) => t.area === "ga" && t.cat !== "문서");
   const nextMail = open.filter((m) => m.due).sort((a, b) => a.due!.localeCompare(b.due!))[0];
   return (
-    <AreaDash area="ga"
+    <AreaDash area="ga" layout="hero-cards"
       kpis={[
         { label: "처리 중인 문서", n: open.length, unit: "건", sub: nextMail ? `회신 기한 ${dayLabel(nextMail.due!)}` : "문서 수발 대장", icon: "mail", color: "#0e7490", warn: open.length > 0, href: "/ga/mail?open=1" },
         { label: "대장 기한", n: gaDue.length, unit: "건", sub: gaDue[0] ? `${gaDue[0].title.slice(0, 18)} ${ddayText(gaDue[0].left)}` : "차량·SW·입찰 등", icon: "car", color: "#e84340", warn: gaDue.length > 0, href: "/ga/b/vehicles" },
