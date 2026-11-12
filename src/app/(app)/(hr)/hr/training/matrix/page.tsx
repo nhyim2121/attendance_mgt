@@ -2,6 +2,7 @@
 import Link from "next/link";
 import PageHead from "@/components/대시/PageHead";
 import PrintButton from "@/components/PrintButton";
+import TrainTabs from "@/components/인사노무/TrainTabs";
 import { requireAdminPage } from "@/lib/auth";
 import { LEGAL, trainingView } from "@/lib/인사노무/training";
 
@@ -33,6 +34,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
         <a className="pill" href={`/api/hr/training-matrix${q({})}`}>엑셀</a>
         <PrintButton className="pill print" label="인쇄" />
       </PageHead>
+      <TrainTabs on="matrix" />
 
       <div className="tr-chips noprint">
         <Link href={q({ dept: "" })} className={!dept ? "on" : ""}>전체 {v.people.length}</Link>

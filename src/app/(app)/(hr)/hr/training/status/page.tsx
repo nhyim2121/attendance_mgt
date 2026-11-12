@@ -2,6 +2,7 @@
 import Link from "next/link";
 import PageHead from "@/components/대시/PageHead";
 import PrintButton from "@/components/PrintButton";
+import TrainTabs from "@/components/인사노무/TrainTabs";
 import { requireAdminPage } from "@/lib/auth";
 import { courseStatus } from "@/lib/인사노무/training";
 import { dayLabel, todayKst } from "@/lib/time";
@@ -45,6 +46,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
           <Link className="pill" href={`?y=${y - 1}&h=${h}`}>← {y - 1}년</Link>
           <PrintButton className="pill print" label="인쇄 / PDF" />
         </PageHead>
+      <TrainTabs on="status" />
       </div>
 
       <div className="tr-paper st">

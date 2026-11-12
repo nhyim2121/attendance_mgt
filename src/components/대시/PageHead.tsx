@@ -9,6 +9,9 @@ function find(href: string): { area?: MenuArea; group?: string; item?: MenuItem 
   for (const a of MENU) for (const g of a.groups) for (const it of g.items) {
     if (it.href === href || it.href.split(/[?#]/)[0] === path) return { area: a, group: g.label, item: it };
   }
+  for (const a of MENU) for (const g of a.groups) for (const it of g.items) {
+    if (it.also?.includes(path)) return { area: a, group: g.label };
+  }
   return { area: MENU.find((a) => a.key === areaOfPath(path)) };
 }
 

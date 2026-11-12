@@ -71,7 +71,7 @@ export const HR_DASH: Record<string, { group: string; name: string; en: string; 
 };
 /** 이 주소(화면·대장)가 속한 인사노무 업무분장 묶음 */
 export function hrSlugOf(href: string): string | undefined {
-  const g = MENU.find((a) => a.key === "hr")?.groups.find((x) => x.items.some((i) => i.href === href));
+  const g = MENU.find((a) => a.key === "hr")?.groups.find((x) => x.items.some((i) => i.href === href || i.also?.some((a) => href === a || href.startsWith(`${a}?`))));
   return g ? Object.keys(HR_DASH).find((k) => HR_DASH[k].group === g.label) : undefined;
 }
 const gdash = (slug: string): MenuItem => ({ href: `/hr/g/${slug}`, label: `${HR_DASH[slug].name} 홈`, desc: `${HR_DASH[slug].group} 한눈에 보기`, exact: true });
@@ -113,12 +113,12 @@ export const MENU: MenuArea[] = [
       ] },
       { label: "3-6. 인사관리", items: [gdash("people"), hrBook("appointments"), hrBook("evaluations"), hrBook("awards"), hrBook("certificates"), hrBook("licenses"), hrBook("foreign"), hrBook("programs")] },
       { label: "3-7. 교육훈련 관리", items: [gdash("edu"),
-        { href: "/hr/training/record", label: "교육 실시 기록", desc: "계획에서 불러와 참석자 체크 → 대장·계획·교육일지·서명부 한 번에", admin: true, also: ["/hr/training/sheet"] },
-        { href: "/hr/training/matrix", label: "직원별 이수 현황표", desc: "직원 × 법정의무교육 이수 날짜·시간, 미이수자, 엑셀·인쇄", admin: true },
-        { href: "/hr/training/status", label: "교육 수강현황", desc: "반기별 과정별 수료율, 개인별 수료·미수료·수료증 제출 (A4 양식)", admin: true },
-        { href: "/hr/training/plan", label: "연간 교육 계획·실적표", desc: "과정 × 1~12월 계획·실적 인원, 이수율 · 교육/훈련 계획서 양식", admin: true },
+        // 2026-11-12 정리: 기록 화면 = 교육 실시 대장, 계획·실적표 = 연간 교육 계획 대장 (대장은 각 화면의 버튼으로), 이수표·수강현황은 한 메뉴의 탭
+        { href: "/hr/training/record", label: "교육 기록·결과 보고서", desc: "교육 실시 기록, 참석자·수료, 교육 평가, 결과 보고서 (전체 목록은 교육 실시 대장)", admin: true, also: ["/hr/training/sheet", "/hr/b/training"] },
+        { href: "/hr/training/plan", label: "연간 교육 계획", desc: "월별 계획·실적표, 교육/훈련 계획서 양식 (입력은 연간 교육 계획 대장)", admin: true, also: ["/hr/b/trainplan"] },
+        { href: "/hr/training/matrix", label: "이수·수강 현황", desc: "직원별 법정교육 이수표 · 과정별 수강현황(반기, 수료증)", admin: true, also: ["/hr/training/status"] },
         { href: "/hr/training/card", label: "개인별 교육이력카드", desc: "직원 한 명의 교육 이력·법정교육 이수·자격증 (A4)", admin: true },
-        hrBook("trainplan"), hrBook("training")] },
+      ] },
       ...(hrRest.length ? [{ label: "그 밖", items: hrRest }] : []),
       { label: "관리", items: [
         { href: "/upload", label: "데이터 관리", desc: "캡스·하이웍스 파일 올리기, 내려받기" },

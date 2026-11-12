@@ -7,6 +7,7 @@ export interface Init {
   id: number; plan: number; day: string; name: string; kind: string; hours: string; time: string; place: string;
   by: string; cost: string; next: string; content: string; note: string; names: string[]; extra: string;
   until: string; target: string[]; cert: string[];
+  grades: Record<string, string>; effect: string; effectHow: string; follow: string;
 }
 interface Plan { id: number; month: string; name: string; kind: string; target: string; status: string }
 interface Person { name: string; dept: string; join: string; leave: string; office: boolean }
@@ -21,6 +22,7 @@ export default function RecordForm({ init, plans, kinds, people, absent, today }
   const [course, setCourse] = useState(init.target.length > 0 || !!init.until);
   const [tgt, setTgt] = useState(() => new Set(init.target));
   const [cert, setCert] = useState(() => new Set(init.cert));
+  const [grades, setGrades] = useState<Record<string, string>>(init.grades);
   const set = (k: keyof Init) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV({ ...v, [k]: e.target.value });
 
   // 그날 재직자만
@@ -57,6 +59,7 @@ export default function RecordForm({ init, plans, kinds, people, absent, today }
       {[...sel].filter((x) => staff.some((p) => p.name === x)).map((x) => <input key={x} type="hidden" name="p" value={x} />)}
       {course && [...new Set([...tgt, ...sel])].filter((x) => staff.some((p) => p.name === x)).map((x) => <input key={`t${x}`} type="hidden" name="tg" value={x} />)}
       {[...cert].filter((x) => staff.some((p) => p.name === x)).map((x) => <input key={`c${x}`} type="hidden" name="cf" value={x} />)}
+      {chosen.filter((p) => grades[p.name]).map((p) => <input key={`g${p.name}`} type="hidden" name="gr" value={`${p.name}:${grades[p.name]}`} />)}
 
       <div className="tr-rec-l">
         <section className="card">
@@ -121,6 +124,33 @@ export default function RecordForm({ init, plans, kinds, people, absent, today }
           {missing.length > 0 && chosen.length > 0 && (
             <p className="tr-warn">빠진 {missing.length}명: {missing.map((p) => `${p.name}${away?.[p.name] ? `(${away[p.name]})` : ""}`).join(", ")} → 직원별 이수 현황표에 &apos;미이수&apos;로 남아 보충 교육 알림이 갑니다.</p>
           )}
+        </section>
+
+        <section className="card" id="eval">
+          <div className="card-title">교육 평가 <span className="muted" style={{ fontWeight: 400 }}>ISO 교육 효과성 · 보고서 평가 칸 (우수 A · 양호 B · 미흡 C)</span>
+            <span className="spacer" />
+            {(["A", "B"] as const).map((g) => <button key={g} type="button" className="btn sm" onClick={() => setGrades(Object.fromEntries(chosen.map((p) => [p.name, g])))}>모두 {g}</button>)}
+            <button type="button" className="btn sm" onClick={() => setGrades({})}>지우기</button>
+          </div>
+          {chosen.length ? (
+            <div className="tr-grades">
+              {chosen.map((p) => (
+                <div key={p.name} className="tr-gr"><span>{p.name}</span>
+                  {["A", "B", "C"].map((g) => (
+                    <button key={g} type="button" className={grades[p.name] === g ? `on ${g}` : ""} aria-pressed={grades[p.name] === g}
+                      onClick={() => setGrades({ ...grades, [p.name]: grades[p.name] === g ? "" : g })}>{g}</button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : <p className="muted" style={{ fontSize: ".82rem" }}>참석자(수료자)를 고르면 사람마다 평가할 수 있습니다.</p>}
+          <div className="tr-g2">
+            <label className="tr-f">효과성 평가
+              <select name="effect" value={v.effect} onChange={set("effect")}><option value="">(아직 안 함)</option><option>효과 있음</option><option>보완 필요</option><option>재교육 필요</option></select>
+            </label>
+            <label className="tr-f">평가 방법·근거<input name="effectHow" value={v.effectHow} onChange={set("effectHow")} placeholder="시험, 설문, 현장 관찰, 업무 적용 확인" /></label>
+            <label className="tr-f wide">후속 조치<input name="follow" value={v.follow} onChange={set("follow")} placeholder="예: 미흡자 12월 보충 교육" /></label>
+          </div>
         </section>
 
         <section className="card">

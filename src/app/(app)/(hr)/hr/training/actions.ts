@@ -30,6 +30,8 @@ export async function saveTrainingRecord(_prev: Res, f: FormData): Promise<Res> 
     // 수강 관리(온라인·위탁): 대상자 중 수료하지 않은 사람이 '미수료'
     target: [...new Set([...f.getAll("tg").map(String), ...names])].filter(Boolean).join(", "),
     cert: [...new Set(f.getAll("cf").map(String))].filter(Boolean).join(", "),
+    grades: f.getAll("gr").map(String).filter((x) => /:[ABC]$/.test(x)).join(", "),
+    effect: s(f, "effect"), effectHow: s(f, "effectHow"), follow: s(f, "follow"),
   };
   if (!f.getAll("tg").length) raw.target = "";
   if (!raw.name) return { error: "교육명을 적어 주세요." };

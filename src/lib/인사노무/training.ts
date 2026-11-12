@@ -66,6 +66,12 @@ export const LEGAL: LegalDef[] = [
     match: /관리감독자/, hours: () => 16, target: isSupervisor, title: "관리감독자 교육", kind: "안전보건" },
 ];
 const HIRE_MATCH = /채용\s*시/;
+const CHANGE_MATCH = /작업\s*내용\s*변경/;
+
+/** 개인 평가 "이름:A, 이름:B" ↔ { 이름: "A" } (교육결과 보고서의 평가 칸, 범례 우수 A · 양호 B · 미흡 C) */
+export const gradesOf = (s?: string): Record<string, string> =>
+  Object.fromEntries((s ?? "").split(/[,\n]+/).map((x) => x.split(":").map((y) => y.trim())).filter(([n, g]) => n && /^[ABC]$/.test(g ?? "")));
+export const gradesText = (g: Record<string, string>) => Object.entries(g).filter(([, v]) => v).map(([n, v]) => `${n}:${v}`).join(", ");
 
 const md = (d: string) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
 export const splitNames = (s: string) => (s || "").split(/[,\n·/、;]+/).map((x) => x.replace(/\(.*?\)|\s+(외|등).*$/g, "").trim()).filter(Boolean);
@@ -111,7 +117,7 @@ export const needHours = (def: LegalDef, e: Employee, o: TrainOpts, reduce: bool
 export async function trainingView(year = +todayKst().slice(0, 4)): Promise<TrainingView> {
   const today = todayKst();
   const [base, all, saved] = await Promise.all([
-    loadBase(), loadBooks(["training", "trainplan", "injuries", "licenses"]), getSetting<Partial<TrainOpts>>("training", {}),
+    loadBase(), loadBooks(["training", "trainplan", "injuries", "licenses", "appointments"]), getSetting<Partial<TrainOpts>>("training", {}),
   ]);
   const opts: TrainOpts = { ...DEFAULT_OPTS, ...saved };
   const yS = `${year}-01-01`, yE = `${year}-12-31`;
@@ -204,6 +210,15 @@ export async function trainingView(year = +todayKst().slice(0, 4)): Promise<Trai
     const ok = all.some((r) => r.book === "training" && (r.day ?? "") >= e.joinDate! && HIRE_MATCH.test(r.data.name ?? "") && attendeesOf(r.data, r.day!, emps).includes(e.name));
     if (!ok) todos.push({ tone: "r", kind: "신규 입사", title: `${e.name} 채용 시 안전보건교육 기록 없음`, sub: `${md(e.joinDate!)} 입사 · ${e.dept} · 8시간 (산업안전보건법 시행규칙 별표 4)`, href: `/hr/training/record?t=hire&who=${encodeURIComponent(e.name)}` });
   }
+  // 부서 이동(전보) → 작업내용 변경 시 교육 (산업안전보건법 시행규칙 별표 4: 2시간 이상, 일용 1시간)
+  for (const a of all.filter((r) => r.book === "appointments" && r.data.kind === "전보·부서 이동" && r.day && r.day >= addDays(today, -90) && r.day <= today)) {
+    const n = a.data.emp ?? "";
+    const ok = all.some((r) => r.book === "training" && (r.day ?? "") >= a.day! && CHANGE_MATCH.test(r.data.name ?? "") && attendeesOf(r.data, r.day!, emps).includes(n));
+    if (n && !ok) todos.push({ tone: "o", kind: "부서 이동", title: `${n} 작업내용 변경 시 교육 기록 없음`, sub: `${md(a.day!)} ${a.data.after ? `→ ${a.data.after}` : "부서 이동"} · 2시간 이상 (인사발령 대장 연동)`, href: `/hr/training/record?t=change&who=${encodeURIComponent(n)}` });
+  }
+  // 교육 효과성 평가 (ISO 7.2): 끝난 지 14일 지난 교육 중 평가 안 한 것
+  const noEval = rows.filter((r) => !r.data.effect && (r.data.until || r.day!) <= addDays(today, -14));
+  if (noEval.length) todos.push({ tone: "b", kind: "교육 평가", title: `효과성 평가를 하지 않은 교육 ${noEval.length}건`, sub: noEval.slice(0, 3).map((r) => r.data.name).join(" · ") + (noEval.length > 3 ? " 외" : ""), href: `/hr/training/record?id=${noEval[0].id}#eval` });
   for (const l of all.filter((r) => r.book === "licenses" && r.data.renew)) {
     const left = daysBetween(today, l.data.renew);
     if (left <= 60) todos.push({ tone: left < 0 ? "r" : "o", kind: "보수교육", title: `${l.data.emp || ""} ${l.data.name || "자격증"} 보수교육·갱신`, sub: `${left < 0 ? `${-left}일 지남` : `D-${left}`} · ${l.data.role && l.data.role !== "선임 아님" ? l.data.role : "자격증·선임 관리"}`, href: `/hr/b/licenses?edit=${l.id}#form` });
@@ -257,7 +272,7 @@ export async function courseStatus(from: DateStr, to: DateStr): Promise<StatusVi
 }
 
 // ---------------------------------------------------------------- 개인별 교육이력
-export interface HistItem { row: Row; st: "수료" | "미수료"; cert: boolean; hours: number; legal: string[] }
+export interface HistItem { row: Row; st: "수료" | "미수료"; cert: boolean; hours: number; legal: string[]; grade: string }
 export async function historyOf(name: string) {
   const [base, all, saved] = await Promise.all([loadBase(), loadBooks(["training", "licenses"]), getSetting<Partial<TrainOpts>>("training", {})]);
   const emp = base.employees.find((e) => e.name === name) ?? null;
@@ -268,7 +283,7 @@ export async function historyOf(name: string) {
     if (!c.target.includes(name)) continue;
     const done = c.done.includes(name);
     items.push({ row: r, st: done ? "수료" : "미수료", cert: c.cert.includes(name), hours: done ? +r.data.hours || 0 : 0,
-      legal: LEGAL.filter((d) => d.match.test(r.data.name ?? "") && !d.exclude?.test(r.data.name ?? "")).map((d) => d.name) });
+      legal: LEGAL.filter((d) => d.match.test(r.data.name ?? "") && !d.exclude?.test(r.data.name ?? "")).map((d) => d.name), grade: gradesOf(r.data.grades)[name] ?? "" });
   }
   const licenses = all.filter((r) => r.book === "licenses" && r.data.emp === name);
   return { emp, items, licenses, opts };

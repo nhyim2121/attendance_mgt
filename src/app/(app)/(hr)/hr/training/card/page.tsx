@@ -116,13 +116,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
         </div>
 
         <h3 className="tr-st-t">5. 교육 이력 <span className="muted" style={{ fontWeight: 400, fontSize: ".8rem" }}>{h.items.length}건 · 수료 {h.items.filter((i) => i.st === "수료").length}건</span></h3>
-        <table className="tr-sx"><thead><tr><th>No</th><th>교육일</th><th>교육명</th><th>구분</th><th>시간</th><th>교육기관·강사</th><th>결과</th><th>수료증</th></tr></thead>
+        <table className="tr-sx"><thead><tr><th>No</th><th>교육일</th><th>교육명</th><th>구분</th><th>시간</th><th>교육기관·강사</th><th>결과</th><th>평가</th><th>수료증</th></tr></thead>
           <tbody>{h.items.map((i, n) => (
             <tr key={i.row.id}><td>{n + 1}</td><td>{dot(i.row.day)}</td>
               <td className="l"><Link href={`/hr/training/sheet?id=${i.row.id}`}>{i.row.data.name}</Link>{i.legal.length ? <span className="tr-lgl">법정</span> : null}</td>
               <td>{i.row.data.kind}</td><td>{i.row.data.hours ? `${i.row.data.hours}h` : ""}</td><td>{i.row.data.by}</td>
-              <td className={i.st === "미수료" ? "bad" : ""}>{i.st}</td><td className="cf">{i.cert ? "O" : ""}</td></tr>
-          ))}{!h.items.length && <tr><td colSpan={8}>교육 기록이 없습니다.</td></tr>}</tbody>
+              <td className={i.st === "미수료" ? "bad" : ""}>{i.st}</td><td>{i.grade}</td><td className="cf">{i.cert ? "O" : ""}</td></tr>
+          ))}{!h.items.length && <tr><td colSpan={9}>교육 기록이 없습니다.</td></tr>}</tbody>
         </table>
         <p className="tr-st-foot">※ 교육 실시 대장의 참석자·수강 대상자 기준 · 미수료: 수강 대상이었으나 수료하지 않은 과정</p>
       </div>

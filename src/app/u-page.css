@@ -468,3 +468,15 @@ a.tr-c:hover { outline: 2px solid currentColor; }
 .tr-two { display: grid; grid-template-columns: 1fr 1.4fr; gap: 14px; }
 .tr-lgl { font-size: .66rem; font-weight: 700; color: #0c3994; background: #e8eefb; padding: 1px 5px; border-radius: 4px; margin-left: 5px; }
 @media (max-width: 760px) { .tr-two { grid-template-columns: 1fr; } }
+.tr-tabs { display: flex; gap: 0; margin: 0 0 14px; border-bottom: 2px solid #d5dbe7; }
+.tr-tabs a { padding: 10px 18px; font-weight: 700; font-size: .92rem; color: #5b6475; text-decoration: none; border-bottom: 3px solid transparent; margin-bottom: -2px; display: flex; flex-direction: column; gap: 1px; }
+.tr-tabs a small { font-weight: 500; font-size: .72rem; color: var(--muted); }
+.tr-tabs a.on { color: #0c3994; border-bottom-color: #0c3994; }
+.tr-grades { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; margin: 8px 0; }
+.tr-gr { display: flex; align-items: center; gap: 4px; font-size: .85rem; padding: 4px 6px; border: 1px solid #e3e8f1; border-radius: 8px; }
+.tr-gr span { flex: 1; font-weight: 700; }
+.tr-gr button { font: inherit; font-size: .78rem; font-weight: 800; width: 30px; height: 30px; border-radius: 6px; border: 1px solid #d5dbe7; background: #fff; color: #6b7280; cursor: pointer; }
+.tr-gr button.on.A { background: #1f8a5b; border-color: #1f8a5b; color: #fff; }
+.tr-gr button.on.B { background: #2a78d6; border-color: #2a78d6; color: #fff; }
+.tr-gr button.on.C { background: #d0261d; border-color: #d0261d; color: #fff; }
+.tr-rc td.gr { text-align: center; font-weight: 800; }

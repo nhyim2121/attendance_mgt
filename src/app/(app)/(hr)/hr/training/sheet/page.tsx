@@ -7,7 +7,7 @@ import PrintButton from "@/components/PrintButton";
 import { requireAdminPage } from "@/lib/auth";
 import { loadRow } from "@/lib/대장/store";
 import { loadBase } from "@/lib/인사노무/data";
-import { courseOf } from "@/lib/인사노무/training";
+import { courseOf, gradesOf } from "@/lib/인사노무/training";
 
 export const metadata = { title: "교육결과 보고서 · 통합관리시스템" };
 type Sp = Record<string, string | string[] | undefined>;
@@ -32,6 +32,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
   const restRows = Math.max(12, Math.ceil(rest.length / 2));
   const pairs = Array.from({ length: restRows }, (_, i) => [rest[i], rest[i + restRows]] as const);
   const dot = (s: string) => s.replaceAll("-", ".");
+  const gr = gradesOf(d.grades);
 
   return (
     <div className="home">
@@ -72,13 +73,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
               <tr key={i}>
                 {i === 0 && <td rowSpan={FIRST} className="body">{d.content}
                   {miss.length > 0 && <p className="miss">미수료(대상자 중): {miss.join(", ")}</p>}</td>}
-                <td className="nm">{p?.name}</td><td />
+                <td className="nm">{p?.name}</td><td className="gr">{p ? gr[p.name] ?? "" : ""}</td>
               </tr>
             ))}
           </tbody>
         </table>
         <table className="tr-rb"><tbody>
-          <tr><th style={{ width: "14%" }}>특 기 사 항</th><td style={{ height: 40 }}>{[note, d.next ? `다음 교육 예정 ${dot(d.next)}` : "", rest.length ? `참가자 ${list.length}명 (다음 장 서명부에 이어짐)` : `참가자 ${list.length}명`].filter(Boolean).join(" · ")}</td></tr>
+          <tr><th style={{ width: "14%" }}>특 기 사 항</th><td style={{ height: 40 }}>{[d.effect ? `효과성 평가: ${d.effect}${d.effectHow ? ` (${d.effectHow})` : ""}` : "", d.follow ? `후속 조치: ${d.follow}` : "", note, d.next ? `다음 교육 예정 ${dot(d.next)}` : "", rest.length ? `참가자 ${list.length}명 (다음 장 서명부에 이어짐)` : `참가자 ${list.length}명`].filter(Boolean).join(" · ")}</td></tr>
         </tbody></table>
         <p className="tr-eval">범례 : 우수 : A, &nbsp; 양호 : B, &nbsp; 미흡 : C</p>
       </div>
@@ -88,8 +89,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
           <h3 style={{ marginTop: 0 }}>참석자 서명부 (이어서) — {d.name}</h3>
           <table className="tr-doc c sign"><thead><tr><th>No</th><th>부서</th><th>성명</th><th>서명</th><th>평가</th><th>No</th><th>부서</th><th>성명</th><th>서명</th><th>평가</th></tr></thead>
             <tbody>{pairs.map(([a, b], i) => (
-              <tr key={i}><td>{a ? FIRST + i + 1 : ""}</td><td>{a?.dept}</td><td>{a?.name}</td><td /><td />
-                <td>{b ? FIRST + i + 1 + restRows : ""}</td><td>{b?.dept}</td><td>{b?.name}</td><td /><td /></tr>
+              <tr key={i}><td>{a ? FIRST + i + 1 : ""}</td><td>{a?.dept}</td><td>{a?.name}</td><td /><td>{a ? gr[a.name] ?? "" : ""}</td>
+                <td>{b ? FIRST + i + 1 + restRows : ""}</td><td>{b?.dept}</td><td>{b?.name}</td><td /><td>{b ? gr[b.name] ?? "" : ""}</td></tr>
             ))}</tbody></table>
         </div>
       )}

@@ -104,6 +104,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
         <Link className="pill" href={`?y=${y + 1}`}>{y + 1}년 →</Link>
         <Link className="pill" href={`?y=${y}&view=doc`}>계획서 양식</Link>
         <Link className="pill" href="/hr/b/trainplan#form">+ 계획 추가</Link>
+        <Link className="pill" href="/hr/b/trainplan">계획 대장 (목록·고치기)</Link>
         <PrintButton className="pill print" label="인쇄" />
       </PageHead>
       <div className="tr-planwrap">
