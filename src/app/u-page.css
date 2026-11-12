@@ -285,3 +285,186 @@
   .rp-split:not(.solo) .rp-zoom { zoom: 1; }
 }
 @media print { .rp-open { display: none; } }
+
+/* ---------------------------------------------------------------- 교육훈련 (3-7) 2026-11-12 */
+.tr-na { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px; border-left: 0; background: #f6f8fc; }
+.tr-na.on { background: #ecf7f1; }
+.tr-na-ico { flex: 0 0 auto; min-width: 74px; text-align: center; font-size: 1.3rem; font-weight: 800; padding: 12px 8px; border-radius: 12px; background: #e3e8f2; color: #3a4357; }
+.tr-na.on .tr-na-ico { background: #1f8a5b; color: #fff; }
+.tr-na b { font-size: 1rem; }
+.tr-na p { margin: 4px 0; font-size: .9rem; }
+.tr-na small { color: var(--muted); font-size: .76rem; line-height: 1.5; display: block; }
+.tr-legal td { vertical-align: middle; }
+.tr-mini { display: inline-block; width: 60px; height: 6px; background: #e6ebf3; border-radius: 3px; margin-right: 6px; vertical-align: middle; overflow: hidden; }
+.tr-mini span { display: block; height: 100%; background: #1f8a5b; }
+.tr-st { display: inline-block; font-size: .78rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+.tr-st.ok { background: #e3f4ec; color: #1f6b47; }
+.tr-st.part { background: #fdf0e1; color: #8a4500; }
+.tr-st.no, .tr-st.late { background: #fbe7e6; color: #a1231b; }
+.tr-st.na { background: #eef0f4; color: #6b7280; }
+.tr-lg { font-size: .78rem; font-weight: 700; margin-left: 10px; }
+.tr-lg.done, .tr-it.done { color: #1f6b47; }
+.tr-lg.plan, .tr-it.plan { color: #0c3994; }
+.tr-lg.late, .tr-it.late { color: #a35200; }
+.tr-cal { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.tr-mon { background: #f8f9fc; border: 1px solid #e3e8f1; border-radius: 10px; padding: 8px 10px; min-height: 70px; display: flex; flex-direction: column; gap: 3px; }
+.tr-mon.now { border: 2px solid #0c3994; background: #eef3fd; }
+.tr-mon b { font-size: .85rem; }
+.tr-it { font-size: .78rem; text-decoration: none; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-it:hover { text-decoration: underline; }
+.tr-todo { display: flex; gap: 10px; align-items: flex-start; padding: 8px 2px; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink); }
+.tr-todo:hover { background: #f6f8fc; }
+.tr-todo > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tr-todo small { color: var(--muted); font-size: .76rem; }
+.tr-tag { flex: 0 0 auto; font-size: .72rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
+.tr-tag.r { background: #fbe7e6; color: #a1231b; }
+.tr-tag.o { background: #fdf0e1; color: #8a4500; }
+.tr-tag.b { background: #e8eefb; color: #0c3994; }
+.tr-opts { display: flex; flex-direction: column; gap: 10px; }
+.tr-opts label, .tr-f { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; font-weight: 700; color: #5b6475; }
+.tr-opts input, .tr-opts select, .tr-f input, .tr-f select, .tr-f textarea { font: inherit; font-size: .9rem; font-weight: 400; color: var(--ink); padding: 8px 10px; border: 1px solid #c9d3e6; border-radius: 8px; background: #fff; }
+/* 이수 현황표 */
+.tr-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.tr-chips a { font-size: .85rem; font-weight: 700; padding: 6px 14px; border-radius: 20px; border: 1px solid #d5dbe7; background: #fff; color: #3a4357; text-decoration: none; }
+.tr-chips a.on { background: #0c3994; border-color: #0c3994; color: #fff; }
+.tr-mx th { white-space: pre-line; text-align: center; font-size: .78rem; line-height: 1.3; }
+.tr-mx td.c { text-align: center; }
+.tr-c { display: inline-block; min-width: 52px; font-weight: 700; font-size: .8rem; padding: 3px 6px; border-radius: 6px; text-decoration: none; }
+.tr-c.ok { background: #e3f4ec; color: #1f6b47; }
+.tr-c.part { background: #fdf0e1; color: #8a4500; }
+.tr-c.no { background: #fbe7e6; color: #a1231b; }
+.tr-c.na { color: #9aa3b2; }
+a.tr-c:hover { outline: 2px solid currentColor; }
+.tr-ok { color: #1f6b47; }
+.tr-legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: .78rem; margin-top: 12px; color: #3a4357; }
+/* 교육 실시 기록 */
+.tr-rec { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.tr-rec-l { flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.tr-rec-l .card { margin: 0; }
+.tr-rec-r { flex: 1 1 460px; min-width: 0; position: sticky; top: 12px; background: #e8ebf1; border-radius: 14px; padding: 14px; }
+.tr-g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.tr-g2 .wide { grid-column: 1 / -1; }
+.tr-n { color: var(--blue); margin-left: 6px; }
+.tr-dept { border-top: 1px solid var(--line); padding: 8px 0; }
+.tr-dh { font: inherit; font-size: .85rem; font-weight: 800; background: none; border: 0; padding: 0 0 6px; cursor: pointer; color: var(--ink); }
+.tr-dh small { color: var(--muted); font-weight: 500; }
+.tr-ppl { display: flex; flex-wrap: wrap; gap: 6px; }
+.tr-p { font: inherit; font-size: .85rem; padding: 6px 10px; border-radius: 8px; cursor: pointer; background: #fff; color: #6b7280; border: 1px dashed #cdd4e2; min-height: 34px; }
+.tr-p.on { background: #e8eefb; color: #0c3994; border: 1px solid #b9c8ea; font-weight: 700; }
+.tr-p small { font-weight: 400; color: #a35200; }
+.tr-warn { margin: 10px 0 0; font-size: .8rem; font-weight: 700; color: #a35200; }
+.tr-save { display: flex; gap: 12px; align-items: center; justify-content: flex-end; }
+/* 교육일지 종이 */
+.tr-paper { background: #fff; max-width: 800px; margin: 0 auto; padding: 36px 40px; box-shadow: 0 2px 10px rgba(20, 30, 60, .12); position: relative; color: #111; }
+.tr-paper.sm { padding: 24px 26px; }
+.tr-paper h2 { text-align: center; letter-spacing: .4em; font-size: 1.5rem; margin: 6px 0 18px; }
+.tr-paper.sm h2 { font-size: 1.2rem; margin-bottom: 12px; }
+.tr-paper h3 { font-size: .95rem; margin: 18px 0 6px; }
+.tr-doc { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.tr-doc th, .tr-doc td { border: 1px solid #333; padding: 7px 8px; }
+.tr-doc th { background: #f2f2f2; width: 90px; font-weight: 700; }
+.tr-doc.c { text-align: center; }
+.tr-doc.c th { width: auto; }
+.tr-doc.sign td { height: 30px; }
+.tr-doc.sign td:nth-child(4), .tr-doc.sign td:nth-child(8) { width: 80px; }
+.tr-appr { position: absolute; right: 40px; top: 24px; border-collapse: collapse; font-size: .72rem; }
+.tr-appr th, .tr-appr td { border: 1px solid #333; padding: 3px 8px; text-align: center; }
+.tr-appr td { height: 42px; width: 56px; }
+.tr-sigline { text-align: right; font-size: .85rem; margin-top: 20px; }
+@media (max-width: 900px) {
+  .tr-cal { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tr-rec-r { position: static; }
+  .tr-g2 { grid-template-columns: 1fr; }
+  .tr-na { flex-direction: column; }
+}
+@media print {
+  .tr-paper { box-shadow: none; padding: 0; max-width: none; }
+  .tr-appr { right: 0; top: 0; }
+  .tr-chips { display: none; }
+}.tr-mode { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .85rem; font-weight: 700; margin-bottom: 10px; padding: 8px 10px; background: #f6f8fc; border-radius: 8px; cursor: pointer; }
+.tr-mode .muted { font-weight: 400; font-size: .78rem; }
+.tr-p.miss { background: #fff; color: #a1231b; border: 1px solid #f0c4c0; }
+.tr-p em { font-style: normal; font-size: .72rem; font-weight: 700; }
+/* 교육결과 보고서 (회사 양식) */
+.tr-paper.rep { font-family: "Malgun Gothic", "맑은 고딕", sans-serif; }
+.tr-paper.rep.brk { margin-top: 24px; }
+.tr-rh, .tr-rb, .tr-rc { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.tr-rh td, .tr-rh th, .tr-rb td, .tr-rb th, .tr-rc td, .tr-rc th { border: 1px solid #222; padding: 6px 8px; }
+.tr-rh .logo { width: 22%; text-align: center; }
+.tr-rh .logo img { max-width: 140px; max-height: 60px; }
+.tr-rh .ttl { text-align: center; font-size: 1.6rem; font-weight: 800; letter-spacing: .25em; }
+.tr-rh th { width: 10%; font-weight: 700; background: #fff; letter-spacing: .3em; }
+.tr-rh .sg { height: 46px; }
+.tr-rh .dt { text-align: center; font-size: .78rem; color: #444; }
+.tr-rb { margin-top: 14px; }
+.tr-rb th, .tr-rc thead th { background: #e9e9e9; font-weight: 700; text-align: center; white-space: nowrap; }
+.tr-rb td { text-align: center; }
+.tr-rb td.big { text-align: left; font-weight: 700; font-size: .95rem; }
+.tr-rb td small { color: #555; }
+.tr-rc { margin-top: -1px; }
+.tr-rc td { height: 25px; padding: 2px 8px; }
+.tr-rc td.body { vertical-align: top; white-space: pre-line; line-height: 1.6; padding: 10px 12px; font-size: .84rem; }
+.tr-rc td.nm { font-weight: 600; }
+.tr-rc .miss { color: #a1231b; font-size: .78rem; margin-top: 12px; }
+.tr-eval { font-size: .8rem; margin: 6px 0 0; }
+@media print { .tr-paper.rep.brk { break-before: page; margin-top: 0; } }
+/* 수강현황 (A4) */
+.tr-paper.st { max-width: 900px; font-family: "Pretendard", "Malgun Gothic", sans-serif; }
+.tr-st-h { font-size: 1.6rem; font-weight: 800; margin: 0 0 6px; padding-bottom: 8px; border-bottom: 3px solid #1e3a7b; }
+.tr-st-sub { text-align: right; font-size: .82rem; margin: 6px 0 14px; }
+.tr-st-t { font-size: 1rem; font-weight: 800; color: #1e3a7b; border-left: 5px solid #1e3a7b; padding-left: 8px; margin: 16px 0 6px; }
+.tr-sx { width: 100%; border-collapse: collapse; font-size: .8rem; text-align: center; }
+.tr-sx th { background: #4a64ad; color: #fff; border: 1px solid #c6cfe4; padding: 5px 6px; font-weight: 700; }
+.tr-sx.p thead tr:first-child th { background: #1e3a7b; }
+.tr-sx th.cn { background: #4a64ad; font-size: .72rem; max-width: 130px; }
+.tr-sx td { border: 1px solid #c6cfe4; padding: 4px 6px; }
+.tr-sx td.l { text-align: left; }
+.tr-sx td.l a, .tr-sx td.nm a { color: inherit; text-decoration: none; }
+.tr-sx tr.sum td { background: #e8eef9; font-weight: 800; }
+.tr-sx .bad { color: #d0261d; font-weight: 800; }
+.tr-sx td.na { color: #9aa3b2; }
+.tr-sx td.dp { background: #e8eef9; font-weight: 800; color: #1e3a7b; }
+.tr-sx td.nm { font-weight: 700; }
+.tr-sx td.cf { background: #fffbe6; color: #1e3a7b; font-weight: 800; }
+.tr-st-foot { font-size: .74rem; color: #444; margin-top: 6px; }
+.tr-st-foot .bad { color: #d0261d; }
+.tr-st-logo { text-align: center; margin-top: 10px; }
+.tr-st-logo img { max-height: 40px; }
+/* 연간 교육 계획·실적표 */
+.tr-planwrap { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.tr-planmain { flex: 1 1 760px; min-width: 0; margin: 0; }
+.tr-side { flex: 0 1 260px; margin: 0; background: #eef1f6; }
+.tr-pg { border-collapse: collapse; font-size: .78rem; width: 100%; min-width: 1100px; text-align: center; }
+.tr-pg th { background: #e6f2d9; border: 1px solid #9aa58a; padding: 5px 4px; font-weight: 800; }
+.tr-pg th.now { background: #c9e3ae; }
+.tr-pg td { border: 1px solid #b9bfae; padding: 4px; height: 24px; }
+.tr-pg tr.pl td { border-bottom-style: dotted; }
+.tr-pg td.kd { font-weight: 700; background: #fafcf6; }
+.tr-pg td.nm { min-width: 180px; }
+.tr-pg td.gb { color: #444; width: 40px; }
+.tr-pg td.on { background: #fff35c; font-weight: 700; }
+.tr-pg td.miss { color: #a1231b; font-size: .7rem; font-weight: 700; }
+.tr-pg td.ok { color: #1f6b47; font-weight: 800; }
+.tr-pg td.low { color: #a1231b; font-weight: 800; }
+.tr-pg td.org { font-size: .72rem; min-width: 110px; }
+.tr-sit { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 8px; }
+.tr-sit li { display: flex; flex-direction: column; gap: 2px; font-size: .85rem; }
+.tr-sit small, .tr-sit2 small { color: var(--muted); font-size: .74rem; }
+.tr-sit2 { display: flex; flex-direction: column; gap: 6px; }
+.tr-sit2 div { background: #f7e9ec; border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; font-size: .85rem; }
+.tr-docf { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; font-size: .85rem; font-weight: 700; }
+.tr-docf input { font: inherit; font-weight: 400; padding: 5px 8px; border: 1px solid #c9d3e6; border-radius: 6px; }
+.tr-rb.pl td { height: 30px; }
+.tr-rb td.l { text-align: left; }
+@media print { .tr-side { display: none; } .tr-pg { min-width: 0; } }
+/* 개인별 교육이력카드 */
+.tr-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.tr-pc { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid #e3e8f1; border-radius: 10px; text-decoration: none; color: var(--ink); background: #fff; }
+.tr-pc:hover { border-color: #0c3994; background: #f6f8fc; }
+.tr-pc small { color: var(--muted); font-size: .76rem; }
+.tr-pc span { font-size: .82rem; font-weight: 700; }
+.tr-paper.card .tr-rb th { width: 13%; }
+.tr-paper.card .tr-rb td.l { text-align: left; }
+.tr-two { display: grid; grid-template-columns: 1fr 1.4fr; gap: 14px; }
+.tr-lgl { font-size: .66rem; font-weight: 700; color: #0c3994; background: #e8eefb; padding: 1px 5px; border-radius: 4px; margin-left: 5px; }
+@media (max-width: 760px) { .tr-two { grid-template-columns: 1fr; } }

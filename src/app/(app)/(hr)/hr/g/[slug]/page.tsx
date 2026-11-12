@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import PageHead from "@/components/대시/PageHead";
 import SiteLinks from "@/components/대시/SiteLinks";
+import EduHome from "@/components/인사노무/EduHome";
 import { JoinLeaveBars, StatusBars, TwoBars } from "@/components/인사노무/Charts";
 import { Ico, Stat } from "@/components/인사노무/HomeKit";
 import PrintButton from "@/components/PrintButton";
@@ -38,6 +39,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   if (!d) notFound();
   const user = await requireUser();
   const admin = user.role === "관리자";
+  if (slug === "edu" && admin) return <EduHome />; // 교육훈련 홈은 전용 화면 (2026-11-12)
   const today = todayKst(), month = today.slice(0, 7);
   const group = menuOf("hr").groups.find((g) => g.label === d.group)!;
   const items = group.items.filter((i) => !i.href.startsWith("/hr/g/") && (admin || !i.admin));
