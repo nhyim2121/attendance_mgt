@@ -1,4 +1,4 @@
-/** 연간 교육 계획·실적표 (관리자) — 회사 엑셀 양식처럼 과정 × 1~12월 (계획 / 실적 인원), 이수율, 비고(기관)
+/** 연간 교육 계획 (관리자) — A안 간트 타임라인 + B안 월별 그래프·보드 + C안 구분별 진척을 한 화면에 (2026-11-12)
  *  ?view=doc 이면 교육/훈련 계획서(결재란 · 팀명 · 작성일자 · 작성자 · NO·교육대상·교육과정명·교육시간·교육월·교육기관(장소)·비고) 인쇄 양식 */
 import Link from "next/link";
 import PageHead from "@/components/대시/PageHead";
@@ -65,92 +65,161 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
     );
   }
 
-  // 과정별 묶기: 같은 교육명(띄어쓰기 무시)이면 한 줄
-  type Line = { k: string; kind: string; name: string; target: string; org: string; plan: number[]; act: number[] };
+  // 과정별 묶기: 같은 교육명(띄어쓰기 무시)이면 한 줄. 칸마다 계획(대장 고치기)·실시(결과 보고서)로 가는 주소를 같이 둔다
+  type Line = { k: string; kind: string; name: string; target: string; org: string; plan: number[]; act: number[]; planHref: string[]; actHref: string[] };
   const lines = new Map<string, Line>();
   const get = (name: string, kind: string, target: string, org: string) => {
     const k = key(name);
     let l = lines.get(k);
-    if (!l) { l = { k, kind: kind || "기타", name, target, org, plan: Array(12).fill(0), act: Array(12).fill(0) }; lines.set(k, l); }
+    if (!l) { l = { k, kind: kind || "기타", name, target, org, plan: Array(12).fill(0), act: Array(12).fill(0), planHref: Array(12).fill(""), actHref: Array(12).fill("") }; lines.set(k, l); }
     if (!l.target && target) l.target = target;
     if (!l.org && org) l.org = org;
     return l;
   };
-  for (const p of plans) get(p.data.name ?? "", p.data.kind ?? "", p.data.target ?? "", p.data.org ?? "").plan[+p.day!.slice(5, 7) - 1] += +p.data.n || 1;
-  for (const r of done) {
-    const c = courseOf(r, base.employees);
-    get(r.data.name ?? "", r.data.kind ?? "", "", r.data.by ?? "").act[+r.day!.slice(5, 7) - 1] += +r.data.n || c.done.length || 1;
+  for (const p of plans) {
+    const l = get(p.data.name ?? "", p.data.kind ?? "", p.data.target ?? "", p.data.org ?? ""), m = +p.day!.slice(5, 7) - 1;
+    l.plan[m] += +p.data.n || 1; l.planHref[m] ||= `/hr/b/trainplan?edit=${p.id}#form`;
   }
-  const rows = [...lines.values()].sort((a, b) => (KIND_ORDER.indexOf(a.kind) + 99) % 99 - (KIND_ORDER.indexOf(b.kind) + 99) % 99 || a.name.localeCompare(b.name));
-  const kinds: { kind: string; n: number }[] = [];
-  for (const r of rows) { const g = kinds.at(-1); if (g && g.kind === r.kind) g.n++; else kinds.push({ kind: r.kind, n: 1 }); }
+  for (const r of done) {
+    const c = courseOf(r, base.employees), m = +r.day!.slice(5, 7) - 1;
+    const l = get(r.data.name ?? "", r.data.kind ?? "", "", r.data.by ?? "");
+    l.act[m] += +r.data.n || c.done.length || 1; l.actHref[m] ||= `/hr/training/sheet?id=${r.id}`;
+  }
+  const ord = (k: string) => { const i = KIND_ORDER.indexOf(k); return i < 0 ? 99 : i; };
+  const rows = [...lines.values()].sort((a, b) => ord(a.kind) - ord(b.kind) || a.name.localeCompare(b.name));
   const sum = (a: number[]) => a.reduce((s, x) => s + x, 0);
-  const curM = y === +today.slice(0, 4) ? +today.slice(5, 7) : 0;
+  const curM = y === +today.slice(0, 4) ? +today.slice(5, 7) : y < +today.slice(0, 4) ? 13 : 0; // 지난해면 모든 달이 지난 달
+  const missed = (l: Line, i: number) => l.plan[i] > 0 && !l.act[i] && i + 1 < curM;
+  const rate = (p: number, a: number) => (p ? Math.round((Math.min(a, p) / p) * 100) : null);
+
+  // A: 요약 숫자
+  const P = sum(rows.map((r) => sum(r.plan))), A = sum(rows.map((r) => Math.min(sum(r.act), sum(r.plan) || sum(r.act))));
+  const doneCourses = rows.filter((r) => sum(r.plan) && sum(r.act) >= sum(r.plan)).length;
+  const thisMonth = curM >= 1 && curM <= 12 ? rows.filter((r) => r.plan[curM - 1] && !r.act[curM - 1]) : [];
+  const missN = rows.reduce((s, r) => s + r.plan.filter((_, i) => missed(r, i)).length, 0);
+  // B: 월별 인원
+  const mP = Array.from({ length: 12 }, (_, i) => sum(rows.map((r) => r.plan[i]))), mA = Array.from({ length: 12 }, (_, i) => sum(rows.map((r) => r.act[i])));
+  const mMax = Math.max(1, ...mP, ...mA);
+  // C: 구분별 진척
+  const kinds = [...new Set(rows.map((r) => r.kind))].map((kind) => {
+    const ls = rows.filter((r) => r.kind === kind);
+    const p = sum(ls.map((r) => sum(r.plan))), a = sum(ls.map((r) => Math.min(sum(r.act), sum(r.plan) || sum(r.act))));
+    return { kind, n: ls.length, p, a, pct: rate(p, a) ?? 100 };
+  });
+  const tone = (p: number) => (p >= 100 ? "#1f8a5b" : p >= 60 ? "#2a78d6" : "#d9730d");
   const na = tv.noAccident.on;
-  let idx = 0, prevKind = "";
 
   return (
     <div className="home">
-      <PageHead href="/hr/training/plan" title="연간 교육 계획·실적표" mark={`${y}년`} emoji="🎓"
-        desc={`연간 교육 계획(계획 인원)과 교육 실시 대장(실적 인원)을 월별로 맞춰 봅니다 · 담당자 ${user.name}`}>
+      <PageHead href="/hr/training/plan" title="연간 교육 계획" mark={`${y}년`} emoji="🎓"
+        desc={`연간 교육 계획(계획 인원)과 교육 실시 기록(실시 인원)을 맞춰 봅니다 · 담당자 ${user.name}`}>
         <Link className="pill" href={`?y=${y - 1}`}>← {y - 1}년</Link>
         <Link className="pill" href={`?y=${y + 1}`}>{y + 1}년 →</Link>
-        <Link className="pill" href={`?y=${y}&view=doc`}>계획서 양식</Link>
         <Link className="pill" href="/hr/b/trainplan#form">+ 계획 추가</Link>
-        <Link className="pill" href="/hr/b/trainplan">계획 대장 (목록·고치기)</Link>
-        <PrintButton className="pill print" label="인쇄" />
+        <Link className="pill" href={`?y=${y}&view=doc`}>계획서 인쇄</Link>
+        <Link className="pill" href="/hr/b/trainplan">계획 대장</Link>
       </PageHead>
-      <div className="tr-planwrap">
-        <section className="card tr-planmain">
-          <div className="tbl-wrap">
-            <table className="tr-pg">
-              <thead>
-                <tr><th rowSpan={2}>번호</th><th rowSpan={2}>교육구분</th><th rowSpan={2}>교육명</th><th rowSpan={2}>교육<br />대상자</th><th rowSpan={2}>구분</th><th colSpan={12}>{y}년</th><th rowSpan={2}>이수율</th><th rowSpan={2}>비고</th></tr>
-                <tr>{Array.from({ length: 12 }, (_, i) => <th key={i} className={i + 1 === curM ? "now" : ""}>{i + 1}월</th>)}</tr>
-              </thead>
-              <tbody>{rows.map((r) => {
-                idx++;
-                const firstOfKind = prevKind !== r.kind;
-                prevKind = r.kind;
-                const g = kinds.find((k) => k.kind === r.kind)!;
-                const p = sum(r.plan), a = sum(r.act);
-                const rate = p ? Math.round((Math.min(a, p) / p) * 100) : null;
-                return [
-                  <tr key={`${r.k}p`} className="pl">
-                    <td rowSpan={2}>{idx}</td>
-                    {firstOfKind && <td rowSpan={g.n * 2} className="kd">{r.kind}</td>}
-                    <td rowSpan={2} className="nm">{r.name}</td><td rowSpan={2}>{r.target}</td><td className="gb">계획</td>
-                    {r.plan.map((n, i) => <td key={i} className={n ? "on" : ""}>{n || ""}</td>)}
-                    <td rowSpan={2} className={rate === null ? "" : rate >= 100 ? "ok" : "low"}>{rate === null ? "-" : `${rate}%`}</td>
-                    <td rowSpan={2} className="org">{r.org}</td>
-                  </tr>,
-                  <tr key={`${r.k}a`} className="ac">
-                    <td className="gb">실적</td>
-                    {r.act.map((n, i) => <td key={i} className={n ? "on" : r.plan[i] && i + 1 < curM ? "miss" : ""}>{n || (r.plan[i] && i + 1 < curM ? "미실시" : "")}</td>)}
-                  </tr>,
-                ];
-              })}</tbody>
-            </table>
-          </div>
-          {!rows.length && <p className="muted">이 해의 계획·실시 기록이 없습니다.</p>}
-          <p className="muted" style={{ fontSize: ".76rem", marginTop: 8 }}>숫자는 인원(명). 계획은 연간 교육 계획의 &apos;계획 인원&apos;, 실적은 교육 실시 대장의 참석 인원입니다. 같은 교육명(띄어쓰기 무시)끼리 한 줄로 묶습니다.</p>
-        </section>
 
-        <aside className="card tr-side">
-          <div className="card-title">상황별 추가 교육</div>
-          <ul className="tr-sit">
-            <li><b>신규 채용 시</b><small>직무 배치 전 필수 · 8시간 이상 (일용·1주 이하 1시간, 1개월 이하 4시간)</small></li>
-            <li><b>작업내용 변경 시</b><small>부서 이동·업무 변경 시 · 2시간 이상 (일용 1시간)</small></li>
-            <li><b>특별교육</b><small>위험 작업(별표 5) 배치 시 · 16시간 이상</small></li>
-          </ul>
-          <div className="tr-sit2">
-            <div><b>사무직·판매직</b><small>반기별 {na ? "3시간 (무재해 50%)" : "6시간 이상"}</small><small>연간 총 {na ? 6 : 12}시간</small></div>
-            <div><b>현장직 등 그 밖</b><small>반기별 {na ? "6시간 (무재해 50%)" : "12시간 이상"}</small><small>연간 총 {na ? 12 : 24}시간</small></div>
-            <div><b>관리감독자</b><small>연간 16시간 이상</small><small>감면 대상 아님</small></div>
+      <section className="card hstats">
+        <div className="tp-k"><span>계획 과정</span><b>{rows.filter((r) => sum(r.plan)).length}<small>개</small></b></div>
+        <div className="tp-k"><span>실시 완료 과정</span><b className="ok">{doneCourses}<small>개</small></b></div>
+        <div className="tp-k"><span>계획 대비 실시 인원</span><b>{A}<small>/ {P}명</small></b></div>
+        <div className="tp-k"><span>이수율</span><b>{rate(P, A) ?? 0}<small>%</small></b></div>
+        <div className="tp-k"><span>이번 달 예정</span><b className="plan">{thisMonth.length}<small>건</small></b></div>
+        <div className="tp-k"><span>미실시 (지난 달)</span><b className={missN ? "bad" : ""}>{missN}<small>건</small></b></div>
+      </section>
+
+      <div className="tp-top home-row">
+        <section className="card">
+          <div className="card-title">월별 인원 <span className="muted" style={{ fontWeight: 400 }}>계획 / 실시</span><span className="spacer" />
+            <span className="tp-lg p">계획</span><span className="tp-lg a">실시</span></div>
+          <div className="tp-chart">
+            {mP.map((p, i) => (
+              <div key={i} className={`tp-col${i + 1 === curM ? " now" : ""}`} title={`${i + 1}월 계획 ${p}명 · 실시 ${mA[i]}명`}>
+                <div className="tp-bars"><span className="p" style={{ height: `${(p / mMax) * 100}%` }} /><span className="a" style={{ height: `${(mA[i] / mMax) * 100}%` }} /></div>
+                <b>{i + 1}월</b><small>{p || mA[i] ? `${mA[i]}/${p}` : "-"}</small>
+              </div>
+            ))}
           </div>
-          <p className="muted" style={{ fontSize: ".72rem", margin: "8px 0 0" }}>산업안전보건법 시행규칙 별표 4{na ? ` · 제27조① 무재해 감면 적용 (${tv.noAccident.prevYear}년 산재 0건)` : ""}</p>
-        </aside>
+        </section>
+        <section className="card">
+          <div className="card-title">구분별 진척</div>
+          <div className="tp-rings">
+            {kinds.map((k) => (
+              <a key={k.kind} href={`#k-${k.kind}`} className="tp-ring">
+                <span className="r" style={{ background: `conic-gradient(${tone(k.pct)} ${k.pct}%, #e6ebf3 0)` }}><i>{k.pct}%</i></span>
+                <span><b>{k.kind}</b><small>{k.n}개 과정 · {k.a}/{k.p}명</small></span>
+              </a>
+            ))}
+            {!kinds.length && <p className="muted">계획이 없습니다.</p>}
+          </div>
+        </section>
       </div>
+
+      <section className="card home-row">
+        <div className="card-title">과정별 타임라인 <span className="muted" style={{ fontWeight: 400 }}>칸을 누르면 계획(고치기) · 실시(결과 보고서)</span><span className="spacer" />
+          <span className="tp-lg p">계획</span><span className="tp-lg a">실시</span><span className="tp-lg m">미실시</span></div>
+        <div className="tbl-wrap">
+          <table className="tp-g">
+            <thead><tr><th className="l">교육명 · 대상</th>{Array.from({ length: 12 }, (_, i) => <th key={i} className={i + 1 === curM ? "now" : ""}>{i + 1}월</th>)}<th>진척</th><th className="l">기관</th></tr></thead>
+            <tbody>
+              {kinds.map((k) => [
+                <tr key={`h${k.kind}`} id={`k-${k.kind}`} className="kh">
+                  <td colSpan={15}><span className="r sm" style={{ background: `conic-gradient(${tone(k.pct)} ${k.pct}%, #e6ebf3 0)` }} /><b>{k.kind}</b><small>{k.n}개 과정 · 계획 {k.p}명 중 {k.a}명 실시 · {k.pct}%</small></td>
+                </tr>,
+                ...rows.filter((r) => r.kind === k.kind).map((r) => {
+                  const p = sum(r.plan), a = sum(r.act), pc = rate(p, a);
+                  return (
+                    <tr key={r.k}>
+                      <td className="l"><b>{r.name}</b>{r.target && <small>{r.target}</small>}</td>
+                      {r.plan.map((pn, i) => {
+                        const an = r.act[i], cls = an ? "a" : missed(r, i) ? "m" : pn ? "p" : "";
+                        const href = an ? r.actHref[i] : pn ? r.planHref[i] : "";
+                        return <td key={i} className={i + 1 === curM ? "now" : ""}>{cls ? <Link href={href} className={`tp-c ${cls}`} title={`${i + 1}월 계획 ${pn}명 · 실시 ${an}명`}>{an || pn}</Link> : null}</td>;
+                      })}
+                      <td className="pr"><div className="tp-pbar"><span style={{ width: `${pc ?? 100}%`, background: tone(pc ?? 100) }} /></div><b>{a}/{p || "-"}</b></td>
+                      <td className="l org">{r.org}</td>
+                    </tr>
+                  );
+                }),
+              ])}
+              {!rows.length && <tr><td colSpan={15} className="muted" style={{ padding: 16 }}>이 해의 계획·실시 기록이 없습니다. [+ 계획 추가]로 시작하세요.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card home-row">
+        <div className="card-title">월별 보드 <span className="muted" style={{ fontWeight: 400 }}>달마다 할 교육 · 이번 달 강조</span></div>
+        <div className="tp-board">
+          {Array.from({ length: 12 }, (_, i) => {
+            const items = rows.filter((r) => r.plan[i] || r.act[i]).map((r) => ({ r, st: r.act[i] ? "완료" : missed(r, i) ? "미실시" : "예정" }));
+            const miss = items.filter((x) => x.st === "미실시").length;
+            return (
+              <div key={i} className={`tp-mon${i + 1 === curM ? " now" : ""}${i + 1 < curM ? " past" : ""}`}>
+                <div className="tp-mh"><b>{i + 1}월</b><span className={miss ? "bad" : ""}>{items.length ? (miss ? `미실시 ${miss}` : `${items.length}건`) : "없음"}</span></div>
+                {items.map(({ r, st }) => (
+                  <Link key={r.k} href={st === "완료" ? r.actHref[i] : r.planHref[i]} className="tp-mi">
+                    <em className={st === "완료" ? "a" : st === "미실시" ? "m" : "p"}>{st}</em><span>{r.name}</span><small>{r.act[i]}/{r.plan[i]}</small>
+                  </Link>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="card home-row tp-law">
+        <div className="card-title">상황별 추가 교육 · 법정 기준 <span className="muted" style={{ fontWeight: 400 }}>산업안전보건법 시행규칙 별표 4{na ? ` · 무재해 감면 적용 (${tv.noAccident.prevYear}년 산재 0건)` : ""}</span></div>
+        <div className="tp-lawg">
+          <div><b>신규 채용 시</b><small>직무 배치 전 · 8시간 이상 (일용 1시간)</small></div>
+          <div><b>작업내용 변경 시</b><small>부서 이동·업무 변경 · 2시간 이상</small></div>
+          <div><b>특별교육</b><small>위험 작업 배치 · 16시간 이상</small></div>
+          <div><b>사무직·판매직 정기</b><small>반기 {na ? "3시간 (50% 감면)" : "6시간"} · 연 {na ? 6 : 12}시간</small></div>
+          <div><b>현장직 등 정기</b><small>반기 {na ? "6시간 (50% 감면)" : "12시간"} · 연 {na ? 12 : 24}시간</small></div>
+          <div><b>관리감독자</b><small>연 16시간 · 감면 대상 아님</small></div>
+        </div>
+      </section>
     </div>
   );
 }

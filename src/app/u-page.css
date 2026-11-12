@@ -477,4 +477,75 @@ a.tr-c:hover { outline: 2px solid currentColor; }
   .sd-doc { box-shadow: none; padding: 0; max-width: none; border-radius: 0; }
   .tr-side { display: none; }
   .tr-pg { min-width: 0; }
-}
+}/* 연간 교육 계획 (A 간트 + B 월별 그래프·보드 + C 구분별 진척) */
+.tp-k { display: flex; flex-direction: column; gap: 2px; padding: 4px 14px; border-left: 1px solid var(--line); }
+.tp-k:first-child { border-left: 0; }
+.tp-k span { font-size: .78rem; color: var(--muted); font-weight: 600; }
+.tp-k b { font-size: 1.5rem; font-weight: 800; }
+.tp-k b small { font-size: .8rem; color: var(--muted); font-weight: 500; margin-left: 3px; }
+.tp-k b.ok { color: #1f6b47; } .tp-k b.plan { color: #2a78d6; } .tp-k b.bad { color: #a1231b; }
+.tp-top { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; }
+.tp-top .card { margin: 0; }
+.tp-lg { font-size: .76rem; font-weight: 700; margin-left: 10px; display: inline-flex; align-items: center; gap: 4px; }
+.tp-lg::before { content: ""; width: 12px; height: 10px; border-radius: 3px; }
+.tp-lg.p { color: #2a78d6; } .tp-lg.p::before { border: 2px solid #9dbbec; background: #fff; }
+.tp-lg.a { color: #0c3994; } .tp-lg.a::before { background: #0c3994; }
+.tp-lg.m { color: #a1231b; } .tp-lg.m::before { background: repeating-linear-gradient(45deg, #fbe7e6, #fbe7e6 3px, #f3b9b5 3px, #f3b9b5 6px); }
+.tp-chart { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; }
+.tp-col { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; border-radius: 8px; }
+.tp-col.now { background: #eef3fd; }
+.tp-bars { height: 120px; width: 100%; display: flex; gap: 3px; align-items: flex-end; justify-content: center; border-bottom: 1px solid #d5dbe7; }
+.tp-bars span { width: 11px; border-radius: 3px 3px 0 0; min-height: 0; }
+.tp-bars .p { background: #bcd3f2; } .tp-bars .a { background: #0c3994; }
+.tp-col.now .tp-bars .a { background: #2a78d6; }
+.tp-col b { font-size: .76rem; } .tp-col.now b { color: var(--blue); }
+.tp-col small { font-size: .7rem; color: var(--muted); }
+.tp-rings { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.tp-ring { display: flex; gap: 10px; align-items: center; padding: 8px; border: 1px solid #e3e8f1; border-radius: 10px; text-decoration: none; color: var(--ink); }
+.tp-ring:hover { border-color: var(--blue); background: #f6f8fc; }
+.tp-ring > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.tp-ring small { font-size: .74rem; color: var(--muted); }
+.tp-ring .r, .tp-g .r { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.tp-ring .r i { width: 36px; height: 36px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: .74rem; font-weight: 800; }
+.tp-g { border-collapse: collapse; width: 100%; min-width: 1050px; font-size: .8rem; text-align: center; }
+.tp-g th { background: #eef2fa; color: #1d2b4f; border-bottom: 2px solid #cdd6ea; padding: 7px 4px; font-weight: 700; }
+.tp-g th.now { background: var(--blue); color: #fff; }
+.tp-g th.l, .tp-g td.l { text-align: left; }
+.tp-g td { border-bottom: 1px solid #eef0f4; padding: 4px 3px; height: 40px; }
+.tp-g td.now { background: #f3f6fd; }
+.tp-g td.l b { display: block; font-size: .84rem; }
+.tp-g td.l small { color: var(--muted); font-size: .72rem; }
+.tp-g td.org { font-size: .74rem; color: var(--muted); max-width: 150px; }
+.tp-g tr.kh td { background: #f6f8fc; text-align: left; height: auto; padding: 8px 10px; border-top: 2px solid #cdd6ea; }
+.tp-g tr.kh td > * { vertical-align: middle; }
+.tp-g tr.kh b { font-size: .9rem; color: var(--blue); margin: 0 8px; }
+.tp-g tr.kh small { color: var(--muted); font-size: .76rem; }
+.tp-g .r.sm { width: 18px; height: 18px; display: inline-block; }
+.tp-c { display: flex; align-items: center; justify-content: center; height: 26px; border-radius: 6px; font-weight: 800; font-size: .78rem; text-decoration: none; }
+.tp-c.a { background: #0c3994; color: #fff; }
+.tp-c.p { box-shadow: inset 0 0 0 2px #9dbbec; color: #2a78d6; }
+.tp-c.m { background: repeating-linear-gradient(45deg, #fbe7e6, #fbe7e6 4px, #f3b9b5 4px, #f3b9b5 8px); color: #a1231b; }
+.tp-c:hover { outline: 2px solid #0c3994; outline-offset: 1px; }
+.tp-g td.pr { min-width: 120px; }
+.tp-g td.pr b { font-size: .78rem; margin-left: 6px; }
+.tp-pbar { display: inline-block; width: 60px; height: 7px; background: #e6ebf3; border-radius: 4px; vertical-align: middle; overflow: hidden; }
+.tp-pbar span { display: block; height: 100%; border-radius: 4px; }
+.tp-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.tp-mon { border: 1px solid #e3e8f1; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; min-height: 84px; background: #fff; }
+.tp-mon.now { border: 2px solid var(--blue); box-shadow: 0 4px 14px rgba(12, 57, 148, .12); }
+.tp-mon.past { background: #fbfcfe; }
+.tp-mh { display: flex; align-items: center; gap: 6px; }
+.tp-mh b { flex: 1; font-size: .95rem; }
+.tp-mh span { font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #eef1f6; color: #3a4357; }
+.tp-mh span.bad { background: #fbe7e6; color: #a1231b; }
+.tp-mi { display: flex; align-items: center; gap: 6px; font-size: .78rem; text-decoration: none; color: var(--ink); }
+.tp-mi:hover span { text-decoration: underline; }
+.tp-mi em { font-style: normal; font-size: .66rem; font-weight: 800; padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+.tp-mi em.a { background: #e3f4ec; color: #1f6b47; } .tp-mi em.p { background: #e8eefb; color: #0c3994; } .tp-mi em.m { background: #fbe7e6; color: #a1231b; }
+.tp-mi span { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-mi small { color: var(--muted); }
+.tp-lawg { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.tp-lawg div { background: #f6f8fc; border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; font-size: .85rem; }
+.tp-lawg small { color: var(--muted); font-size: .76rem; }
+@media (max-width: 1000px) { .tp-top { grid-template-columns: 1fr; } .tp-board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .tp-board { grid-template-columns: 1fr; } .tp-chart { gap: 2px; } .tp-bars span { width: 7px; } }
