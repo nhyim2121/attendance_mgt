@@ -34,24 +34,32 @@ export function LedgerForm({ book, fields, v, id, back, emps, lists }: {
   book: string; fields: Field[]; v: Record<string, string>; id?: number; back: string; emps: string[]; lists: Record<string, string[]>;
 }) {
   const [r, action, pending] = useActionState(saveLedger, null);
+  const main = fields.filter((f) => !f.hide || f.req), more = fields.filter((f) => f.hide && !f.req);
+  const F = (f: Field) => (
+    <label key={f.k} className={`field${f.wide || f.type === "textarea" ? " wide" : ""}`}>
+      <span className="lg-l">{f.label}{f.req && <b className="red">*</b>}</span>
+      <Input f={f} v={v[f.k] ?? ""} lists={lists} />
+    </label>
+  );
   return (
     <form action={action} className="stack" style={{ gap: 10 }} key={r?.ok ?? "form"}>
       <Msg r={r} />
       <input type="hidden" name="book" value={book} />
       {id && <input type="hidden" name="id" value={id} />}
       <input type="hidden" name="back" value={back} />
-      <div className="lg-fields">
-        {fields.map((f) => (
-          <label key={f.k} className={`field${f.wide || f.type === "textarea" ? " wide" : ""}`}>
-            {f.label}{f.req && <span className="red"> *</span>}
-            <Input f={f} v={v[f.k] ?? ""} lists={lists} />
-          </label>
-        ))}
-      </div>
-      <div className="row end">
-        <label className="field">첨부 <span className="muted">(사진·스캔본, 여러 개)</span><input type="file" name="file" accept={ACCEPT} multiple /></label>
-        <button className="btn primary" disabled={pending}>{pending ? "저장 중…" : id ? "고치기" : "대장에 적기"}</button>
+      {/* 2026-11-12: 칸 너비를 일정하게, 필수(*)는 이름 옆, 목록에 안 보이는 칸(hide)은 '추가 항목'으로 접기 */}
+      <div className="lg-fields">{main.map(F)}</div>
+      {more.length > 0 && (
+        <details className="lg-more" open={more.some((f) => v[f.k])}>
+          <summary>추가 항목 <b>{more.length}</b><span>{more.map((f) => f.label.replace(/\s*\(.*\)$/, "")).join(" · ")}</span></summary>
+          <div className="lg-fields">{more.map(F)}</div>
+        </details>
+      )}
+      <div className="lg-actions">
+        <label className="lg-file"><span>첨부</span><input type="file" name="file" accept={ACCEPT} multiple /><small>사진·스캔본, 여러 개</small></label>
+        <span className="spacer" />
         {id && <Link className="btn" href={back}>취소</Link>}
+        <button className="btn primary" disabled={pending}>{pending ? "저장 중…" : id ? "고친 내용 저장" : "대장에 적기"}</button>
       </div>
       <datalist id="lg-emps">{emps.map((e) => <option key={e} value={e} />)}</datalist>
       {Object.entries(lists).map(([k, xs]) => <datalist key={k} id={`lg-${k}`}>{xs.map((x) => <option key={x} value={x} />)}</datalist>)}
