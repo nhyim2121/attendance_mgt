@@ -127,6 +127,24 @@ export function Leaves({ items, today }: { items: { day: string; name: string; t
   );
 }
 
+/** PC 보안점검 결과 (자동실행/security-check.mjs, PC를 켤 때마다) */
+export interface SecItem { kind: string; name: string; st: "ok" | "warn" | "bad"; detail: string }
+export function Security({ at, items }: { at: string; items: SecItem[] }) {
+  const order = { bad: 0, warn: 1, ok: 2 } as const;
+  const list = [...items].sort((a, b) => order[a.st] - order[b.st]);
+  const bad = items.filter((i) => i.st === "bad").length, warn = items.filter((i) => i.st === "warn").length;
+  return (
+    <div className="u-sec">
+      <p className={`u-sec-sum ${bad ? "bad" : warn ? "warn" : "ok"}`}>
+        {bad ? `위험 ${bad}건` : warn ? `주의 ${warn}건` : "모두 양호"}{bad && warn ? ` · 주의 ${warn}건` : ""}
+        <small> · 점검 {at.slice(5, 16).replace("-", "/")}</small></p>
+      <ul>{list.map((i) => (
+        <li key={i.name} className={i.st}><b>{i.st === "ok" ? "✓" : i.st === "warn" ? "!" : "✕"}</b><span>{i.name}</span><small>{i.detail}</small></li>
+      ))}</ul>
+    </div>
+  );
+}
+
 /** 이번 주 휴가·출장을 주간 달력(월~금, 주말에 있으면 토·일도)으로: 날짜 칸마다 사람·종류 */
 export function WeekLeaves({ items, today }: { items: { day: string; name: string; type: string }[]; today: string }) {
   const t = new Date(`${today}T00:00:00Z`);

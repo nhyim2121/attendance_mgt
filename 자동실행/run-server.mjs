@@ -1,7 +1,7 @@
 /** 사이트 감시 실행기 (작업 스케줄러가 창 없이 실행).
  *
  * - 이미 8501 포트에서 사이트가 돌고 있으면 아무것도 하지 않고 끝낸다 (중복 실행 방지).
- * - Supabase(Docker)를 켜고, 저장소를 백업한 뒤 사이트를 켠다. 사이트가 멈추면 몇 초 뒤 다시 켠다.
+ * - Supabase(Docker)를 켜고, 저장소를 백업하고 PC 보안점검(security-check.mjs)을 한 뒤 사이트를 켠다. 사이트가 멈추면 몇 초 뒤 다시 켠다.
  * - 10분마다 DB 백업(바뀌었을 때만), 1시간마다 업무 자료 폴더 백업.
  * - 08~20시 2시간마다 입찰 공고 자동 불러오기 (/api/bid/fetch, .env.local BID_CRON_KEY).
  * - 서버 출력: 데이터/logs/server-YYYYMMDD.log, 재시작 기록: 데이터/logs/watchdog.log
@@ -101,6 +101,7 @@ async function main() {
   }
   run("node 자동실행/backup-db.mjs");
   run("node 자동실행/backup-files.mjs"); // 업무 영역 자료 폴더 백업·작업기록
+  run("node 자동실행/security-check.mjs"); // PC 보안점검 (PC를 켤 때마다, 2026-11-12) — 결과는 대시보드·보안 점검 기록 대장
   if (!existsSync(join(ROOT, ".next", "BUILD_ID"))) {
     log("빌드가 없어 npm run build를 실행합니다.");
     run("npm run build");
