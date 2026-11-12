@@ -164,6 +164,7 @@ export const MENU: MenuArea[] = [
     key: "misc", label: "기타", en: "MY WORK", color: "#6d28d9", desc: "주간업무일지·타부서 업무협조·개인일정·월별 캘린더", dash: "/misc", adminOnly: false,
     groups: [
       { label: "업무 기록", items: [
+        { href: "/misc/board", label: "데일리 체크 보드", desc: "오늘 할 일·주간 체크·반복 업무, 업무(프로젝트)·리마인더, 업무 인수인계서" },
         { href: "/misc/weekly", label: "주간업무일지", desc: "금주 실적·차주 계획, 팀 모아보기, 인쇄·엑셀" },
         { href: "/misc/coop", label: "타부서 업무협조", desc: "품질·생산·영업·구매·연구소와 주고받는 요청" },
       ] },
