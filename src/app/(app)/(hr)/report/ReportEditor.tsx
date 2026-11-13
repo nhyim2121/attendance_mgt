@@ -416,7 +416,16 @@ export default function ReportEditor(p: Props) {
           {tab === "휴가일정" && (
             <div className="rg-list">
               {idx.length === 0 && <p className="caption" style={{ margin: "6px 2px" }}>아직 휴가일정이 없습니다. 아래 [+ 휴가 추가]를 누르세요.</p>}
-              {idx.map(([r, i], n) => {
+              {(() => {
+                // 같은 사람 휴가는 한 묶음으로 (2026-11-13): 처음 나온 순서대로 사람별로 모으고, 두 번째부터는 이어 붙인 카드
+                const names: string[] = [];
+                for (const [r] of idx) if (!names.includes(r.name)) names.push(r.name);
+                const grouped = names.flatMap((nm) => idx.filter(([r]) => r.name === nm));
+                let person = 0;
+                return grouped.map(([r, i], n) => {
+                const cont = n > 0 && !!r.name && grouped[n - 1][0].name === r.name;
+                if (!cont) person++;
+                const sameCount = r.name ? idx.filter(([x]) => x.name === r.name).length : 1;
                 const legacy = !r.types && !r.title && !!r.note; // 정리하지 못한 예전 줄
                 const ds = splitReportTypes(r.types).filter(isDateStr).sort();
                 const kind = r.title || "연차";
@@ -426,12 +435,18 @@ export default function ReportEditor(p: Props) {
                 const st = tm?.[1] ? tm[1].padStart(5, "0") : "", et = tm?.[2] ? tm[2].padStart(5, "0") : "";
                 const back = partial ? "당일 출근" : returnDays(ds, isWorkday).map((d) => dayLabel(d)).join(", ") || "-";
                 return (
-                  <div key={i} className="rg-card">
+                  <div key={i} className={`rg-card${cont ? " rg-cont" : ""}`}>
                     <div className="rg-head">
-                      <span className="rg-no">{n + 1}</span>
-                      {nameSelect(i, r)}
+                      {cont
+                        ? <span className="rg-same">↳ {r.name}의 다른 휴가</span>
+                        : <><span className="rg-no">{person}</span>{nameSelect(i, r)}</>}
                       {!legacy && <span className="rg-sum">{kind}{ds.length ? ` · ${unit === "day" ? `${ds.length}일` : `${ds.length}회`}` : ""}</span>}
+                      {!cont && sameCount > 1 && <span className="rg-multi">휴가 {sameCount}건</span>}
                       <span className="spacer" />
+                      {!cont && r.name && (
+                        <button type="button" className="btn sm" title="같은 사람의 다른 종류 휴가를 이 카드 아래에 추가합니다"
+                          onClick={() => setRows((rs) => [...rs, { ...blank("휴가일정"), name: r.name, dept: r.dept, rank: r.rank, title: "연차" }])}>+ 이 사람 휴가 추가</button>
+                      )}
                       <button type="button" className="rg-del" onClick={() => remove(i)} title="이 휴가 삭제">삭제</button>
                     </div>
                     {legacy ? (
@@ -482,7 +497,8 @@ export default function ReportEditor(p: Props) {
                     )}
                   </div>
                 );
-              })}
+                });
+              })()}
               {rows.some((r) => r.section === "휴가일정" && r.types) && (
                 <p className="caption" style={{ margin: "2px" }}>저장하면 오늘 이후 날짜는 <b>휴가 관리</b>에도 휴가로 등록됩니다 (다시 저장하면 최신 내용으로 바뀜).
                   반차·반반차·외출은 그날도 출근하므로 출근 예정을 &lsquo;당일 출근&rsquo;으로 봅니다.</p>
