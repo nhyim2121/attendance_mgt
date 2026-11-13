@@ -647,7 +647,3 @@ a.tr-c:hover { outline: 2px solid currentColor; }
 .db-mini .more { font-size: .8rem; color: var(--blue); text-decoration: none; font-weight: 700; }
 .db-k { font-style: normal; font-size: .6rem; font-weight: 800; padding: 1px 5px; border-radius: 4px; margin-right: 5px; text-decoration: none; display: inline-block; }
 .db-k.r { background: #f1ebfb; color: #6d3fd1; } .db-k.s { background: #fbe7e6; color: #a1231b; }
-/* 휴가일정: 같은 사람 휴가 묶음 (2026-11-13) */
-.rg-card.rg-cont { margin-top: -6px; margin-left: 28px; border-left: 3px solid #b9c8ea; border-top-left-radius: 0; }
-.rg-same { font-size: .85rem; font-weight: 700; color: #3b4a6b; }
-.rg-multi { font-size: .72rem; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: #e8eefb; color: #0c3994; }

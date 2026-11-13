@@ -327,11 +327,7 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
     const back = (s: string) => `<span style="${TXT}font-weight:800;color:${NAVY};white-space:nowrap">${esc(s)}</span>`;
     const range = (ds: DateStr[]) => esc(ds.length > 1 ? `${dayLabel(ds[0])} ~ ${dayLabel(ds[ds.length - 1])}` : dayLabel(ds[0]));
     const anyNote = sub.some((r) => r.note.trim());
-    // 같은 사람의 휴가 여러 건은 붙여 놓고 부서·성명 칸을 하나로 합친다 (2026-11-13)
-    const order: string[] = [];
-    for (const r of sub) if (!order.includes(r.name)) order.push(r.name);
-    sub = order.flatMap((nm) => sub.filter((r) => r.name === nm));
-    const perRow = sub.map((r) => {
+    const body = sub.map((r) => {
       const ds = splitReportTypes(r.types).filter(isDateStr).sort();
       // 줄마다 [휴가 기간, 일수·시간, 출근 예정]
       let lines: [string, string, string][];
@@ -344,24 +340,17 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
           ? runs.map(([run, b]) => [range(run), `<span style="${dim}">${run.length}일</span>`, back(b)])
           : [[esc(ds.length ? ds.map((d) => dayLabel(d)).join(", ") : r.note), `<span style="${dim}">${ds.length ? `${ds.length}일` : "-"}</span>`, r.value ? back(r.value) : "-"]];
       }
-      return { r, lines };
-    });
-    const body = perRow.map(({ r, lines }, k) => {
-      const first = k === 0 || perRow[k - 1].r.name !== r.name || !r.name;
-      let personLines = 0; // 이 사람(이어지는 줄들) 전체 줄 수
-      if (first) for (let j = k; j < perRow.length && (j === k || (!!r.name && perRow[j].r.name === r.name)); j++) personLines += perRow[j].lines.length;
-      const pspan = personLines > 1 ? ` rowspan="${personLines}"` : "";
       const span = lines.length > 1 ? ` rowspan="${lines.length}"` : "";
       return lines.map((l, i) => `<tr>`
-        + (i === 0 && first ? `<td style="${C}"${pspan}>${esc(r.dept)}</td><td style="${C}"${pspan}>${person(r)}</td>` : "")
-        + (i ? "" : `<td style="${C}"${span}>${r.title ? badge(r.title) : "-"}</td>`)
+        + (i ? "" : `<td style="${C}"${span}>${esc(r.dept)}</td><td style="${C}"${span}>${person(r)}</td>`
+          + `<td style="${C}"${span}>${r.title ? badge(r.title) : "-"}</td>`)
         + `<td style="${C}">${l[0]}</td><td style="${C}">${l[1]}</td><td style="${C}">${l[2]}</td>`
         + (anyNote && !i ? `<td style="${C}${dim}"${span}>${esc(r.note.trim())}</td>` : "")
         + `</tr>`).join("");
     }).join("");
     const heads: [string, string][] = [["부서", "70px"], ["성명", "100px"], ["종류", "70px"], ["휴가 기간", ""], ["일수·시간", "120px"], ["출근 예정", "100px"],
       ...(anyNote ? [["사유", "110px"] as [string, string]] : [])];
-    parts.push(section(SECTION_TITLES.휴가일정, order.length,
+    parts.push(section(SECTION_TITLES.휴가일정, sub.length,
       `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%">`
       + `<tr>${heads.map(([h, w]) => `<th style="${HEAD}${w ? `width:${w};` : ""}">${h}</th>`).join("")}</tr>${body}</table>`));
   }
