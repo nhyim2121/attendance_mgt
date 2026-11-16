@@ -4,12 +4,12 @@
  * - 인쇄 버튼에서 고른 방향(<html data-print>), 없으면 문서형(.doc-page)은 A4 세로, 그 밖에는 A4 가로
  * - 여러 장이 맞는 문서(직원별 내역서 여러 명, 첨부 이미지)는 그대로 둔다
  * - 근태 기입 여러 명은 한 사람에 한 장, 휴가 홈은 두 장(.print-chunk): 가장 긴 장이 A4 한 장에 들어가게
- * - 인쇄 직전에 인쇄 모양(.measuring)으로 바꿔 높이를 재고, 넘치면 너비를 넓혀 가며 한 장에 맞춘다 (키우지는 않음) */
+ * - 인쇄 직전에 인쇄 모양(.measuring)으로 바꿔 높이를 재고, 넘치면 너비를 넓혀 가며 한 장에 맞추고, 남으면 1.25배까지 키운다 */
 import { useEffect } from "react";
 
 const MM = 96 / 25.4; // 1mm = px
 const MARGIN = 5; // globals.css @page 여백(mm)과 같게
-const SAFE = 0.92; // 잰 높이와 실제 인쇄 높이의 차이(글꼴·줄바꿈)를 감안한 여유
+const SAFE = 0.95; // 잰 높이와 실제 인쇄 높이의 차이(글꼴·줄바꿈)를 감안한 여유
 
 export default function PrintFit() {
   useEffect(() => {
@@ -31,10 +31,8 @@ export default function PrintFit() {
       const W = ((portrait ? 210 : 297) - 2 * MARGIN) * MM, H = ((portrait ? 297 : 210) - 2 * MARGIN) * MM * SAFE;
       // 배율 z로 줄이면 배치 너비는 W/z, 인쇄 높이는 (그 너비에서의 높이) × z. 이것이 H가 되도록 몇 번 맞춘다.
       const fill = !!main.querySelector(".print-fill");
-      // 한 장짜리 문서(보고서·신청서·근태 기입·휴가 홈)만 한 장에 끝까지 줄인다.
-      // 목록·대장·현황표처럼 긴 화면은 80% 아래로 줄이지 않고 여러 장으로 넘긴다 (글씨가 너무 작아지지 않게)
-      const onePage = !!main.querySelector(".doc-page, .edit-print, .print-chunk, .print-fill");
-      const MIN = onePage ? 0.35 : 0.8;
+      // 모든 화면을 한 장에 맞춘다. 종이가 남으면 1.25배까지 키워 글씨를 크게 (.print-fill은 1.6배까지)
+      const MAX = fill ? 1.6 : 1.25;
       let z = 1;
       for (let i = 0; i < 5; i++) {
         main.style.width = `${W / z}px`;
@@ -42,8 +40,7 @@ export default function PrintFit() {
         const pages = main.querySelectorAll<HTMLElement>(".edit-print, .print-chunk");
         const h = pages.length > 1 ? Math.max(...[...pages].map((p) => p.offsetHeight)) : main.scrollHeight;
         if (!h) break;
-        // 키우지 않는다. 단 .print-fill(연차 현황표·휴가 홈)은 종이가 남으면 키워서 꽉 채운다
-        const nz = Math.max(MIN, Math.min(fill ? 1.6 : 1, H / h));
+        const nz = Math.max(0.35, Math.min(MAX, H / h));
         if (Math.abs(nz - z) < 0.005) { z = nz; break; }
         z = nz;
       }
