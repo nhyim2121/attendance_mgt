@@ -35,17 +35,17 @@ export interface PpeItem {
   size?: SizeKey;                                  // 지급할 때 쓰는 사이즈
   /** 구분별 지급 기준: 숫자 = n개월마다 교체, 0 = 처음 1회(파손·분실 때 교체), 없음 = 꼭 줄 대상 아님 */
   cycle: Partial<Record<PpeGroup, number>>;
-  season?: number;                                 // 정기 지급을 시작하는 달 (하계 5월, 동계 10월 …)
+  season?: number[];                               // 정기 지급하는 달 (하복 4월, 춘추복 3·9월, 동복 10월)
   kcs?: boolean;                                   // 안전인증(KCs) 대상
   note?: string;
 }
 
-/** 품목과 회사 지급 기준 (초안 2026-11-11). 소모품은 개인별 주기 대신 재고·지급 수량만 본다. */
+/** 품목과 회사 지급 기준 — 「피복 관리 규정」(SN-MI-1042, 23.09.27) 제5·7조. 소모품은 개인별 주기 대신 재고·지급 수량만 본다. */
 export const PPE_ITEMS: PpeItem[] = [
-  { name: "안전화", kind: "보호구", size: "shoe", cycle: { 현장직: 12, 연구소: 24, 일용직: 0 }, kcs: true, note: "물체 낙하·충격, 끼임 위험 작업 (규칙 제32조 제1항 제3호)" },
-  { name: "작업복(하계)", kind: "피복", size: "top", cycle: { 현장직: 12, 연구소: 24 }, season: 5 },
-  { name: "작업복(동계)", kind: "피복", size: "top", cycle: { 현장직: 12, 연구소: 24 }, season: 10 },
-  { name: "방한복", kind: "피복", size: "top", cycle: { 현장직: 24 }, season: 11 },
+  { name: "안전화", kind: "보호구", size: "shoe", cycle: { 현장직: 12, 연구소: 24, 일용직: 0 }, kcs: true, note: "현장직 1켤레/1년 · 사무직 1켤레/2년 (규정 제7조), 들어온 시점 기준으로 교체" },
+  { name: "하복", kind: "피복", size: "top", cycle: { 현장직: 12 }, season: [4], note: "현장직 상·하의 3벌/1년 · 지급 4/25 (착용 5/10~9/30)" },
+  { name: "춘추복", kind: "피복", size: "top", cycle: { 현장직: 24, 연구소: 24 }, season: [3, 9], note: "현장직 상·하의 2벌/2년, 점퍼는 전 직원 1벌/2년 · 지급 3/25·9/10" },
+  { name: "동복", kind: "피복", size: "top", cycle: { 현장직: 24, 연구소: 24 }, season: [10], note: "현장직 상·하의 1벌/2년, 점퍼는 전 직원 1벌/2년 · 지급 10/15 (착용 11/1~2/29)" },
   { name: "안전모", kind: "보호구", cycle: { 현장직: 36, 연구소: 0, 일용직: 0 }, kcs: true, note: "물체 낙하·비래, 추락 위험 작업. 충격을 받았거나 금이 가면 바로 교체" },
 ];
 // 관리하는 보호구는 안전화·안전모 두 가지 (2026-11-11). 보안경·안전대·마스크 등을 더 관리하게 되면 위에 한 줄씩 더한다.
@@ -161,17 +161,21 @@ export function dueList(people: PpePerson[], issues: RowLike[], today: string) {
   return out.sort((a, b) => rank[a.cell.status] - rank[b.cell.status] || (a.cell.left ?? 0) - (b.cell.left ?? 0) || a.p.name.localeCompare(b.p.name));
 }
 
-/** 이번 달·다음 달이 정기 지급 시작 달인 피복 (예: 5월 하계 작업복) */
+/** 이번 달·다음 달이 정기 지급 달인 피복 (예: 4월 하복) */
 export function seasonal(today: string) {
   const m = +today.slice(5, 7);
   const next = m === 12 ? 1 : m + 1;
-  return PPE_ITEMS.filter((i) => i.season === m || i.season === next).map((i) => ({ item: i, now: i.season === m }));
+  return PPE_ITEMS.filter((i) => i.season?.includes(m) || i.season?.includes(next)).map((i) => ({ item: i, now: !!i.season?.includes(m) }));
 }
 
 // ------------------------------------------------------------------ 재고
 export interface StockLine { item: string; size: string; inQty: number; outQty: number; left: number }
-/** 품목·사이즈별 재고 = 입고 합 − 지급 합 (반납은 다시 쓰지 않는 것으로 보고 더하지 않는다) */
+/** 품목·사이즈별 재고 = 입고 합 − 지급 합 (반납은 다시 쓰지 않는 것으로 보고 더하지 않는다).
+ *  지급은 그 품목의 첫 입고일부터만 센다 — 입고 기록이 없는 예전 지급 이력(2018~)까지 빼면 재고가 마이너스가 되므로. */
 export function stockOf(stock: RowLike[], issues: RowLike[]): StockLine[] {
+  const first = new Map<string, string>();
+  for (const r of stock) if (r.data.item && r.day && (!first.has(r.data.item) || r.day < first.get(r.data.item)!)) first.set(r.data.item, r.day);
+  issues = issues.filter((r) => { const f = first.get(r.data.item ?? ""); return !!f && !!r.data.day && r.data.day >= f; });
   const m = new Map<string, StockLine>();
   const at = (item: string, size: string) => {
     const k = `${item}|${size}`;
@@ -194,7 +198,7 @@ export const PPE_DUTIES: { step: string; task: string; cycle: string; note?: str
   { step: "조사", task: "개인별 사이즈 조사 (상의·하의·안전화), 입사자·일용직 투입 시 바로 받기", cycle: "매년 · 입사 때" },
   { step: "구매", task: "필요 수량 = 지급 예정 + 예비분, KCs 안전인증품 확인 후 구매", cycle: "반기", note: "산안법 제84조 안전인증 대상: 안전화·안전모" },
   { step: "입고", task: "입고 수량·사이즈·인증번호 확인, 재고 대장 기록", cycle: "구매 때" },
-  { step: "지급", task: "정기 지급 (하계 5월·동계 10월·방한복 11월), 신규 입사·일용직 투입 시 즉시 지급", cycle: "반기 · 수시" },
+  { step: "지급", task: "정기 지급 (춘추복 3/25·하복 4/25·춘추복 9/10·동복 10/15, 피복 관리 규정 제5조), 신규 입사·일용직 투입 시 즉시 지급", cycle: "반기 · 수시" },
   { step: "수령", task: "수령 서명 받기 (지급대장 = 법적 증빙)", cycle: "지급 때" },
   { step: "교체", task: "파손·분실·오염 시 교체 신청 받아 재지급, 사유 기록", cycle: "수시", note: "규칙 제33조: 상시 점검, 이상 있으면 수리·교환" },
   { step: "점검", task: "착용 상태·보관 상태 점검 (안전모 균열·턱끈, 안전화 밑창 마모·앞코 변형)", cycle: "분기" },

@@ -444,7 +444,7 @@ function Duty() {
               <tr key={i.name}>
                 <td><b>{i.name}</b></td><td>{i.kind}</td>
                 {PPE_GROUPS.map((x) => <td key={x} className={i.cycle[x] === undefined ? "pp-na" : ""}>{i.kind === "소모품" ? "필요할 때" : cycleText(i.cycle[x])}</td>)}
-                <td>{i.season ? `${i.season}월` : ""}</td><td>{i.kcs ? "✔" : ""}</td>
+                <td>{i.season ? `${i.season.join("·")}월` : ""}</td><td>{i.kcs ? "✔" : ""}</td>
                 <td className="fd-sub" style={{ whiteSpace: "normal" }}>{i.note}</td>
               </tr>
             ))}</tbody>
