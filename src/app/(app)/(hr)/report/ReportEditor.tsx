@@ -240,12 +240,33 @@ export default function ReportEditor(p: Props) {
     const c = loadCards(pre, p.day);
     const keep = carry.filter((r) => r.section === "휴가일정");
     const doje = carryDoje(carry.filter((r) => r.section === "도제"), p.day);
-    setGroups(c.groups);
-    setHGroups((hs) => (first ? c.hgroups : [...hs, ...c.hgroups]));
-    setRows((rs) => [...rs.filter((r) => r.section !== "도제" && r.section !== "휴가일정"), ...doje, ...tidySchedule(keep, p.day)]);
-    if (first) setBaseline(null);
-    const n = c.groups.reduce((t, g) => t + g.names.length, 0);
-    setLoadNote(`근태현황 파일 ${n}명${carry.length ? `, 최근 보고서의 도제 ${doje.length}명·휴가일정 ${keep.length}건` : ""}을 자동으로 불러왔습니다.`);
+    if (first) {
+      setGroups(c.groups);
+      setHGroups(c.hgroups);
+      setRows((rs) => [...rs.filter((r) => r.section !== "도제" && r.section !== "휴가일정"), ...doje, ...tidySchedule(keep, p.day)]);
+      setBaseline(null);
+      const n = c.groups.reduce((t, g) => t + g.names.length, 0);
+      setLoadNote(`근태현황 파일 ${n}명${carry.length ? `, 최근 보고서의 도제 ${doje.length}명·휴가일정 ${keep.length}건` : ""}을 자동으로 불러왔습니다.`);
+      return;
+    }
+    // 다시 불러오기: 지금 입력한 내용은 그대로 두고, 화면에 아직 없는 사람·일정만 덧붙인다 (2026-11-17)
+    const only = <T extends { names: string[] }>(have: T[], add: T[]) => {
+      const seen = new Set(have.flatMap((g) => g.names));
+      return add.map((g) => ({ ...g, names: g.names.filter((n) => !seen.has(n)) })).filter((g) => g.names.length);
+    };
+    const addG = only(groups, c.groups), addH = only(hgroups, c.hgroups);
+    const schKey = (r: ReportRow) => `${r.name}\u0000${splitReportTypes(r.types).sort().join(",")}`;
+    const haveDoje = new Set(rows.filter((r) => r.section === "도제").map((r) => r.name));
+    const haveSch = new Set(rows.filter((r) => r.section === "휴가일정").map(schKey));
+    const addDoje = doje.filter((r) => !haveDoje.has(r.name));
+    const addSch = tidySchedule(keep, p.day).filter((r) => !haveSch.has(schKey(r)));
+    setGroups((gs) => [...gs, ...addG]);
+    setHGroups((hs) => [...hs, ...addH]);
+    setRows((rs) => [...rs, ...addDoje, ...addSch]);
+    const n = addG.reduce((t, g) => t + g.names.length, 0) + addH.reduce((t, g) => t + g.names.length, 0);
+    setLoadNote(n + addDoje.length + addSch.length
+      ? `입력한 내용은 그대로 두고 새로 찾은 것만 더했습니다: 근태 ${n}명, 도제 ${addDoje.length}명, 휴가일정 ${addSch.length}건.`
+      : "입력한 내용은 그대로입니다. 근태현황 파일·최근 보고서에서 새로 더할 것이 없습니다.");
   });
   const autoRan = useRef(false);
   useEffect(() => {
@@ -300,7 +321,7 @@ export default function ReportEditor(p: Props) {
       <div className="row" style={{ marginBottom: 12, alignItems: "center" }}>
         <span className="caption" style={{ margin: 0 }}>{loadNote || (p.isSaved ? "저장된 보고서입니다." : "")}</span>
         <div className="spacer" />
-        <button className="btn sm" disabled={pending} title="근태현황 파일의 이 날짜 근태와 가장 최근 보고서의 도제·휴가일정을 다시 가져옵니다 (지금 입력한 내용을 바꿉니다)"
+        <button className="btn sm" disabled={pending} title="근태현황 파일의 이 날짜 근태와 가장 최근 보고서의 도제·휴가일정 중 화면에 아직 없는 것만 더합니다 (입력한 내용은 그대로)"
           onClick={() => autoLoad(false)}>다시 불러오기</button>
       </div>
 
