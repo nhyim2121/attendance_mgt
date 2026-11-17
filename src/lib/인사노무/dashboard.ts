@@ -1,7 +1,7 @@
 /** 홈 대시보드 집계: 오늘 근무 현황, 어제 근무 현황, 이번 주 52시간, 이번 달 근무시간, 인력 변동, 부서별 근무. */
 import type { DayRow } from "./analytics";
 import type { WorkRule } from "../config";
-import type { Employee } from "./employees";
+import { type Employee, isEmployed, spansOf } from "./employees";
 import { addDays, type DateStr, minutesOf, ts, weekday } from "../time";
 
 const HOUR = 3_600_000;
@@ -182,12 +182,15 @@ export interface Headcount {
   byMonth: { month: string; join: number; leave: number }[]; // 그 해 1~12월
 }
 
-const activeOn = (e: Employee, d: DateStr) => (!e.joinDate || e.joinDate <= d) && (!e.leaveDate || e.leaveDate >= d);
+// 재입사 직원은 이전 근무 기간도 본다 (2026-11-17)
+const activeOn = (e: Employee, d: DateStr) => isEmployed(spansOf(e), d);
+const joinedIn = (e: Employee, m: string) => spansOf(e).some(([a]) => a?.startsWith(m));
+const leftIn = (e: Employee, m: string) => spansOf(e).some(([, b]) => b?.startsWith(m));
 
 export function headcount(emps: Employee[], base: DateStr): Headcount {
   const month = base.slice(0, 7), first = `${month}-01`;
-  const joined = emps.filter((e) => e.joinDate?.startsWith(month));
-  const left = emps.filter((e) => e.leaveDate?.startsWith(month));
+  const joined = emps.filter((e) => joinedIn(e, month));
+  const left = emps.filter((e) => leftIn(e, month));
   const startActive = emps.filter((e) => activeOn(e, first)).length;
   const y = base.slice(0, 4);
   return {
@@ -196,8 +199,8 @@ export function headcount(emps: Employee[], base: DateStr): Headcount {
     byMonth: Array.from({ length: 12 }, (_, i) => {
       const mm = `${y}-${String(i + 1).padStart(2, "0")}`;
       return {
-        month: `${i + 1}월`, join: emps.filter((e) => e.joinDate?.startsWith(mm)).length,
-        leave: emps.filter((e) => e.leaveDate?.startsWith(mm)).length,
+        month: `${i + 1}월`, join: emps.filter((e) => joinedIn(e, mm)).length,
+        leave: emps.filter((e) => leftIn(e, mm)).length,
       };
     }),
   };

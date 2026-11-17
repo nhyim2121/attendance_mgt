@@ -16,7 +16,24 @@ const cleanOne = (e: Employee, ord: number): Employee => ({
   dept: String(e.dept ?? ""), rank: String(e.rank ?? ""), position: String(e.position ?? ""),
   phone: String(e.phone ?? ""), ext: String(e.ext ?? ""), email: String(e.email ?? ""), note: String(e.note ?? ""), ord,
   joinDate: isDateStr(e.joinDate) ? e.joinDate : null, leaveDate: isDateStr(e.leaveDate) ? e.leaveDate : null,
+  prior: (Array.isArray(e.prior) ? e.prior : [])
+    .map((s) => ({ join: isDateStr(s?.join) ? s.join : null, leave: isDateStr(s?.leave) ? s.leave : null }))
+    .filter((s) => s.join || s.leave)
+    .sort((a, b) => (a.join ?? "").localeCompare(b.join ?? "")),
 });
+
+/** 이전 근무 기간 확인: 기간마다 입사 ≤ 퇴사, 퇴사일 필수, 서로 겹치지 않고 지금 입사일보다 앞 */
+function priorError(e: Employee): string | null {
+  const ps = e.prior ?? [];
+  for (const [i, s] of ps.entries()) {
+    if (!s.leave) return `이전 근무 기간 ${i + 1}의 퇴사일을 적어 주세요.`;
+    if (s.join && s.join > s.leave) return `이전 근무 기간 ${i + 1}의 퇴사일이 입사일보다 빠릅니다.`;
+    if (i && ps[i - 1].leave! >= (s.join ?? "")) return `이전 근무 기간 ${i}과 ${i + 1}이 겹칩니다.`;
+  }
+  const last = ps[ps.length - 1];
+  if (last && (!e.joinDate || e.joinDate <= last.leave!)) return "재입사한 직원은 지금 입사일(재입사일)이 이전 근무 기간의 퇴사일보다 뒤여야 합니다.";
+  return null;
+}
 
 /** 관리자만 보는 칸 (rrn: undefined = 그대로) */
 export interface PrivateInput { birth: string | null; rrn?: string; salaryType: string; salary: string; salaryNote: string }
@@ -31,7 +48,9 @@ export async function saveEmployee(orig: string, e: Employee, priv?: PrivateInpu
   const one = cleanOne(e, i >= 0 ? list[i].ord : list.length + 1);
   if (!one.name) return { error: "이름을 적어 주세요." };
   if (one.joinDate && one.leaveDate && one.leaveDate < one.joinDate) return { error: "퇴사일이 입사일보다 빠릅니다." };
-  if (list.some((x, j) => j !== i && x.name === one.name)) return { error: `'${one.name}'이(가) 이미 있습니다 (동명이인은 '홍길동2'처럼 구분해 주세요).` };
+  const pe = priorError(one);
+  if (pe) return { error: pe };
+  if (list.some((x, j) => j !== i && x.name === one.name)) return { error: `'${one.name}'이(가) 이미 있습니다. 재입사라면 기존 직원을 열어 '재입사 처리'를 눌러 주세요 (동명이인은 '홍길동2'처럼 구분).` };
   let p: Parameters<typeof savePrivate>[1] | null = null;
   if (priv && user.role === "관리자") {
     let rrn: string | undefined;

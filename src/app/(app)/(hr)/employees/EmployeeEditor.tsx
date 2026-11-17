@@ -18,7 +18,7 @@ export interface Extra {
 
 const COLORS = ["#0c3994", "#0e7490", "#b45309", "#15803d", "#6d28d9", "#be185d"];
 const colorOf = (name: string) => COLORS[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORS.length];
-const BLANK: Employee = { name: "", capsName: "", empId: "", dept: "", rank: "", position: "", phone: "", ext: "", email: "", joinDate: null, leaveDate: null, note: "", ord: 0 };
+const BLANK: Employee = { name: "", capsName: "", empId: "", dept: "", rank: "", position: "", phone: "", ext: "", email: "", joinDate: null, leaveDate: null, prior: [], note: "", ord: 0 };
 const KIND_TONE: Record<string, string> = { "수습 종료": "b", "1년 근속": "g", "근속 기념": "v", "퇴사 예정": "o" };
 const dday = (n: number) => (n < 0 ? `${-n}일 지남` : n === 0 ? "오늘" : `D-${n}`);
 const n1 = (x: number) => Math.round(x * 10) / 10;
@@ -153,7 +153,7 @@ export default function EmployeeEditor({ emps, depts, today, extra, avatars, adm
                 return (
                   <tr key={e.name} onClick={() => setOpen(e)}>
                     <td><div className="ep-who"><Avatar name={e.name} src={src(e.name)} /><b>{e.name}</b>{e.position && <small>{e.position}</small>}</div></td>
-                    <td>{e.dept}</td><td>{e.rank}</td><td>{e.joinDate ?? <span className="ep-miss">입사일 없음</span>}</td>
+                    <td>{e.dept}</td><td>{e.rank}</td><td>{e.joinDate ?? <span className="ep-miss">입사일 없음</span>}{e.prior?.length ? <small className="muted2" title={e.prior.map((s) => `${s.join ?? "?"} ~ ${s.leave ?? "?"}`).join(", ")}> 재입사</small> : null}</td>
                     <td className="muted2">{extra[e.name]?.tenure}</td>
                     <td>{e.phone}{e.ext && <small className="muted2"> · 내선 {e.ext}</small>}</td>
                     <td><span className={`fd-tag ${tone(s)}`}>{s}</span></td>
@@ -351,8 +351,30 @@ function Drawer({ emp, today, extra, admin, avatar, fyLabel, onClose }: {
             <span className="ep-inline">
               <input type="date" value={e.leaveDate ?? ""} onChange={(ev) => set({ leaveDate: ev.target.value || null })} />
               {!isNew && !e.leaveDate && <button type="button" className="ep-btn sm" onClick={() => set({ leaveDate: today })}>퇴사 처리</button>}
+              {!isNew && emp.leaveDate && e.leaveDate === emp.leaveDate && (
+                <button type="button" className="ep-btn sm" title="지금 근무 기간을 '이전 근무 기간'으로 옮기고, 새 입사일을 적습니다"
+                  onClick={() => set({ prior: [...(e.prior ?? []), { join: e.joinDate, leave: e.leaveDate }], joinDate: null, leaveDate: null })}>재입사 처리</button>
+              )}
             </span>
           </label>
+          <div className="wide">
+            <span title="퇴사했다가 다시 들어온 직원: 예전에 다닌 기간. 그 기간의 출입 기록도 재직으로 집계합니다. 연차·근속은 위 입사일(재입사일)부터 셉니다.">
+              이전 근무 기간 <small className="muted2">재입사 직원만 · 연차·근속은 위 입사일(재입사일)부터</small></span>
+            {(e.prior ?? []).map((s, i) => (
+              <span key={i} className="ep-inline" style={{ marginTop: 4 }}>
+                <input type="date" aria-label={`이전 근무 ${i + 1} 입사일`} value={s.join ?? ""}
+                  onChange={(ev) => set({ prior: (e.prior ?? []).map((x, j) => (j === i ? { ...x, join: ev.target.value || null } : x)) })} />
+                <span>~</span>
+                <input type="date" aria-label={`이전 근무 ${i + 1} 퇴사일`} value={s.leave ?? ""}
+                  onChange={(ev) => set({ prior: (e.prior ?? []).map((x, j) => (j === i ? { ...x, leave: ev.target.value || null } : x)) })} />
+                <button type="button" className="ep-btn sm ghost" aria-label={`이전 근무 ${i + 1} 지우기`}
+                  onClick={() => set({ prior: (e.prior ?? []).filter((_, j) => j !== i) })}>×</button>
+              </span>
+            ))}
+            <span className="ep-inline" style={{ marginTop: 4 }}>
+              <button type="button" className="ep-btn sm" onClick={() => set({ prior: [...(e.prior ?? []), { join: null, leave: null }] })}>＋ 이전 근무 기간</button>
+            </span>
+          </div>
           {field("phone", "휴대전화")}
           {field("ext", "내선")}
           {field("email", "이메일", { type: "email", wide: true })}

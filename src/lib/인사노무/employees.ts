@@ -3,6 +3,8 @@ import type { RosterRow } from "./hiworks";
 import type { CapsRecord } from "./loader";
 import type { DateStr } from "../time";
 
+export interface Stint { join: DateStr | null; leave: DateStr | null }
+
 export interface Employee {
   name: string;
   capsName: string; // 캡스에 이름이 다르게 찍힐 때만
@@ -15,6 +17,8 @@ export interface Employee {
   email: string;
   joinDate: DateStr | null;
   leaveDate: DateStr | null; // 마지막 근무일
+  /** 재입사 직원의 이전 근무 기간 (2026-11-17). 그 기간의 기록도 재직으로 집계한다. 연차·근속은 지금 입사일 기준. */
+  prior?: Stint[];
   note: string;
   ord: number;
 }
@@ -23,7 +27,7 @@ export interface Employee {
 export function seedFrom(roster: RosterRow[], ranks: Record<string, string>): Employee[] {
   return roster.map((r, i) => ({
     name: r.name, capsName: "", empId: "", dept: r.dept, rank: ranks[r.name] ?? "", position: "", phone: "", ext: "",
-    email: "", joinDate: null, leaveDate: null,
+    email: "", joinDate: null, leaveDate: null, prior: [],
     note: "", ord: i + 1,
   }));
 }
@@ -58,21 +62,26 @@ export function applyEmployees(records: CapsRecord[], emps: Employee[]): CapsRec
 
 export type Span = [DateStr | null, DateStr | null];
 
-/** 이름 -> (입사일, 퇴사일). 비어 있으면 null (제한 없음). */
-export function employment(emps: Employee[]): Map<string, Span> {
-  return new Map(emps.map((e) => [e.name, [e.joinDate, e.leaveDate]]));
+/** 직원의 근무 기간 전부: 이전 근무 기간(재입사 전) + 지금 (입사일, 퇴사일). 비어 있으면 null (제한 없음). */
+export function spansOf(e: Employee): Span[] {
+  return [...(e.prior ?? []).map((s) => [s.join, s.leave] as Span), [e.joinDate, e.leaveDate]];
 }
 
-/** 퇴사일은 마지막 근무일로 본다 (그날까지 재직). */
-export function isEmployed(span: Span | undefined, day: DateStr): boolean {
-  if (!span) return true;
-  const [start, end] = span;
-  return (start === null || day >= start) && (end === null || day <= end);
+/** 이름 -> 근무 기간들 */
+export function employment(emps: Employee[]): Map<string, Span[]> {
+  return new Map(emps.map((e) => [e.name, spansOf(e)]));
+}
+
+/** 퇴사일은 마지막 근무일로 본다 (그날까지 재직). 근무 기간 중 하나라도 들면 재직. */
+export function isEmployed(spans: Span | Span[] | undefined, day: DateStr): boolean {
+  if (!spans) return true;
+  const list = (Array.isArray(spans[0]) || !spans.length ? spans : [spans]) as Span[];
+  return list.some(([start, end]) => (start === null || day >= start) && (end === null || day <= end));
 }
 
 /** 기간 [lo, hi] 중 하루라도 재직한 직원 (명부 순서). */
 export function activeNames(emps: Employee[], lo: DateStr, hi: DateStr): string[] {
-  return emps.filter((e) => (e.joinDate === null || e.joinDate <= hi) && (e.leaveDate === null || e.leaveDate >= lo))
+  return emps.filter((e) => spansOf(e).some(([a, b]) => (a === null || a <= hi) && (b === null || b >= lo)))
     .map((e) => e.name);
 }
 
