@@ -5,6 +5,7 @@ import { Table } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
 import { rankMap, scheduleToday, summaryText, weekendBefore } from "@/lib/인사노무/daily";
 import { computeDays, getHolidays, getRecords, getRule, loadBase, type SearchParams } from "@/lib/인사노무/data";
+import { activeNames } from "@/lib/인사노무/employees";
 import { employeeRows, SHEET_COLUMNS } from "@/lib/인사노무/splitter";
 import { loadMailConfig } from "@/lib/mailer";
 import * as store from "@/lib/store";
@@ -60,7 +61,8 @@ export default async function ReportView({ sp }: { sp: SearchParams }) {
 
       <ReportEditor key={day} day={day} saved={saved.map(({ day: _d, ...r }) => r)}
         isSaved={!!info} canDelete={user?.role === "관리자" || info?.author === user?.loginId}
-        hasPrev={written.some((d) => d < day)} names={names} apprentices={apprentices}        deptOf={Object.fromEntries(base.roster.map((r) => [r.name, r.dept]))} ranks={rankMap(fileLeaves, allRows)}
+        hasPrev={written.some((d) => d < day)} names={names}
+        staff={base.employees.length ? activeNames(base.employees, day, day) : names} apprentices={apprentices}        deptOf={Object.fromEntries(base.roster.map((r) => [r.name, r.dept]))} ranks={rankMap(fileLeaves, allRows)}
         holidayDates={holidayDates} holidays={Object.keys(holidays)} outs={outs} home={home}
         mail={{
           configured: !!cfg, sender: cfg ? `${cfg.senderName} <${cfg.user}> · ${cfg.host}:${cfg.port}` : "",

@@ -17,6 +17,7 @@ interface Props {
   canDelete: boolean;
   hasPrev: boolean;
   names: string[];
+  staff: string[]; // 보고일 재직자 (직원 명부 순서) — [+ 인원] 목록
   apprentices: string[]; // 일학습병행(도제) 학생: 직원 관리에서 직급 '도제'(또는 부서 일학습·도제)인 재직자
   deptOf: Record<string, string>;
   ranks: Record<string, string>;
@@ -93,8 +94,10 @@ function loadCards(rows: ReportRow[], day: string): { groups: Group[]; hgroups: 
   return { groups, hgroups };
 }
 
-/** 인원 칩 + [+ 인원] 체크 목록 */
+/** 인원 칩 + [+ 인원] 체크 목록 (2026-11-18: 보고일 재직자만 + 이름 검색) */
 function NamePicker({ names, all, toggle, hint }: { names: string[]; all: string[]; toggle: (n: string) => void; hint: string }) {
+  const [q, setQ] = useState("");
+  const shown = all.filter((n) => n.includes(q.trim()));
   return (
     <div className="row" style={{ gap: 4 }}>
       {names.map((n) => (
@@ -106,11 +109,15 @@ function NamePicker({ names, all, toggle, hint }: { names: string[]; all: string
         <div className="pop-body mates-pop">
           <b>같이 해당되는 직원</b>
           <p className="caption" style={{ margin: "2px 0 8px" }}>{hint}</p>
+          <input type="search" value={q} placeholder="이름 검색" aria-label="이름 검색" autoComplete="off"
+            style={{ width: "100%", marginBottom: 8 }} onChange={(ev) => setQ(ev.target.value)}
+            onKeyDown={(ev) => { if (ev.key === "Enter") { ev.preventDefault(); if (shown.length === 1) { toggle(shown[0]); setQ(""); } } }} />
           <div className="mates-grid">
-            {all.map((n) => (
+            {shown.map((n) => (
               <label key={n}><input type="checkbox" checked={names.includes(n)} onChange={() => toggle(n)} />{n}</label>
             ))}
           </div>
+          {!shown.length && <p className="caption" style={{ margin: 0 }}>‘{q.trim()}’ 재직자가 없습니다.</p>}
         </div>
       </details>
     </div>
@@ -378,7 +385,7 @@ export default function ReportEditor(p: Props) {
                       </div>
                       <div className="rg-cell rg-who">
                         <span className="rg-lbl">인원</span>
-                        <NamePicker names={g.names} all={p.names} toggle={(nm) => toggleName(g, nm)} hint="고른 사람마다 같은 근태·근무지·내용으로 저장됩니다." />
+                        <NamePicker names={g.names} all={p.staff} toggle={(nm) => toggleName(g, nm)} hint="고른 사람마다 같은 근태·근무지·내용으로 저장됩니다." />
                       </div>
                       <div className="rg-cell" title="연속 출장 등: 기간 안의 다른 근무일 보고서에도 같은 줄이 들어갑니다">
                         <span className="rg-lbl">기간</span>
@@ -551,7 +558,7 @@ export default function ReportEditor(p: Props) {
                         </span>
                       </div>
                       <div className="rg-cell rg-who"><span className="rg-lbl">명단</span>
-                        <NamePicker names={g.names} all={p.names} hint="고른 사람마다 같은 날짜·근무지·작업내용으로 저장됩니다."
+                        <NamePicker names={g.names} all={p.staff} hint="고른 사람마다 같은 날짜·근무지·작업내용으로 저장됩니다."
                           toggle={(nm) => setH(g.id, { names: g.names.includes(nm) ? g.names.filter((x) => x !== nm) : [...g.names, nm] })} />
                       </div>
                       <label className="rg-cell"><span className="rg-lbl">근무지</span>
