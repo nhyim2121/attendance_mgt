@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { escapeHtml, parseAttValue, parsePlan, prefillFromLeaves, renderReportHtml, type ReportRow } from "@/lib/인사노무/daily";
 import { isHoliday } from "@/lib/인사노무/analytics";
 import { getHolidays, getRule, loadBase } from "@/lib/인사노무/data";
+import { reportHome } from "@/lib/인사노무/reportHome";
 import { friendlyError, loadMailConfig, parseAddresses, sendMail } from "@/lib/mailer";
 import * as store from "@/lib/store";
 import { VACATION_TYPES } from "@/lib/인사노무/vacation";
@@ -75,7 +76,7 @@ export async function sendReportMail(day: string, toText: string, ccText: string
   const saved = await store.loadReportRows(day);
   const html = greeting.split("\n").map((line) =>
     `<p style="font-family:Malgun Gothic,sans-serif;font-size:14px;margin:0 0 4px">${escapeHtml(line)}</p>`).join("")
-    + '<div style="height:12px"></div>' + renderReportHtml(day, saved);
+    + '<div style="height:12px"></div>' + renderReportHtml(day, saved, true, await reportHome(day).catch(() => null));
   const text = `${greeting}\n\n${saved.map((r) =>
     `- ${r.name}(${r.dept}) ${r.types || r.section} ${r.title} ${r.detail}`.trimEnd()).join("\n")}`;
   try {

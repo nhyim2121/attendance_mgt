@@ -8,14 +8,14 @@ import PrintButton from "@/components/PrintButton";
 import { NoData } from "@/components/ui";
 import { dailyBoard, isHoliday } from "@/lib/인사노무/analytics";
 import {
-  dayLists, deptOvertime, frequentLate, headcount, isLeaveType, monthlyAverage, periodHours, weekdayAverage, weekHours,
+  deptOvertime, frequentLate, headcount, isLeaveType, monthlyAverage, periodHours, weekdayAverage, weekHours,
 } from "@/lib/인사노무/dashboard";
 import { getHolidays, getLeavePolicy, getRule, loadBase, rosterDays, staffOn } from "@/lib/인사노무/data";
 import { buildOrg, defaultNodes, type OrgBox, type OrgNode } from "@/lib/인사노무/org";
 import * as store from "@/lib/store";
 import { addDays, dayLabel, hhmm, nowKst, parseTs, todayKst, tsHM, weekday } from "@/lib/time";
 import { fyOf } from "@/lib/인사노무/vacation";
-import { leaveBook } from "@/lib/인사노무/leaveBook";
+import { annualUsage, prevWorkday, yesterdayRows } from "@/lib/인사노무/reportHome";
 
 const WEEK_LIMIT = 52;
 const WEEK_WARN = 48;
@@ -79,8 +79,8 @@ function OrgMini({ roots }: { roots: OrgBox[] }) {
 const h1 = (x: number) => `${Math.floor(x)}시간${Math.round((x % 1) * 60) ? ` ${Math.round((x % 1) * 60)}분` : ""}`;
 
 export default async function Home() {
-  const [rule, holidays, base, policy, adjusts, savedNodes] = await Promise.all([
-    getRule(), getHolidays(), loadBase(), getLeavePolicy(), store.loadAdjusts(),
+  const [rule, holidays, base, policy, savedNodes] = await Promise.all([
+    getRule(), getHolidays(), loadBase(), getLeavePolicy(),
     store.getSetting<OrgNode[] | null>("org_nodes", null),
   ]);
   if (!base.months.length) return <><PageHead href={"/attendance"} /><NoData /></>;
@@ -103,37 +103,10 @@ export default async function Home() {
   const depts = [...new Set(staff.map(([, d]) => d || "(부서 없음)"))];
   const hasToday = records.some((r) => r.day === today);
 
-  // ---------------------------------------------------------------- 어제 (직전 근무일)
-  let yday = addDays(today, -1);
-  while (isHoliday(yday, rule, holidays) && yday > addDays(today, -14)) yday = addDays(yday, -1);
-  const y = dayLists(days, yday, rule);
-  // 어제 현황은 부서별로 (2026-11-11 사용자 결정): 생산팀, 품질팀(김동수 제외), 영업팀, 연구소, 관리팀
-  const yBoard = dailyBoard(days, base.leaves, await staffOn(yday, records), yday, rule);
-  const Y_DEPTS: [string, (dept: string, emp: string) => boolean][] = [
-    ["생산팀", (d) => d === "생산팀"],
-    ["품질팀", (d, e) => d === "품질팀" && e !== "김동수"],
-    ["영업팀", (d) => d === "영업팀"],
-    ["연구소", (d) => d.includes("연구소")],
-    ["관리팀", (d) => d === "관리팀"],
-  ];
-  const yDeptOf = new Map(yBoard.map((b) => [b.emp, b.dept]));
-  const yGroup = (emp: string, dept = yDeptOf.get(emp) ?? "") => Y_DEPTS.find(([, ok]) => ok(dept, emp))?.[0] ?? "";
-  // 연장근무자 = 평일 연장·휴일근로 + 야간근무(22:00~06:00)를 한 명단으로
-  const nightOf = new Map(y.night.map((o) => [o.emp, o]));
-  const otAll = [...new Set([...y.overtime.map((o) => o.emp), ...y.night.map((o) => o.emp)])].map((emp) => {
-    const o = y.overtime.find((x) => x.emp === emp), n = nightOf.get(emp);
-    return { emp, out: o?.out ?? n?.out ?? 0, hours: o?.hours ?? 0, night: n?.hours ?? 0, grp: yGroup(emp, o?.dept ?? n?.dept) };
-  }).filter((o) => o.grp);
-  const yRows = Y_DEPTS.map(([dp]) => {
-    const g = yBoard.filter((b) => yGroup(b.emp) === dp);
-    return {
-      dept: dp,
-      trip: g.filter((b) => b.group === "출장·교육").map((b) => b.emp),
-      leave: g.filter((b) => b.group === "휴가").map((b) => b.emp),
-      noOut: y.noOut.filter((d) => yGroup(d.emp, d.dept) === dp).map((d) => d.emp),
-      ot: otAll.filter((o) => o.grp === dp).sort((a, b) => b.hours + b.night - a.hours - a.night),
-    };
-  });
+  // ---------------------------------------------------------------- 어제 (직전 근무일) · 보고서와 같은 계산 (reportHome.ts)
+  const yday = prevWorkday(today, rule, holidays);
+  const yRows = await yesterdayRows(days, base.leaves, records, yday, rule);
+  const otAll = yRows.flatMap((r) => r.ot);
   const ySum = (k: "trip" | "leave" | "noOut" | "ot") => yRows.reduce((t, r) => t + r[k].length, 0);
 
   // ---------------------------------------------------------------- 이번 주·이번 달·올해
@@ -154,12 +127,7 @@ export default async function Home() {
 
   // ---------------------------------------------------------------- 연차 (회계연도)
   const fy = fyOf(today, policy);
-  const active = base.employees.filter((e) => (!e.leaveDate || e.leaveDate >= today) && (!e.joinDate || e.joinDate <= today));
-  // 연차 현황(현황표)과 같은 계산 (하이웍스 숫자·직접 수정 포함, '연차 기준'에서 뺀 사람 제외)
-  const excl = new Set(policy.exclude ?? []);
-  const bal = leaveBook(active, base.leaves, adjusts, fy, policy, await store.loadLeaveStatus(fy))(today, (b) => !excl.has(b.name))
-    .bal.filter((b) => b.total > 0);
-  const usedRate = bal.length ? Math.round((bal.reduce((t, b) => t + b.used, 0) / bal.reduce((t, b) => t + b.total, 0)) * 100) : 0;
+  const { bal, usedRate } = await annualUsage(today, policy);
   const most = [...bal].sort((a, b) => b.remain - a.remain).slice(0, 5);
 
   // ---------------------------------------------------------------- 다가오는 휴가·출장 (2주)

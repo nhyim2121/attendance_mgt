@@ -4,7 +4,7 @@ import { toBlob, toPng } from "html-to-image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
-  addWorkHours, attCat, attValue, isOtRow, isPartialSchedule, otUntil, parseAttValue, parsePlan, planNote, LEAVE_TYPES, leaveUnit, renderReportHtml, type ReportRow, returnDays, SCHEDULE_TYPES, scheduleText, splitReportTypes,
+  addWorkHours, attCat, attValue, isOtRow, isPartialSchedule, otUntil, parseAttValue, parsePlan, planNote, LEAVE_TYPES, leaveUnit, renderReportHtml, type ReportHome, type ReportRow, returnDays, SCHEDULE_TYPES, scheduleText, splitReportTypes,
   tidySchedule, timeLabel,
 } from "@/lib/인사노무/daily";
 import { addDays, dayLabel, isDateStr, weekday } from "@/lib/time";
@@ -23,6 +23,7 @@ interface Props {
   holidayDates: string[]; // 휴일 근태 표에 기본으로 보일 날짜 (직전 주말·최근 공휴일)
   holidays: string[]; // 공휴일 전체 (출근예정 계산)
   outs: Record<string, { out: string; type: string }>; // 그날 퇴근 기록 (연장근무 확인)
+  home: ReportHome | null; // 근태 홈 숫자 (맨 위 한눈에 줄·어제 근무 칸)
   mail: { configured: boolean; sender: string; to: string; cc: string; subject: string; greeting: string };
 }
 
@@ -187,7 +188,7 @@ export default function ReportEditor(p: Props) {
   const toggleName = (g: Group, n: string) =>
     setG(g.id, { names: g.names.includes(n) ? g.names.filter((x) => x !== n) : [...g.names, n] });
   const setH = (id: number, patch: Partial<HGroup>) => setHGroups((gs) => gs.map((g) => (g.id === id ? { ...g, ...patch } : g)));
-  const html = useMemo(() => renderReportHtml(p.day, final), [p.day, final]);
+  const html = useMemo(() => renderReportHtml(p.day, final, true, p.home), [p.day, final, p.home]);
 
   const hol = useMemo(() => {
     const s = new Set(p.holidayDates);

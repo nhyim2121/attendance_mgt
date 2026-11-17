@@ -162,8 +162,9 @@ const SUMMARY_CARDS: [string, string, Set<string>][] = [
   ["휴가", "#1f8a3b", new Set(["연차", "월차", "반차", "반반차", "외출", "공가", "경조휴가", "병가"])],
   ["출장", "#6d28d9", new Set(["출장"])],
   ["교육", "#4338ca", new Set(["교육"])],
-  ["외근", "#0e7490", new Set(["외근"])],
-  ["휴일·연장", "#b45309", new Set(["휴일근무", "연장근무"])],
+  // 외근은 빼고 휴일·연장은 나눔 (2026-11-17 사용자 결정)
+  ["휴일", "#b45309", new Set(["휴일근무"])],
+  ["연장", "#be123c", new Set(["연장근무"])],
 ];
 /** 근태 현황 칸 (보고서 2안, 2026-11-11): 한 줄의 종류가 여럿이면 출장 > 교육 > 외근 > 휴일근무 > 휴가 순으로 한 칸에 넣는다. 없는 칸은 안 그림 */
 const ATT_PANELS: [string, string, (ts: string[]) => boolean][] = [
@@ -347,7 +348,8 @@ export function reportCounts(rows: ReportRow[]): Record<string, number> {
   const out: Record<string, number> = {};
   for (const [label, , types] of SUMMARY_CARDS) {
     const names = new Set(att.filter((r) => splitReportTypes(r.types).some((t) => types.has(t))).map((r) => r.name));
-    if (label === "휴일·연장") rows.filter((r) => r.section === "휴일근무").forEach((r) => names.add(r.name));
+    if (label === "휴일") rows.filter((r) => r.section === "휴일근무" && !isOtRow(r)).forEach((r) => names.add(r.name));
+    if (label === "연장") rows.filter((r) => r.section === "휴일근무" && isOtRow(r)).forEach((r) => names.add(r.name));
     out[label] = names.size;
   }
   return out;
@@ -374,8 +376,75 @@ function clean(rows: ReportRow[]): ReportRow[] {
   }));
 }
 
+/** 보고서 맨 위 '한눈에' 줄과 '어제 근무' 칸에 쓰는 근태 홈 숫자 (reportHome.ts에서 계산) */
+export interface ReportHome {
+  staff: number; depts: number; present: number; future: boolean;
+  usedRate: number; fyLabel: string; turnover: number; joined: number; left: number;
+  yday: DateStr; trip: [string, string][]; leave: [string, string][]; ot: [string, string][];
+}
+
+const bar = (pct: number, color: string, h: number) =>
+  `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;height:${h}px"><tr>`
+  + (pct > 0 ? `<td style="width:${pct}%;height:${h}px;background:${color};border-radius:${h / 2}px 0 0 ${h / 2}px;font-size:0;line-height:0">&nbsp;</td>` : "")
+  + (pct < 100 ? `<td style="height:${h}px;background:#e3e8f3;border-radius:${pct > 0 ? 0 : h / 2}px ${h / 2}px ${h / 2}px ${pct > 0 ? 0 : h / 2}px;font-size:0;line-height:0">&nbsp;</td>` : "")
+  + `</tr></table>`;
+const kicker = (t: string) => `<div style="${TXT}font-size:11px;font-weight:800;letter-spacing:0.1em;color:${NAVY};margin-bottom:6px">${t}</div>`;
+
+/** 한눈에 줄 (2026-11-17 최종안 = C안): 인원 | 오늘 근태 | 지표 */
+function glance(h: ReportHome, counts: Record<string, number>, withTitle: boolean): string {
+  const rate = h.staff ? Math.round((h.present / h.staff) * 100) : 0;
+  const people = kicker("인원")
+    + `<div style="${TXT}white-space:nowrap"><span style="${TXT}font-size:30px;font-weight:900;color:${NAVY};line-height:1.1">${h.future ? "-" : h.present}</span>`
+    + `<span style="${TXT}font-size:15px;font-weight:700;color:${SUB};margin-left:6px">/ ${h.staff}명 출근</span></div>`
+    + `<div style="margin:8px 0 6px">${bar(h.future ? 0 : rate, NAVY, 8)}</div>`
+    + `<div style="${TXT}font-size:12px;color:#4b5563">출근율 <b>${h.future ? "-" : `${rate}%`}</b> · 부서 ${h.depts}개</div>`;
+  const kinds = SUMMARY_CARDS.map(([label, color]) => {
+    const n = counts[label];
+    return `<td style="vertical-align:top;padding-right:6px">`
+      + `<div style="${TXT}font-size:12px;font-weight:700;color:#4b5563;white-space:nowrap">`
+      + `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:5px"></span>${label}</div>`
+      + `<div style="${TXT}font-size:26px;font-weight:900;line-height:1.3;color:${n ? color : "#c3c9d4"}">${n}`
+      + `<span style="${TXT}font-size:12px;font-weight:600;color:${SUB};margin-left:2px">명</span></div></td>`;
+  }).join("");
+  const metrics = kicker("지표")
+    + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%"><tr>`
+    + `<td style="${TXT}font-size:12px;color:#4b5563">연차 사용률 (${esc(h.fyLabel)})</td><td style="${TXT}font-size:12px;font-weight:800;text-align:right">${h.usedRate}%</td></tr></table>`
+    + `<div style="margin:4px 0 10px">${bar(h.usedRate, "#0e7490", 6)}</div>`
+    + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%"><tr>`
+    + `<td style="${TXT}font-size:12px;color:#4b5563">이번 달 이직률</td><td style="${TXT}font-size:12px;font-weight:800;text-align:right">${h.turnover}%</td></tr></table>`
+    + `<div style="${TXT}font-size:11px;color:${SUB};margin-top:2px">입사 ${h.joined} · 퇴직 ${h.left}</div>`;
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:#ffffff;border-collapse:separate;`
+    + `border:1px solid ${LINE};${withTitle ? "border-top:0;" : ""}border-radius:${withTitle ? "0 0 10px 10px" : "10px"}"><tr>`
+    + `<td style="width:210px;vertical-align:top;padding:14px 18px;background:#f7f9fd;border-radius:${withTitle ? "0 0 0 10px" : "10px 0 0 10px"}">${people}</td>`
+    + `<td style="vertical-align:top;padding:14px 18px;border-left:1px solid ${LINE}">${kicker("오늘 근태")}`
+    + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%"><tr>${kinds}</tr></table></td>`
+    + `<td style="width:190px;vertical-align:top;padding:14px 18px;border-left:1px solid ${LINE}">${metrics}</td>`
+    + `</tr></table>`;
+}
+
+/** 어제 근무 칸 (2026-11-17 최종안 = D안 카드, 퇴근미체크 뺌): 출장 · 휴가 · 연장근무, 카드마다 이름·부서 */
+function yesterdayCards(h: ReportHome): string {
+  const cards: [string, [string, string][]][] = [["출장·교육", h.trip], ["휴가", h.leave], ["연장근무", h.ot]];
+  const tds = cards.map(([label, xs], i) => `<td style="width:33.3%;vertical-align:top;${i ? "padding-left:10px;" : ""}">`
+    + `<div style="background:#f7f8fb;border-radius:12px;padding:12px 14px">`
+    + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%"><tr>`
+    + `<td style="${TXT}font-size:13px;font-weight:700;color:#4b5563">${label}</td>`
+    + `<td style="${TXT}text-align:right;white-space:nowrap"><span style="${TXT}font-size:22px;font-weight:900;color:${xs.length ? INK : "#c3c9d4"}">${xs.length}</span>`
+    + `<span style="${TXT}font-size:12px;color:${SUB};margin-left:3px">명</span></td></tr></table>`
+    + (xs.length
+      ? xs.map(([n, d]) => `<div style="${TXT}font-size:13px;line-height:1.7"><b>${esc(n)}</b> <span style="color:${SUB}">${esc(d)}</span></div>`).join("")
+      : `<div style="${TXT}font-size:13px;color:#9ca3af;line-height:1.7">없음</div>`)
+    + `</div></td>`).join("");
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;${CARD}margin-top:14px">`
+    + `<tr><td style="padding:14px 18px 10px">`
+    + `<span style="display:inline-block;width:4px;height:16px;background:${NAVY};border-radius:2px;vertical-align:-2px;margin-right:8px"></span>`
+    + `<span style="${TXT}font-size:16px;font-weight:800">어제 근무</span>`
+    + `<span style="${TXT}font-size:13px;color:${SUB};margin-left:6px">${dayLabel(h.yday)}</span></td></tr>`
+    + `<tr><td style="padding:0 18px 16px"><table role="presentation" cellpadding="0" cellspacing="0" style="width:100%"><tr>${tds}</tr></table></td></tr></table>`;
+}
+
 /** 일일 근태현황 보고서 HTML (사이트 미리보기·이미지 저장·메일 본문 공용). */
-export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = true): string {
+export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = true, home?: ReportHome | null): string {
   const rows = scheduleToday(day, clean(input));
   const parts = [`<div style="background:${BG};padding:18px;${TXT}max-width:920px">`];
   if (withTitle) {
@@ -387,19 +456,23 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
       + `<div style="height:3px;background:${RED}"></div>`);
   }
 
-  // 한 줄 요약 (메일에서도 나란히 보이도록 표로): 칸 사이 세로선, 0명은 흐리게
+  // 한 줄 요약 (메일에서도 나란히 보이도록 표로)
   const counts = reportCounts(rows);
-  const cards = SUMMARY_CARDS.map(([label, color], i) => {
-    const n = counts[label];
-    return `<td style="width:${100 / SUMMARY_CARDS.length}%;padding:12px 8px 12px 16px;${i ? `border-left:1px solid ${LINE};` : ""}">`
-      + `<div style="${TXT}font-size:12px;font-weight:700;color:${SUB}">`
-      + `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${label}</div>`
-      + `<div style="${TXT}font-size:26px;font-weight:800;line-height:1.3;color:${n ? color : "#c3c9d4"}">${n}`
-      + `<span style="${TXT}font-size:13px;font-weight:600;color:${SUB};margin-left:3px">명</span></div></td>`;
-  }).join("");
-  parts.push(`<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:#ffffff;`
-    + `border:1px solid ${LINE};border-top:0;border-radius:${withTitle ? "0 0 10px 10px" : "10px"}">`
-    + `<tr>${cards}</tr></table>`);
+  if (home) parts.push(glance(home, counts, withTitle), yesterdayCards(home));
+  else {
+    // 홈 숫자가 없을 때 (예전 방식): 칸 사이 세로선, 0명은 흐리게
+    const cards = SUMMARY_CARDS.map(([label, color], i) => {
+      const n = counts[label];
+      return `<td style="width:${100 / SUMMARY_CARDS.length}%;padding:12px 8px 12px 16px;${i ? `border-left:1px solid ${LINE};` : ""}">`
+        + `<div style="${TXT}font-size:12px;font-weight:700;color:${SUB}">`
+        + `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${label}</div>`
+        + `<div style="${TXT}font-size:26px;font-weight:800;line-height:1.3;color:${n ? color : "#c3c9d4"}">${n}`
+        + `<span style="${TXT}font-size:13px;font-weight:600;color:${SUB};margin-left:3px">명</span></div></td>`;
+    }).join("");
+    parts.push(`<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:#ffffff;`
+      + `border:1px solid ${LINE};border-top:0;border-radius:${withTitle ? "0 0 10px 10px" : "10px"}">`
+      + `<tr>${cards}</tr></table>`);
+  }
 
   // 근태 현황 (항상 표시)
   const att = rows.filter((r) => r.section === "근태");
