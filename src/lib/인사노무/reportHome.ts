@@ -1,7 +1,7 @@
 /** 근태 홈과 근태현황 보고서가 함께 쓰는 숫자: 재직·출근·연차 사용률·이직률, 어제(직전 근무일) 부서별 출장·휴가·퇴근미체크·연장근무.
  *  (2026-11-17) 보고서 맨 위 '한눈에' 줄과 '어제 근무' 칸이 홈과 같은 숫자를 보이도록 한 곳에서 계산한다. */
-import type { WorkRule } from "@/lib/config";
-import { addDays, type DateStr, nowKst, parseTs, todayKst } from "@/lib/time";
+import { ruleFor, type WorkRule } from "@/lib/config";
+import { addDays, type DateStr, nowKst, parseTs, todayKst, weekday } from "@/lib/time";
 import { dailyBoard, type DayRow, isHoliday } from "./analytics";
 import { dayLists, headcount } from "./dashboard";
 import { getHolidays, getLeavePolicy, getRule, loadBase, rosterDays, staffOn } from "./data";
@@ -23,6 +23,13 @@ export const Y_DEPTS: [string, (dept: string, emp: string) => boolean][] = [
 
 export type YOt = { emp: string; out: number; hours: number; night: number; grp: string };
 export type YRow = { dept: string; trip: string[]; leave: string[]; noOut: string[]; ot: YOt[] };
+
+// 부서별 인원 현황·재직 직원·출근율에서 빼는 사람 (2026-11-11, 11-17 사용자 결정): 품질팀 김동수, 대전지사 김창범
+export const HEAD_EXCLUDE = ["김동수", "김창범"];
+/** 재직 직원·출근율에 세는 사람: HEAD_EXCLUDE 빼고, 근무 요일이 따로 정해진 사람(예: 도제 김진호 수·목·금)은 그 요일에만 */
+export function countedStaff(staff: [string, string][], day: DateStr, rule: WorkRule): [string, string][] {
+  return staff.filter(([e]) => !HEAD_EXCLUDE.includes(e) && (!rule.byEmp?.[e]?.workdays || ruleFor(rule, e).workdays.includes(weekday(day))));
+}
 
 /** day 바로 전 근무일 (주말·휴일은 건너뜀, 최대 14일) */
 export function prevWorkday(day: DateStr, rule: WorkRule, holidays: Record<string, string>): DateStr {
@@ -75,10 +82,10 @@ export async function reportHome(day: DateStr): Promise<ReportHome | null> {
   if (!base.months.length) return null;
   const yday = prevWorkday(day, rule, holidays);
   const { records, days } = await rosterDays(addDays(yday, -1), day);
-  const staff = await staffOn(day, records);
+  const staff = countedStaff(await staffOn(day, records), day, rule);
   const today = todayKst();
   const board = dailyBoard(days, base.leaves, staff, day, rule, day === today ? parseTs(nowKst()) : null, isHoliday(day, rule, holidays));
-  const present = board.filter((b) => b.in !== null).length;
+  const present = board.filter((b) => b.in !== null).length; // board는 센 사람만
   const hc = headcount(base.employees, day);
   const { fy, usedRate } = await annualUsage(day, policy);
   const rows = await yesterdayRows(days, base.leaves, records, yday, rule);

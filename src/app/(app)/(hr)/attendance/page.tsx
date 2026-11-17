@@ -15,7 +15,7 @@ import { buildOrg, defaultNodes, type OrgBox, type OrgNode } from "@/lib/인사�
 import * as store from "@/lib/store";
 import { addDays, dayLabel, hhmm, nowKst, parseTs, todayKst, tsHM, weekday } from "@/lib/time";
 import { fyOf } from "@/lib/인사노무/vacation";
-import { annualUsage, prevWorkday, yesterdayRows } from "@/lib/인사노무/reportHome";
+import { annualUsage, countedStaff, HEAD_EXCLUDE, prevWorkday, yesterdayRows } from "@/lib/인사노무/reportHome";
 
 const WEEK_LIMIT = 52;
 const WEEK_WARN = 48;
@@ -101,6 +101,10 @@ export default async function Home() {
   const working = board.filter((b) => b.group !== "휴가" && b.group !== "휴무");
   const early = todayRows.filter((d) => d.early && (d.outSrc === "캡스" || d.outSrc === "수기입력"));
   const depts = [...new Set(staff.map(([, d]) => d || "(부서 없음)"))];
+  // 맨 위 재직 직원·출근율: 보고서와 같은 기준 (김동수·김창범 제외, 도제는 근무 요일에만)
+  const counted = new Set(countedStaff(staff, today, rule).map(([e]) => e));
+  const kpiDepts = new Set(staff.filter(([e]) => counted.has(e)).map(([, d]) => d || "(부서 없음)")).size;
+  const kpiPresent = board.filter((b) => counted.has(b.emp) && b.in !== null).length;
   const hasToday = records.some((r) => r.day === today);
 
   // ---------------------------------------------------------------- 어제 (직전 근무일) · 보고서와 같은 계산 (reportHome.ts)
@@ -134,7 +138,7 @@ export default async function Home() {
   // 홈 상단: 부서별 재직·출근, 오늘 근태 분포
   const present = board.filter((b) => b.in !== null).length;
   // 부서별 인원 현황에서 빼는 사람 (2026-11-11 사용자 결정): 품질팀 김동수, 대전지사 김창범
-  const HEAD_EXCLUDE = ["김동수", "김창범"];
+  // HEAD_EXCLUDE: 김동수·김창범 (reportHome.ts)
   const deptHead = [...order.filter((d) => depts.includes(d)), ...depts.filter((d) => !order.includes(d))].map((dp) => {
     const g = board.filter((b) => (b.dept || "(부서 없음)") === dp && !HEAD_EXCLUDE.includes(b.emp));
     return { dept: dp, staff: g.length, present: g.filter((b) => b.in !== null).length };
@@ -174,9 +178,9 @@ export default async function Home() {
       )}
 
       <section className="card hstats">
-        <Stat icon="people" label="재직 직원" value={staff.length} unit="명" sub={`부서 ${depts.length}개`} />
-        <Stat icon="in" label="오늘 출근" value={present} unit="명"
-          sub={staff.length ? `출근율 ${Math.round((present / staff.length) * 100)}%` : ""} />
+        <Stat icon="people" label="재직 직원" value={counted.size} unit="명" sub={`부서 ${kpiDepts}개`} />
+        <Stat icon="in" label="오늘 출근" value={kpiPresent} unit="명"
+          sub={counted.size ? `출근율 ${Math.round((kpiPresent / counted.size) * 100)}%` : ""} />
         <Stat icon="beach" label="휴가" value={by("휴가").length} unit="명" />
         <Stat icon="plane" label="출장·교육" value={by("출장·교육").length} unit="명" />
         <Stat icon="swap" label="이번 달 이직률" value={hc.turnover} unit="%" sub={`입사 ${hc.joined.length} · 퇴직 ${hc.left.length}`} />
