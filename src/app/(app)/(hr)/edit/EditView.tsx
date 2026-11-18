@@ -131,10 +131,23 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
         kinds: kindsOf(dayOf.get(d), outs?.[C("근무형태")] ?? "", isHoliday(d, rule, holidays, emp), ins?.[C("근무형태")] ?? ""),
         edited: o ? `${o.editedBy} ${shortKst(o.editedAt)}` : "",
       };
-    }).map((r) => ({
-      ...r, proof: proofOf(emp, r.day, r.kinds, atts, noProofFor(rule, emp), me?.dept ?? ""),
-      files: atts.filter((a) => a.name === emp && a.dayFrom <= r.day && a.dayTo >= r.day).map((a) => ({ id: a.id, fileName: a.fileName, type: a.type })),
-    }));
+    }).map((r) => {
+      const proof = proofOf(emp, r.day, r.kinds, atts, noProofFor(rule, emp), me?.dept ?? "");
+      const files = atts.filter((a) => a.name === emp && a.dayFrom <= r.day && a.dayTo >= r.day).map((a) => ({ id: a.id, fileName: a.fileName, type: a.type }));
+      if (!proof.missing.length) return { ...r, proof, files };
+      // (2026-11-19 사용자 결정) 신청서가 없어 인정되지 않은 휴일·연장근무·조출은 보이지 않게: 근태 구분·줄 색·자동 근무형태에서 뺀다.
+      // 직접 적은 근무형태는 그대로 두고, 첨부 칸의 [☐ 신청서] 버튼으로 언제든 인정할 수 있다.
+      const o = ov.get(r.day);
+      const pre = proof.missing.map((k) => (k === "휴일근무" ? "휴일" : k === "연장근무" ? "연장" : "조출"));
+      const strip = (v: string, typed: string | null | undefined) => (typed == null && pre.some((p) => v.startsWith(p)) ? "" : v);
+      const kinds = r.kinds.filter((k) => !proof.missing.includes(k));
+      return {
+        ...r, proof, files, kinds,
+        status: proof.missing.includes(r.status) ? (r.holiday ? "휴일" : "정상") : r.status,
+        in_type: strip(r.in_type, o?.inType), out_type: strip(r.out_type, o?.outType),
+        inAuto: strip(r.inAuto, o?.inType), outAuto: strip(r.outAuto, o?.outType),
+      };
+    });
 
     // 인쇄·PDF의 근무지·인원·업무내용은 근태 기입에 직접 적은 값만 (일일 근태 보고서·하이웍스 자동 값은 넣지 않음)
     const typed = (d: string) => {
@@ -188,7 +201,7 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
           <thead><tr><th>일자</th><th>요일</th><th>근태 구분</th><th>출근</th><th>출근 형태</th><th>퇴근</th><th>퇴근 형태</th><th>근무지</th><th>인원</th><th>업무내용</th></tr></thead>
           <tbody>{printRows.map((r) => (
             <tr key={r.day} className={`${rowTone(r)} ${kindCls(r)}${r.holiday ? " we" : ""}`}>
-              <td>{+r.day.slice(5, 7)}/{+r.day.slice(8)}</td><td className={r.holiday ? "hol" : ""}>{r.wd}</td><td><Kinds r={r} />{r.proof?.missing.length ? <div className="ep-noproof">신청서 미첨부</div> : null}</td>
+              <td>{+r.day.slice(5, 7)}/{+r.day.slice(8)}</td><td className={r.holiday ? "hol" : ""}>{r.wd}</td><td><Kinds r={r} /></td>
               <td>{r.clock_in}</td><td className={tyCls(r.in_type || r.inAuto)}>{shortType(r.in_type || r.inAuto)}</td>
               <td>{r.clock_out}</td><td className={tyCls(r.out_type || r.outAuto)}>{shortType(r.out_type || r.outAuto)}</td>
               <td className="wrap">{typed(r.day).place}</td><td className="wrap">{split(typed(r.day).note).names}</td>

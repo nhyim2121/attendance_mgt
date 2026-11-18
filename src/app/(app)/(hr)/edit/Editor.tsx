@@ -143,7 +143,7 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
                 </td>
                 <td className="c-st">
                   <div className="st-line"><Kinds r={r} />
-                    {rows[i]?.proof?.missing.length ? <span className="st-proof miss">미인정</span> : rows[i]?.proof?.need.length ? <span className="st-proof ok" title="신청서 확인됨">✓ 인정</span> : null}
+                    {!rows[i]?.proof?.missing.length && rows[i]?.proof?.need.length ? <span className="st-proof ok" title="신청서 확인됨">✓ 인정</span> : null}
                   </div>
                 </td>
                 {COLS.map(([k]) => (
