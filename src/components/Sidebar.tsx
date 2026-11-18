@@ -1,6 +1,6 @@
 "use client";
 /** 왼쪽 사이드바 (2026-11-18): 대분류 = 대시보드 · 회사 정보 · 업무분장 · 업무 영역(인사노무~기타) · 시스템 설정.
- *  디자인 3가지를 맨 아래 [A 목록 · B 두 칸 · C 타일] 버튼으로 바꿔 보며 고른다 (이 브라우저에 기억).
+ *  디자인 = B 두 칸 (2026-11-19 사용자 선택): 왼쪽 남색 줄에 대분류 아이콘, 누르면 오른쪽 칸에 그 메뉴.
  *  담당자(입찰 공유 계정)는 입찰관리·비밀번호 변경만 보인다. */
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -8,10 +8,6 @@ import { useEffect, useState } from "react";
 import { areaOfPath, emojiOf, isOn, menuFor, type MenuItem } from "@/lib/대시/menu";
 
 const KEEP = ["month", "from", "to", "dept", "all", "fy", "asof"]; // 인사노무 화면끼리 기간·부서 유지
-const LOOKS = [["a", "A 목록"], ["b", "B 두 칸"], ["c", "C 타일"]] as const;
-type Look = (typeof LOOKS)[number][0];
-const LOOK_KEY = "sb-look";
-
 interface Group { label: string; items: MenuItem[] }
 interface Cat { key: string; label: string; short: string; emoji: string; color: string; href?: string; groups: Group[]; sec: "top" | "work" | "sys" }
 
@@ -68,15 +64,9 @@ export default function Sidebar({ admin, bid, areas, who, logout }: {
   const cats = buildCats(admin, bid, areas);
   const cur = catOf(cats, path);
 
-  const [look, setLook] = useState<Look>("a");
-  const [pick, setPick] = useState(cur);          // B·C: 오른쪽·아래에 펼쳐 볼 대분류
-  const [open, setOpen] = useState<Set<string>>(new Set([cur])); // A: 펼친 대분류
-  useEffect(() => { try { const v = localStorage.getItem(LOOK_KEY) as Look | null; if (v && LOOKS.some(([k]) => k === v)) setLook(v); } catch { /* 기본 A */ } }, []);
-  useEffect(() => { setPick(cur); setOpen((s) => new Set(s).add(cur)); }, [cur]);
-  const choose = (v: Look) => { setLook(v); try { localStorage.setItem(LOOK_KEY, v); } catch { /* 저장 못 해도 바뀜 */ } };
-
+  const [pick, setPick] = useState(cur);          // 오른쪽 칸에 펼쳐 볼 대분류 (누르기만 하면 화면은 그대로)
+  useEffect(() => { setPick(cur); }, [cur]);
   const link = (it: MenuItem, area: string) => (area === "hr" && qs && !it.href.includes("#") ? `${it.href}?${qs}` : it.href);
-  const count = (c: Cat) => c.groups.reduce((n, g) => n + g.items.length, 0);
   const Items = ({ c }: { c: Cat }) => (
     <div className="sb-items">
       {c.groups.map((g, i) => (
@@ -91,59 +81,13 @@ export default function Sidebar({ admin, bid, areas, who, logout }: {
       ))}
     </div>
   );
-  const Logo = () => <Link href={admin ? "/" : "/bid"} className="sb-logo" title="처음 화면"><img src="/logo.png" alt="주식회사 에쓰엔" /></Link>;
   const Foot = () => (
     <div className="sb-foot">
       <div className="sb-who">{who}{logout}</div>
-      {admin && (
-        <div className="sb-looks" role="group" aria-label="사이드바 디자인">
-          {LOOKS.map(([k, l]) => <button key={k} type="button" className={look === k ? "on" : ""} onClick={() => choose(k)}>{l}</button>)}
-        </div>
-      )}
     </div>
   );
-  const secLabel = { top: "기본", work: "업무", sys: "시스템" } as const;
-
-  // ---------------------------------------------------------------- A 목록: 흰 바탕, 대분류 제목 + 펼침 목록
-  if (look === "a") {
-    return (
-      <nav className="sb sb-a" aria-label="메뉴">
-        <Logo />
-        <div className="sb-scroll">
-          {(["top", "work", "sys"] as const).map((s) => {
-            const list = cats.filter((c) => c.sec === s);
-            if (!list.length) return null;
-            return (
-              <div key={s} className="sb-sec">
-                <div className="sb-sl">{secLabel[s]}</div>
-                {list.map((c) => {
-                  const isOpen = open.has(c.key) && !c.href;
-                  const head = <><span className="ch" style={{ ["--c" as string]: c.color }}>{c.emoji}</span><span className="t">{c.label}</span></>;
-                  return (
-                    <div key={c.key} className={`sb-cat${cur === c.key ? " cur" : ""}`}>
-                      {c.href
-                        ? <Link href={c.href} className={`sb-head${cur === c.key ? " on" : ""}`}>{head}</Link>
-                        : <button type="button" className={`sb-head${isOpen ? " open" : ""}`} aria-expanded={isOpen}
-                            onClick={() => setOpen((o) => { const n = new Set(o); if (n.has(c.key)) n.delete(c.key); else n.add(c.key); return n; })}>
-                            {head}<span className="n">{count(c)}</span><span className="caret">{isOpen ? "▾" : "▸"}</span>
-                          </button>}
-                      {isOpen && <Items c={c} />}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
-        <Foot />
-      </nav>
-    );
-  }
-
-  // ---------------------------------------------------------------- B 두 칸: 왼쪽 아이콘 줄(대분류) + 오른쪽 메뉴
   const pc = cats.find((c) => c.key === pick) ?? cats.find((c) => c.groups.length) ?? cats[0];
-  if (look === "b") {
-    return (
+  return (
       <nav className="sb sb-b" aria-label="메뉴">
         <div className="sb-rail">
           <Link href={admin ? "/" : "/bid"} className="sb-mark" title="처음 화면">SN</Link>
@@ -167,24 +111,5 @@ export default function Sidebar({ admin, bid, areas, who, logout }: {
           <Foot />
         </div>
       </nav>
-    );
-  }
-
-  // ---------------------------------------------------------------- C 타일: 대분류를 타일로 한눈에, 아래에 고른 분류 메뉴
-  return (
-    <nav className="sb sb-c" aria-label="메뉴">
-      <Logo />
-      <div className="sb-tiles">
-        {cats.map((c) => {
-          const cls = `sb-tile${pc.key === c.key ? " pick" : ""}${cur === c.key ? " cur" : ""}`;
-          const inner = <><span className="ch">{c.emoji}</span><span className="t">{c.short}</span></>;
-          return c.href ? <Link key={c.key} href={c.href} className={cls} title={c.label}>{inner}</Link>
-            : <button key={c.key} type="button" className={cls} title={c.label} onClick={() => setPick(c.key)}>{inner}</button>;
-        })}
-      </div>
-      <div className="sb-ptitle"><span>{pc.emoji}</span>{pc.label}</div>
-      <div className="sb-scroll">{pc.groups.length ? <Items c={pc} /> : null}</div>
-      <Foot />
-    </nav>
   );
 }
