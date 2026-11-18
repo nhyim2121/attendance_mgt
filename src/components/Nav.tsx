@@ -10,7 +10,7 @@ const KEEP = ["month", "from", "to", "dept", "all", "fy", "asof"];
 /** 사이드바 (통합 디자인, 1차 B 남색 + 1차 D 펼침 목록): 통합 대시보드 + 업무 영역.
  *  영역을 누르면 그 영역 대시보드로 가고, 지금 있는 영역만 펼쳐서 [대시보드] + 묶음별 메뉴를 보인다.
  *  사이드바를 접으면(1차 C) 이모지 칸만 남는다. */
-export default function Nav({ admin, bid = false }: { admin: boolean; bid?: boolean }) {
+export default function Nav({ admin, bid = false, areas = null }: { admin: boolean; bid?: boolean; areas?: string[] | null }) {
   const path = usePathname();
   const sp = useSearchParams();
   const keep = new URLSearchParams();
@@ -23,7 +23,7 @@ export default function Nav({ admin, bid = false }: { admin: boolean; bid?: bool
         <span className="sec-l"><span className="ch">🏠</span><span className="t">통합 대시보드</span></span>
       </Link>
       <div className="group">업무</div>
-      {menuFor(admin).map((a) => (
+      {menuFor(admin, areas).map((a) => (
         <div key={a.key}>
           <Link href={a.dash} title={a.label} style={{ ["--c" as string]: a.color }}
             className={`sec${path === a.dash ? " on" : cur === a.key ? " open" : ""}`}>
