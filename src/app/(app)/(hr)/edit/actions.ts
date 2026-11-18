@@ -4,6 +4,7 @@ import { requirePerm } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { loadBase } from "@/lib/인사노무/data";
+import { PROOF_CHECK_NAME, PROOF_KINDS } from "@/lib/인사노무/proof";
 import { syncReports } from "@/lib/인사노무/reportSync";
 import * as store from "@/lib/store";
 import { dayLabel, isDateStr, parseClock } from "@/lib/time";
@@ -67,4 +68,19 @@ export async function revertEdits(employee: string, days: string[]): Promise<{ o
   await store.clearOverrides(employee, ds);
   revalidatePath("/", "layout");
   return { ok: `${employee}: ${ds.map((d) => dayLabel(d)).join(", ")}을(를) 원래 값으로 되돌렸습니다.` };
+}
+
+/** 신청서 있음 체크 (2026-11-19): 파일을 붙이지 않고 클릭으로 '신청서 받음'을 표시한다.
+ *  내용이 빈 증빙 한 줄(파일 이름 PROOF_CHECK_NAME)로 저장하므로, 근태 홈·할 일·근태 기입이 모두 '인정'으로 본다. 다시 누르면 지운다. */
+export async function toggleProofCheck(employee: string, day: string, kind: string): Promise<{ ok?: string; error?: string }> {
+  await requirePerm("update");
+  const user = await requireUser();
+  if (!employee || !isDateStr(day) || !(PROOF_KINDS as readonly string[]).includes(kind)) return { error: "잘못된 요청입니다." };
+  const mine = (await store.loadAttachments(day, day))
+    .filter((a) => a.name === employee && a.type === kind && a.fileName === PROOF_CHECK_NAME && a.dayFrom <= day && a.dayTo >= day);
+  if (mine.length) for (const a of mine) await store.deleteAttachment(a.id);
+  else await store.addAttachment({ name: employee, dayFrom: day, dayTo: day, type: kind, title: `${kind} 신청서 확인`, fileName: PROOF_CHECK_NAME,
+    mime: "text/plain", uploadedBy: user.name }, new Uint8Array());
+  revalidatePath("/", "layout");
+  return { ok: mine.length ? "체크를 풀었습니다." : "신청서 있음으로 체크했습니다." };
 }

@@ -2,10 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { revertEdits, saveEdits } from "./actions";
+import { revertEdits, saveEdits, toggleProofCheck } from "./actions";
 import { Kinds, rowTone, kindCls } from "./kinds";
 import { AttachInline } from "../evidence/forms";
-import type { Proof } from "@/lib/인사노무/proof";
+import { PROOF_CHECK_NAME, type Proof } from "@/lib/인사노무/proof";
 
 export interface EditRow {
   day: string;
@@ -207,17 +207,31 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
   );
 }
 
-/** 첨부 칸: 그날 첨부한 신청서·증빙 + 바로 첨부. 휴일·연장근무는 신청서가 없으면 '미인정', 첨부하면 바로 인정. */
+/** 첨부 칸: 그날 첨부한 신청서·증빙 + 바로 첨부. 휴일·연장근무는 신청서가 없으면 '미인정'.
+ *  (2026-11-19) 파일 없이 [☐ 휴일근무 신청서] 를 누르면 '신청서 있음'으로 체크되어 바로 인정, ✓를 다시 누르면 풀린다. */
 function AttachCell({ employee, day, proof, files }: { employee: string; day: string; proof?: Proof; files: { id: number; fileName: string; type: string }[] }) {
+  const router = useRouter();
+  const [busy, start] = useTransition();
   const miss = proof?.missing ?? [];
+  const flip = (kind: string) => start(async () => {
+    const r = await toggleProofCheck(employee, day, kind);
+    if (r.error) alert(r.error);
+    router.refresh();
+  });
+  const checks = files.filter((f) => f.fileName === PROOF_CHECK_NAME);
   return (
     <div className="proof">
-      {files.map((f) => (
+      {checks.map((f) => (
+        <button key={f.id} type="button" className="proof-chk on" disabled={busy} onClick={() => flip(f.type)} title="누르면 체크를 풉니다">✓ {f.type} 신청서</button>
+      ))}
+      {files.filter((f) => f.fileName !== PROOF_CHECK_NAME).map((f) => (
         <a key={f.id} className="proof-file" href={`/api/attachment/${f.id}`} target="_blank" rel="noreferrer" title={`${f.type} · ${f.fileName}`}>📎 {f.type}</a>
       ))}
-      {miss.map((k) => <span key={k} className="proof-miss"><b>⚠ {k} 신청서 없음</b></span>)}
+      {miss.map((k) => (
+        <button key={k} type="button" className="proof-chk" disabled={busy} onClick={() => flip(k)} title="신청서를 받았으면 누르세요 (파일 첨부 없이 인정)">☐ {k} 신청서</button>
+      ))}
       <AttachInline name={employee} type={miss[0] ?? (proof?.need[0] ?? "기타")} from={day} to={day} title={miss[0] ? `${miss[0]} 신청서` : "근태 증빙"}
-        label={miss.length ? "+ 신청서" : "＋"} />
+        label="📎" />
     </div>
   );
 }

@@ -55,3 +55,10 @@
 }
 @media print { .sb { display: none !important; } }
 .measuring .sb { display: none !important; }
+
+/* 근태 기입: 신청서 있음 체크 버튼 (2026-11-19) */
+.proof-chk { font: inherit; font-size: .74rem; font-weight: 700; cursor: pointer; white-space: nowrap; border-radius: 6px; padding: 2px 8px;
+  border: 1px dashed #e0a458; background: #fdf0dc; color: #c2410c; }
+.proof-chk:hover { border-style: solid; }
+.proof-chk.on { border: 1px solid #9fd5b4; background: #e8f6ee; color: #1f7a45; }
+.proof-chk:disabled { opacity: .6; cursor: wait; }
