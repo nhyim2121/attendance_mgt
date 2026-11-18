@@ -12,7 +12,7 @@ import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loginEmail } from "./auth-rules";
 import { areaOfPath } from "./대시/menu";
-import { allows, isCustom, PERM_AREAS, PERM_LABEL, type PermAction, type PermTable, permsOf } from "./perm";
+import { allows, PERM_AREAS, PERM_LABEL, type PermAction, type PermTable, permsOf } from "./perm";
 import { createClient } from "./supabase/server";
 
 export { checkPasswordRule, loginEmail, verifyLegacyPassword } from "./auth-rules";
@@ -84,8 +84,8 @@ async function areaNow(): Promise<string> {
 }
 /** 권한을 직접 정한 계정이면 그 영역과 권한, 아니면 null (예전 역할 규칙을 따른다) */
 async function permGate(u: AppUser): Promise<{ area: string; perms: ReturnType<typeof permsOf> } | null> {
-  const table = await loadPerms();
-  if (!isCustom(table, u.loginId, u.role)) return null;
+  if (u.role === "관리자") return null;
+  const table = await loadPerms(); // 직접 정하지 않은 담당자도 역할 기본값(영역 없음)으로 막는다 (2026-11-18)
   return { area: await areaNow(), perms: permsOf(table, u.loginId, u.role) };
 }
 /** 서버 동작(등록·수정·삭제) 권한 확인. 권한을 직접 정한 계정만 막는다. */
@@ -98,9 +98,8 @@ export async function requirePerm(act: PermAction): Promise<AppUser> {
 }
 /** 메뉴에 보일 영역 (권한을 직접 정한 계정은 읽기 있는 영역만, 아니면 null = 예전 규칙) */
 export async function readableAreas(u: AppUser): Promise<string[] | null> {
-  const table = await loadPerms();
-  if (!isCustom(table, u.loginId, u.role)) return null;
-  const p = permsOf(table, u.loginId, u.role);
+  if (u.role === "관리자") return null;
+  const p = permsOf(await loadPerms(), u.loginId, u.role);
   return PERM_AREAS.filter((a) => allows(p, a.key, "read")).map((a) => a.key);
 }
 

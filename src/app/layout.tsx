@@ -6,6 +6,7 @@ import "./u.css";
 import "./u-bid.css";
 import "./u-work.css";
 import "./u-page.css";
+import "./sb.css";
 
 export const metadata: Metadata = {
   title: "통합관리시스템",

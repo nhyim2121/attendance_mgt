@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import AutoDraft from "@/components/AutoDraft";
-import Nav from "@/components/Nav";
 import PageMark from "@/components/PageMark";
 import PrintFit from "@/components/PrintFit";
+import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import { canBid, readableAreas, requireUser } from "@/lib/auth";
 import { logout } from "../login/actions";
@@ -17,15 +17,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden>
         <filter id="u-rough"><feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves={2} seed={3} /><feDisplacementMap in="SourceGraphic" scale={3.5} /></filter>
       </svg>
-      {/* 왼쪽 사이드바 (2026-11-18 위쪽 가로 메뉴에서 다시 왼쪽으로) */}
-      <nav className="side">
-        <a href="/" className="logo" title="통합 대시보드"><img src="/logo.png" alt="주식회사 에쓰엔" /><b>SN</b></a>
-        <Suspense><Nav admin={admin} bid={canBid(user)} areas={areas} /></Suspense>
-        <div className="who">
-          <span><b>{user.name}</b> · {user.role}</span>
-          <form action={logout}><button>로그아웃</button></form>
-        </div>
-      </nav>
+      {/* 왼쪽 사이드바 (2026-11-18): 대분류별, 디자인 A·B·C를 맨 아래 버튼으로 바꿔 본다 */}
+      <Suspense>
+        <Sidebar admin={admin} bid={canBid(user)} areas={areas}
+          who={<span><b>{user.name}</b> · {user.role}</span>}
+          logout={<form action={logout}><button>로그아웃</button></form>} />
+      </Suspense>
       <main className="main">
         <Suspense><TopBar admin={admin} areas={areas} /></Suspense>
         {children}

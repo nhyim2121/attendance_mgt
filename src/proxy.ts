@@ -4,7 +4,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import { areaOfPath } from "@/lib/대시/menu";
-import { allows, isCustom, type PermTable, permsOf } from "@/lib/perm";
+import { allows, PERM_AREAS, type PermTable, permsOf } from "@/lib/perm";
 
 const COOKIE_OPTIONS = { httpOnly: true, sameSite: "lax" as const, secure: false, path: "/" };
 
@@ -38,17 +38,22 @@ export async function proxy(request: NextRequest) {
   const page = request.method === "GET" && !path.startsWith("/api") && !path.startsWith("/bid") && !isLogin;
   if (data?.claims && page) {
     const area = areaOfPath(path);
-    if (area) {
+    {
       const [{ data: prof }, { data: set }] = await Promise.all([
         supabase.from("profiles").select("login_id, role").eq("id", data.claims.sub).maybeSingle(),
         supabase.from("settings").select("value").eq("key", "perms").maybeSingle(),
       ]);
       const table = (set?.value ?? null) as PermTable | null;
-      if (prof && isCustom(table, prof.login_id, prof.role) && !allows(permsOf(table, prof.login_id, prof.role), area, "read")) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/";
-        url.search = `?denied=${area}`;
-        return NextResponse.redirect(url);
+      // 관리자가 아닌 계정: 읽기 있는 영역만. 읽을 영역이 하나도 없으면(입찰 공유 계정) 입찰관리로 보낸다 (2026-11-18)
+      if (prof && prof.role !== "관리자" && !path.startsWith("/users")) {
+        const p = permsOf(table, prof.login_id, prof.role);
+        const any = PERM_AREAS.some((a) => allows(p, a.key, "read"));
+        if ((area && !allows(p, area, "read")) || (!any && !area)) {
+          const url = request.nextUrl.clone();
+          url.pathname = any ? "/" : "/bid";
+          url.search = any && area ? `?denied=${area}` : "";
+          return NextResponse.redirect(url);
+        }
       }
     }
   }

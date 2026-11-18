@@ -2,7 +2,7 @@
  *
  * - 저장: settings 'perms' = { [아이디]: { [영역]: ["read","create","update","delete"] } }
  * - 관리자 역할은 언제나 전부 허용 (잠김 방지). 사용자 관리(/users)는 관리자만.
- * - 표에 없는(직접 정하지 않은) 계정은 예전처럼 역할 기본값을 따른다 (담당자 = 인사노무·기타, 관리자 전용 화면 제외).
+ * - 표에 없는(직접 정하지 않은) 계정은 역할 기본값을 따른다. 담당자 기본값 = 아무 영역도 없음 (2026-11-18: 입찰관리만 함께 쓰고 나머지는 관리자만).
  * - 확인하는 곳: proxy.ts(화면 열기 = 읽기), auth.ts requirePerm(서버 동작 = 등록·수정·삭제),
  *   requireAdminPage·requireAdmin(관리자 전용 화면·동작은 직접 정한 계정이면 표를 따른다), 메뉴(읽기 없는 영역 숨김).
  * 이 파일은 proxy(엣지 이전 단계)에서도 쓰므로 서버 전용 모듈을 가져오지 않는다. */
@@ -23,7 +23,7 @@ export type PermTable = Record<string, AreaPerms>;
 export function rolePerms(role: string): AreaPerms {
   const all = [...PERM_ACTIONS];
   if (role === "관리자") return Object.fromEntries(PERM_AREAS.map((a) => [a.key, all]));
-  return { hr: ["read", "create", "update"], misc: all };
+  return {}; // 담당자: 업무 영역은 없음. 입찰관리(/bid)는 canBid로 따로 연다.
 }
 
 /** 그 계정의 영역별 권한 (직접 정했으면 그 값, 아니면 역할 기본값) */

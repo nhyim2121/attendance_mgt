@@ -190,7 +190,7 @@ const EMOJI: Record<string, string> = {
   hrroutine: "🔁", garoutine: "🔁", ehsroutine: "🔁", certroutine: "🔁", "/it?from=ga": "💻",
   "/attendance": "⏰", "/daily": "📅", "/person": "🙋", "/calendar": "🗓️", "/hours": "📊", "/week52": "⏱️", "/monthly": "🧮",
   "/leave": "🏖️", "/leave/status": "📈", "/leave/calendar": "🌴", "/leave/evidence": "📎", "/leave/register": "✍️",
-  "/employees": "🪪", "/org": "🌳", "/jobs": "📑", "/upload": "💾", "/settings": "⚙️",
+  "/company": "🏢", "/employees": "🪪", "/org": "🌳", "/jobs": "📑", "/upload": "💾", "/settings": "⚙️",
   "/ga/mail": "📨", "/ga/issue": "🧾", "/ga/certs": "🔑", "/ga/grants": "🎯", "/ga/ppe": "🦺", "/bid": "⚖️", "/cert?from=ga": "🏅", "/cert": "🏅", "/cert#add": "➕", "/users": "⚙️",
   "/misc/weekly": "📓", "/misc/coop": "🤝", "/misc/plan": "🧭", "/misc/calendar": "🗓️",
   training: "🎓", licenses: "📜", recruit: "🧲", onoff: "🔁", contracts: "✒️", holidaywork: "🛠️", flex: "🕘", reserve: "🎖️", leavepromo: "📣", absence: "🍼", labor: "⚖️", revisions: "📐", certificates: "📃", foreign: "🌏", programs: "🧑‍🎓", applicants: "📇", appointments: "📢", evaluations: "📝", awards: "🏆", trainplan: "🗓️", council: "🤝", discipline: "🚨", injuries: "🩹", agreements: "✍️", compliance: "✅", meetings: "💬", fixtures: "📦", vehicles: "🚗", drivelog: "🛣️", software: "💿",
@@ -206,7 +206,7 @@ export const emojiOf = (k: string) => (k.startsWith("/ga/soon") ? "🚧" : k.sta
 const under = (path: string, p: string) => path === p || path.startsWith(`${p}/`);
 /** 이 주소가 속한 영역. 통합 대시보드(/)·사용자 관리는 영역 없음, 나머지 근태 화면은 인사노무. */
 export function areaOfPath(path: string): string {
-  if (path === "/" || under(path, "/users")) return "";
+  if (path === "/" || under(path, "/users") || under(path, "/company")) return "";
   for (const a of MENU) if (a.key !== "hr" && (under(path, a.dash) || a.groups.some((g) => g.items.some((i) => under(path, i.href.split("#")[0]))))) return a.key;
   return "hr";
 }
