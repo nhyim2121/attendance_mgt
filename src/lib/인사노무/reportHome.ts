@@ -43,12 +43,16 @@ export async function yesterdayRows(days: DayRow[], leaves: Leave[], records: Ca
     const o = y.overtime.find((x) => x.emp === emp), n = nightOf.get(emp);
     return { emp, out: o?.out ?? n?.out ?? 0, hours: o?.hours ?? 0, night: n?.hours ?? 0, grp: grp(emp, o?.dept ?? n?.dept) };
   }).filter((o) => o.grp);
+  // (2026-11-19) 하이웍스 휴가 파일이 늦게 올라와도 맞도록, 그날 근태 보고서의 '휴가일정'에 적힌 사람도 휴가로 센다
+  const rep = await store.loadReportRows(yday).catch(() => []);
+  const repLeave = new Set(rep.filter((r) => r.name && r.section === "휴가일정").map((r) => r.name));
   return Y_DEPTS.map(([dp]) => {
     const g = yBoard.filter((b) => grp(b.emp) === dp);
+    const leave = [...new Set([...g.filter((b) => b.group === "휴가").map((b) => b.emp), ...[...repLeave].filter((n) => grp(n) === dp)])];
     return {
       dept: dp,
-      trip: g.filter((b) => b.group === "출장·교육").map((b) => b.emp),
-      leave: g.filter((b) => b.group === "휴가").map((b) => b.emp),
+      trip: g.filter((b) => b.group === "출장·교육" && !leave.includes(b.emp)).map((b) => b.emp),
+      leave,
       noOut: y.noOut.filter((d) => grp(d.emp, d.dept) === dp).map((d) => d.emp),
       ot: otAll.filter((o) => o.grp === dp).sort((a, b) => b.hours + b.night - a.hours - a.night),
     };
