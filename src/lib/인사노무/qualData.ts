@@ -3,7 +3,7 @@ import "server-only";
 import * as ledger from "@/lib/대장/store";
 import { getSetting, loadEmployees } from "@/lib/store";
 import { asOf, employedOn, type Employee } from "./employees";
-import { EMPTY_QUAL, qualOf, type QualPerson, type QualRow, type QualSettings } from "./qualGrade";
+import { EMPTY_QUAL, isSafetyCert, qualOf, type QualPerson, type QualRow, type QualSettings } from "./qualGrade";
 import type { DateStr } from "../time";
 
 export interface QualLine extends QualRow {
@@ -17,7 +17,7 @@ export interface QualPersonRow { name: string; dept: string; rank: string; perso
 export const loadQualSettings = async (): Promise<QualSettings> => ({ ...EMPTY_QUAL, ...(await getSetting<Partial<QualSettings>>("qual_people", {})) });
 
 /** 기준일 재직 기술인력의 자격증·경력 줄. 사람마다 자격증 줄(여럿 가능), 없으면 경력 한 줄. 명부 순서. */
-export async function qualLines(day: DateStr): Promise<{ lines: QualLine[]; people: QualPersonRow[]; settings: QualSettings }> {
+export async function qualLines(day: DateStr): Promise<{ lines: QualLine[]; people: QualPersonRow[]; settings: QualSettings; safety: { emp: string; cert: string; got: string }[] }> {
   const [rows, emps, settings] = await Promise.all([ledger.loadRows("licenses"), loadEmployees(), loadQualSettings()]);
   const act = emps.filter((e) => employedOn(e, day)).map((e) => asOf(e, day));
   const certsOf = new Map<string, typeof rows>();
@@ -38,5 +38,8 @@ export async function qualLines(day: DateStr): Promise<{ lines: QualLine[]; peop
     people.push({ name: e.name, dept: e.dept, rank: e.rank, person: p, tech, certs: cs.length, grade: top.grade, point: top.point });
     if (tech) lines.push(...mine);
   }
-  return { lines, people, settings };
+  const on = new Set(act.map((e) => e.name));
+  const safety = rows.filter((r) => on.has(r.data.emp ?? "") && isSafetyCert(r.data.name ?? "") && (!r.data.got || r.data.got <= day))
+    .map((r) => ({ emp: r.data.emp ?? "", cert: r.data.name, got: r.data.got ?? "" }));
+  return { lines, people, settings, safety };
 }

@@ -104,6 +104,14 @@ export function qualOf(cert: Cert | null, p: QualPerson, e: Employee | undefined
   return { after, total, level, grade: g?.name ?? "", point: g?.point ?? 0, why: hit?.[2] ?? "", byTotal: !!hit?.[3] };
 }
 
+/** 안전관리 가점(+2점, 부록-1 기술분야 3-4): 안전관리분야 국가기술자격 기사·기술사·지도사 (산업기사는 아님)
+ *  예: 산업안전기사, 건설안전기사, 산업안전지도사, 산업위생관리기사, 인간공학기사, 소방설비기사, 산업안전기술사 */
+export function isSafetyCert(name: string): boolean {
+  const n = name.replace(/\s/g, "");
+  if (/산업기사$/.test(n)) return false;
+  return /(안전|위생|인간공학|소방)/.test(n) && /(기사|기술사|지도사)$/.test(n);
+}
+
 /** 정비적격심사 요청서류 (붙임3 품질분야 · 붙임4 기술분야). key = 첨부 ref 'qual:doc:<key>' */
 export const QUAL_DOCS: { area: string; group: string; key: string; item: string; docs: string[]; note?: string }[] = [
   { area: "품질", group: "1. 품질경영시스템", key: "q11", item: "1) ISO 9001 인증", docs: ["ISO 9001 인증서", "인증기관의 심사보고서", "권고·지적사항 개선조치 관련 서류"] },

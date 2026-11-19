@@ -24,7 +24,7 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
   await requireAdminPage();
   const sp = await searchParams;
   const day = isDateStr(sp.day) ? sp.day : todayKst();
-  const [{ lines, people, settings }, files, qf] = await Promise.all([qualLines(day), loadFiles("lg:"), loadFiles("qual:doc:")]);
+  const [{ lines, people, settings, safety }, files, qf] = await Promise.all([qualLines(day), loadFiles("lg:"), loadFiles("qual:doc:")]);
   const book = "/hr/b/licenses";
   const tech = people.filter((p) => lines.some((l) => l.emp === p.name));
   const count = GRADES.map((g) => ({ ...g, n: tech.filter((p) => p.grade === g.name).length }));
@@ -86,6 +86,15 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
           자격증은 <Link href={book}>자격증·선임 관리</Link>에 적습니다. 한 사람이 자격증이 여럿이면 가장 높은 등급 하나로 셉니다.
           배점 산식(30점 만점 환산)은 지침에 따로 없어 합만 참고로 보여 줍니다.
         </p>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="card-title">안전관리분야 국가기술자격자 <span className="muted" style={{ fontWeight: 400 }}>3. 설비/작업장/안전 › 4) 안전관리(현장정비) 가점 +2점 · 기사·기술사·지도사</span>
+          <span className="spacer" /><b className={safety.length ? "green" : "red"}>{safety.length ? "가점 대상 +2점" : "보유자 없음"}</b></div>
+        {safety.length ? (
+          <table className="tbl"><thead><tr><th>성명</th><th>자격증</th><th>취득월일</th></tr></thead>
+            <tbody>{safety.map((s) => <tr key={`${s.emp}${s.cert}`}><td><b>{s.emp}</b></td><td>{s.cert}</td><td>{s.got ? dot(s.got) : "-"}</td></tr>)}</tbody></table>
+        ) : <p className="muted" style={{ margin: 0 }}>자격증·선임 관리 대장에 산업안전기사·건설안전기사·산업안전지도사 같은 자격이 적힌 재직자가 없습니다. 있으면 <Link href={`${book}#form`}>자격증 적기</Link>로 넣어 주세요. (산업기사는 해당 없음, 안전관리분야 최대 10점)</p>}
       </div>
 
       <details className="card fold noprint" style={{ marginTop: 16 }}>
