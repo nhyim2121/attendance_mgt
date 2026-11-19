@@ -275,12 +275,9 @@ export const BOOKS: Book[] = [
       { k: "role", label: "선임", type: "select", options: ["선임 아님", "안전관리자", "보건관리자", "전기안전관리자", "전기공사기술자 (등록)", "시공관리책임자", "소방기술자 (주된 인력)", "소방기술자 (보조 인력)", "소방안전관리자", "소방안전관리보조자", "환경기술인", "기타"] },
       { k: "renew", label: "보수교육·갱신 기한", type: "date", alert: 60 },
       { k: "note", label: "비고", type: "text", hide: true },
-      // 정비적격심사 기술자 등급 (/hr/qual, 2026-11-19): 당사 경력은 명부 입사일로 자동, 이전 직장 경력만 적는다
+      // 정비적격심사 기술자 등급 (/hr/qual, 2026-11-19): 당사 경력은 명부 입사일로 자동. 사람별 이전 경력·학력은 /hr/qual에서
       { k: "audit", label: "정비적격심사", type: "select", options: ["포함", "제외"], hide: true },
-      { k: "prev", label: "이전 직장 관련 경력 (개월)", type: "number", hide: true, placeholder: "예: 36" },
-      { k: "prevAfter", label: "그중 자격취득 후 경력 (개월)", type: "number", hide: true, placeholder: "비우면 0" },
-      { k: "edu", label: "관련 학과 학력", type: "select", options: ["고졸", "전문학사", "학사", "석사 이상"], hide: true },
-      { k: "eduDate", label: "졸업일", type: "date", hide: true },
+      { k: "prevAfter", label: "이전 직장 경력 중 이 자격 취득 후 (개월)", type: "number", hide: true, placeholder: "비우면 0" },
     ],
   },
   // ---- 3-1. 직원채용

@@ -62,3 +62,10 @@
 .proof-chk:hover { border-style: solid; border-color: #e0a458; color: #c2410c; }
 .proof-chk.on { border: 1px solid #9fd5b4; background: #e8f6ee; color: #1f7a45; }
 .proof-chk:disabled { opacity: .6; cursor: wait; }
+
+/* 정비적격심사 사람별 경력·학력 한 줄 (2026-11-19) */
+.qual-pf { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+.qual-pf select, .qual-pf input { font: inherit; font-size: .85rem; padding: 3px 6px; }
+.qual-pf .qual-ym { display: inline-flex; align-items: center; gap: 3px; font-size: .85rem; }
+.qual-pf .qual-ym input { width: 56px; }
+.qual-pf input[name="note"] { width: 150px; }

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (u.role !== "관리자") return new Response("내려받을 수 없습니다.", { status: 403 });
   const q = req.nextUrl.searchParams.get("day") ?? "";
   const day = isDateStr(q) ? q : todayKst();
-  const lines = await qualLines(day);
+  const { lines } = await qualLines(day);
   const dot = (d: string) => d.replaceAll("-", ".");
 
   const wb = new ExcelJS.Workbook();
@@ -28,8 +28,9 @@ export async function GET(req: NextRequest) {
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E7D3" } };
     c.alignment = { horizontal: "center", vertical: "middle" };
   });
-  lines.forEach((l, i) => ws.addRow([i === 0 || lines[i - 1].emp !== l.emp ? l.emp : "", l.cert, l.got ? dot(l.got) : "",
-    l.after ? ym(l.after) : "", l.total ? ym(l.total) : "", l.grade ? `${l.grade} (${l.point}점)` : ""]));
+  // 자격취득후 근무경력 = 자격증 줄만, 총 근무경력 = 자격증 없는 실무 경력자(또는 경력으로 등급이 정해진 사람), 등급 = 그 사람의 등급 줄에만
+  lines.forEach((l) => ws.addRow([l.first ? l.emp : "", l.cert, l.cert && l.got ? dot(l.got) : "",
+    l.cert ? ym(l.after) : "", !l.cert || (l.best && l.byTotal) ? ym(l.total) : "", l.best ? l.grade : ""]));
   const thin = { style: "thin" as const };
   for (let r = 2; r <= ws.rowCount; r++) ws.getRow(r).eachCell({ includeEmpty: true }, (c, col) => {
     if (col > 6) return;

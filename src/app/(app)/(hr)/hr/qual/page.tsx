@@ -1,5 +1,6 @@
-/** 정비적격심사 현장심사: '관련 자격증 및 관련 학과 적용' 기술자 등급 표 (2026-11-19, 품질팀 업무협조).
- *  자료 = 자격증·선임 관리 대장(licenses) + 직원 명부 근무 기간. 등급 기준은 lib/인사노무/qualGrade.ts */
+/** 정비적격심사 현장심사: '관련 자격증 및 관련 학과 적용' 기술자 등급 표 + 요청서류 첨부 (2026-11-19, 품질팀 업무협조).
+ *  자료 = 자격증·선임 관리 대장(licenses) + 직원 명부 근무 기간 + 사람별 이전 경력·학력(settings 'qual_people').
+ *  기준 = 발전5사 정비적격기업 통합관리지침 부록-1 기술분야, 붙임3·4 요청서류. 계산은 lib/인사노무/qualGrade.ts */
 import Link from "next/link";
 import { Suspense } from "react";
 import PageHead from "@/components/대시/PageHead";
@@ -10,10 +11,10 @@ import { DeleteFile } from "@/app/(app)/(ga)/ga/mail/forms";
 import { requireAdminPage } from "@/lib/auth";
 import * as ledger from "@/lib/대장/store";
 import { qualLines } from "@/lib/인사노무/qualData";
-import { GRADES, ym } from "@/lib/인사노무/qualGrade";
+import { GRADES, QUAL_DOCS, ym } from "@/lib/인사노무/qualGrade";
 import { loadFiles } from "@/lib/총무/mail";
 import { isDateStr, todayKst } from "@/lib/time";
-import QualDocForm from "./QualDocForm";
+import QualDocForm, { QualPersonForm } from "./QualDocForm";
 
 export const metadata = { title: "정비적격심사 기술자 등급 · 통합관리시스템" };
 const kb = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)}MB` : `${Math.max(1, Math.round(n / 1024))}KB`);
@@ -23,15 +24,17 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
   await requireAdminPage();
   const sp = await searchParams;
   const day = isDateStr(sp.day) ? sp.day : todayKst();
-  const [lines, files, qf] = await Promise.all([qualLines(day), loadFiles("lg:"), loadFiles("qual:")]);
-  const docs = qf.get("qual:docs") ?? [];
+  const [{ lines, people, settings }, files, qf] = await Promise.all([qualLines(day), loadFiles("lg:"), loadFiles("qual:doc:")]);
   const book = "/hr/b/licenses";
-  const count = GRADES.map((g) => ({ ...g, n: new Set(lines.filter((l) => l.grade === g.name).map((l) => l.emp)).size }));
+  const tech = people.filter((p) => lines.some((l) => l.emp === p.name));
+  const count = GRADES.map((g) => ({ ...g, n: tech.filter((p) => p.grade === g.name).length }));
+  const sum = tech.reduce((t, p) => t + p.point, 0);
+  const groups = [...new Set(QUAL_DOCS.map((d) => `${d.area}|${d.group}`))];
 
   return (
     <>
       <PageHead href="/hr/qual" title="정비적격심사 기술자 등급" emoji="🧰"
-        desc="현장심사 '관련 자격증 및 관련 학과 적용' 표. 자격증·선임 관리 대장과 직원 명부로 기준일 경력·등급을 계산합니다." />
+        desc="현장심사 '관련 자격증 및 관련 학과 적용' 표와 요청서류. 자격증·선임 관리 대장과 직원 명부로 기준일 경력·등급을 계산합니다." />
 
       <div className="filters noprint">
         <Suspense><ParamDate name="day" value={day} label="기준일" /></Suspense>
@@ -45,21 +48,19 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
       <div className="card">
         <div className="card-title">2. 관련 자격증 및 관련 학과 적용<span className="spacer" /><span className="muted" style={{ fontWeight: 400 }}>기준일: {dot(day)}</span></div>
         <div className="tbl-wrap"><table className="tbl qual-tbl">
-          <thead><tr><th>성명</th><th>자격증</th><th>취득일</th><th>자격취득후 근무경력</th><th>총 근무경력</th><th>기술자 등급</th><th className="noprint">근거</th><th className="noprint">첨부</th></tr></thead>
+          <thead><tr><th>성명</th><th>자격증</th><th>취득월일</th><th>자격취득후 근무경력</th><th>총 근무경력</th><th>기술자 등급</th><th className="noprint">근거</th><th className="noprint">자격증 사본</th></tr></thead>
           <tbody>
-            {lines.length === 0 && <tr><td colSpan={8} className="muted" style={{ textAlign: "center", padding: 24 }}>
-              자격증·선임 관리 대장에 적힌 자격증이 없습니다. <Link href={`${book}#form`}>자격증 적기</Link></td></tr>}
-            {lines.map((l, i) => {
-              const fl = files.get(ledger.rowRef(l.id)) ?? [];
-              const first = i === 0 || lines[i - 1].emp !== l.emp;
+            {lines.map((l) => {
+              const fl = l.id ? files.get(ledger.rowRef(l.id)) ?? [] : [];
+              const showTotal = !l.cert || (l.best && l.byTotal); // 총 근무경력: 자격증 없는 실무 경력자, 또는 경력으로 등급이 정해진 사람
               return (
-                <tr key={l.id}>
-                  <td>{first && <b>{l.emp}</b>}</td>
-                  <td><Link href={`${book}?edit=${l.id}#form`} title="고치기 (이전 경력·학력은 '추가 항목')">{l.cert}</Link></td>
-                  <td>{l.got ? dot(l.got) : <span className="red">취득일 없음</span>}</td>
-                  <td>{ym(l.after)}</td>
-                  <td>{ym(l.total)}{l.data.prev ? <small className="muted"> (이전 {ym(+l.data.prev)} 포함)</small> : null}</td>
-                  <td>{l.grade ? <b>{l.grade} <small className="muted">{l.point}점</small></b> : <span className="muted">해당 없음</span>}</td>
+                <tr key={`${l.emp}${l.id ?? ""}`}>
+                  <td>{l.first && <><b>{l.emp}</b> <small className="muted noprint">{l.dept}</small></>}</td>
+                  <td>{l.id ? <Link href={`${book}?edit=${l.id}#form`} title="고치기">{l.cert}</Link> : <span className="muted">-</span>}</td>
+                  <td>{l.cert ? (l.got ? dot(l.got) : <span className="red">취득일 없음</span>) : ""}</td>
+                  <td>{l.cert ? ym(l.after) : ""}</td>
+                  <td>{showTotal ? ym(l.total) : ""}</td>
+                  <td>{l.best ? (l.grade ? <b>{l.grade}</b> : <span className="muted">해당 없음</span>) : <span className="muted" title="이 사람은 다른 줄의 등급으로 셉니다">({l.grade || "-"})</span>}</td>
                   <td className="noprint muted" style={{ fontSize: ".82rem" }}>{l.why}</td>
                   <td className="noprint">
                     {fl.map((a) => (
@@ -68,25 +69,79 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
                         <DeleteFile id={a.id} name={a.fileName} />
                       </span>
                     ))}
-                    <AttachRow id={l.id} />
+                    {l.id && <AttachRow id={l.id} />}
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table></div>
-        <p className="caption noprint">
-          당사 경력은 직원 명부의 입사일(재입사 전 근무 기간 포함)부터 기준일까지 자동으로 셉니다. 다른 회사 경력·학력은 자격증 이름을 눌러
-          &lsquo;추가 항목&rsquo;의 <b>이전 직장 관련 경력</b>·<b>그중 자격취득 후</b>·<b>관련 학과 학력·졸업일</b>에 적으면 반영됩니다.
-          심사에 넣지 않을 자격증은 &lsquo;정비적격심사: 제외&rsquo;로 두세요.
-        </p>
-        <div className="metrics">
+        <div className="metrics" style={{ marginTop: 12 }}>
+          <div className="metric"><div className="l">기술인력</div><div className="v">{tech.length}명</div></div>
           {count.map((g) => <div key={g.name} className="metric"><div className="l">{g.name} ({g.point}점)</div><div className="v">{g.n}명</div></div>)}
+          <div className="metric"><div className="l">등급 점수 합 (참고)</div><div className="v">{sum}점</div></div>
         </div>
+        <p className="caption noprint">
+          당사 경력은 직원 명부의 입사일(재입사 전 근무 포함)부터 기준일까지 자동으로 셉니다. 다른 회사의 관련 경력·학력은 아래 &lsquo;사람별 경력·학력&rsquo;에,
+          자격증은 <Link href={book}>자격증·선임 관리</Link>에 적습니다. 한 사람이 자격증이 여럿이면 가장 높은 등급 하나로 셉니다.
+          배점 산식(30점 만점 환산)은 지침에 따로 없어 합만 참고로 보여 줍니다.
+        </p>
+      </div>
+
+      <details className="card fold noprint" style={{ marginTop: 16 }}>
+        <summary className="card-title" style={{ cursor: "pointer" }}>사람별 경력·학력 <span className="muted" style={{ fontWeight: 400 }}>이전 직장 관련 경력(경력증명서·경력수첩으로 확인되는 것), 관련 학과 졸업</span></summary>
+        <p className="caption">기술인력 부서: {settings.depts.join(", ")} · 자격증이 있으면 부서와 관계없이 포함. 4대보험에 없는 사람(상시 근무 아님)은 &lsquo;제외&rsquo;로 두세요.</p>
+        <div className="tbl-wrap"><table className="tbl">
+          <thead><tr><th>성명</th><th>부서·직급</th><th>자격증</th><th>등급</th><th>포함 · 이전 경력 · 학력 · 졸업일 · 메모</th></tr></thead>
+          <tbody>
+            {people.map((p) => (
+              <tr key={p.name} className={lines.some((l) => l.emp === p.name) ? undefined : "muted"}>
+                <td><b>{p.name}</b></td>
+                <td>{p.dept} · {p.rank}</td>
+                <td>{p.certs ? `${p.certs}개` : "-"}</td>
+                <td>{p.grade || "-"}</td>
+                <td><QualPersonForm name={p.name} p={p.person} tech={settings.depts.includes(p.dept) || p.certs > 0} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table></div>
+      </details>
+
+      <div className="card noprint" style={{ marginTop: 16 }}>
+        <div className="card-title">요청서류 <span className="muted" style={{ fontWeight: 400 }}>붙임3 품질분야 · 붙임4 기술분야 — 항목마다 + 📎로 올려 두세요</span></div>
+        <div className="tbl-wrap"><table className="tbl qual-docs">
+          <thead><tr><th>분야</th><th>평가요소</th><th>요청서류</th><th>비고</th><th>첨부</th></tr></thead>
+          <tbody>
+            {groups.flatMap((g) => {
+              const items = QUAL_DOCS.filter((d) => `${d.area}|${d.group}` === g);
+              return items.map((d, i) => {
+                const fl = qf.get(`qual:doc:${d.key}`) ?? [];
+                return (
+                  <tr key={d.key}>
+                    {i === 0 && <td rowSpan={items.length}><b>{d.area}</b><br /><small>{d.group}</small></td>}
+                    <td>{d.item}</td>
+                    <td><ul style={{ margin: 0, paddingLeft: 16 }}>{d.docs.map((x) => <li key={x}>{x}</li>)}</ul></td>
+                    <td className="muted" style={{ fontSize: ".82rem" }}>{d.note}</td>
+                    <td>
+                      {fl.map((a) => (
+                        <span key={a.id} className="row" style={{ gap: 4 }}>
+                          <a className="file" href={`/api/ga/file/${a.id}`} target="_blank" rel="noreferrer">📎 {a.fileName} <small>{kb(a.size)}</small></a>
+                          <DeleteFile id={a.id} name={a.fileName} />
+                        </span>
+                      ))}
+                      {fl.length === 0 && <span className="red" style={{ fontSize: ".8rem" }}>없음 </span>}
+                      <QualDocForm docKey={d.key} />
+                    </td>
+                  </tr>
+                );
+              });
+            })}
+          </tbody>
+        </table></div>
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>
-        <div className="card-title">기술자 등급 기준</div>
+        <div className="card-title">기술자 등급 기준 <span className="muted" style={{ fontWeight: 400 }}>부록-1 기술분야 1. 기술인력</span></div>
         <div className="tbl-wrap"><table className="tbl qual-rule">
           <thead><tr><th>구분</th><th>고급기술자</th><th>중급기술자</th><th>초급기술자</th></tr></thead>
           <tbody>
@@ -97,22 +152,8 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
               <td>기능사, 산업기사 자격 이상 취득자<br />기능사 이상 관련 직무교육 이수자<br />학사, 전문학사 후 1년 이상 실무자<br />고졸 후 2년 이상 실무자<br />관련 근무경력 3년 이상 실무자</td></tr>
           </tbody>
         </table></div>
-        <p className="caption">&lsquo;기능사 이상 관련 직무교육 이수자&rsquo;는 기록이 없어 자동으로 따지지 않습니다.</p>
-      </div>
-
-      <div className="card noprint" style={{ marginTop: 16 }}>
-        <div className="card-title">심사 서류 묶음 <span className="muted" style={{ fontWeight: 400 }}>관리대장·자격증 사본·경력증명서 등</span><span className="spacer" /><QualDocForm /></div>
-        {docs.length === 0 ? <p className="muted">아직 올린 서류가 없습니다. 사람별 자격증 사본은 위 표의 + 📎로, 공통 서류는 여기에 올리세요.</p> : (
-          <ul className="stack" style={{ gap: 6, margin: 0, paddingLeft: 0, listStyle: "none" }}>
-            {docs.map((a) => (
-              <li key={a.id} className="row" style={{ gap: 6 }}>
-                <a className="file" href={`/api/ga/file/${a.id}`} target="_blank" rel="noreferrer">📎 {a.fileName} <small>{kb(a.size)}</small></a>
-                <small className="muted">{a.createdAt.slice(0, 10)}</small>
-                <DeleteFile id={a.id} name={a.fileName} />
-              </li>
-            ))}
-          </ul>
-        )}
+        <p className="caption">인정대상: 4대 보험에 가입된 상시 근무 인원 · 기술인력은 조직표상 설계·제작·정비·기술관리·품질관리·전문연구 부서 인원 ·
+          유사 제조·정비회사 근무경력은 확인 가능하면 근무연수로 인정 · 경력수첩은 자격증으로 인정 불가 · &lsquo;기능사 이상 관련 직무교육 이수자&rsquo;는 자동으로 따지지 않음</p>
       </div>
     </>
   );
