@@ -40,6 +40,8 @@ export async function saveQualPerson(_: Res, f: FormData): Promise<Res> {
     ...((EDU as readonly string[]).includes(edu) ? { edu } : {}),
     ...(isDateStr(eduDate) ? { eduDate } : {}),
     ...(inc === "1" ? { include: true } : inc === "0" ? { include: false } : {}),
+    ...(isDateStr(String(f.get("insured") ?? "")) ? { insured: String(f.get("insured")) } : {}),
+    ...(String(f.get("role") ?? "").trim() ? { role: String(f.get("role")).trim().slice(0, 40) } : {}),
     ...(String(f.get("note") ?? "").trim() ? { note: String(f.get("note")).trim().slice(0, 200) } : {}),
   };
   const s = await loadQualSettings();

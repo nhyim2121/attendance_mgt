@@ -3,7 +3,7 @@ import "server-only";
 import * as ledger from "@/lib/대장/store";
 import { getSetting, loadEmployees } from "@/lib/store";
 import { asOf, employedOn, type Employee } from "./employees";
-import { EMPTY_QUAL, isSafetyCert, qualOf, type QualPerson, type QualRow, type QualSettings } from "./qualGrade";
+import { companyMonths, DEPT_ROLE, EMPTY_QUAL, isSafetyCert, qualOf, type QualPerson, type QualRow, type QualSettings } from "./qualGrade";
 import type { DateStr } from "../time";
 
 export interface QualLine extends QualRow {
@@ -12,7 +12,10 @@ export interface QualLine extends QualRow {
   first: boolean;     // 그 사람의 첫 줄
   best: boolean;      // 그 사람의 등급으로 쓰는 줄
 }
-export interface QualPersonRow { name: string; dept: string; rank: string; person: QualPerson; tech: boolean; certs: number; grade: string; point: number }
+export interface QualPersonRow {
+  name: string; dept: string; rank: string; person: QualPerson; tech: boolean; certs: number; grade: string; point: number;
+  join: string; prior: string[]; insured: string; role: string; company: number; prev: number; total: number; certNames: string[];
+}
 
 export const loadQualSettings = async (): Promise<QualSettings> => ({ ...EMPTY_QUAL, ...(await getSetting<Partial<QualSettings>>("qual_people", {})) });
 
@@ -35,7 +38,10 @@ export async function qualLines(day: DateStr): Promise<{ lines: QualLine[]; peop
     }));
     const top = mine.reduce((a, b) => (b.point > a.point ? b : a), mine[0]);
     top.best = true;
-    people.push({ name: e.name, dept: e.dept, rank: e.rank, person: p, tech, certs: cs.length, grade: top.grade, point: top.point });
+    const company = companyMonths(e, day), prev = Math.max(0, p.prev ?? 0);
+    people.push({ name: e.name, dept: e.dept, rank: e.rank, person: p, tech, certs: cs.length, grade: top.grade, point: top.point,
+      join: e.joinDate ?? "", prior: (e.prior ?? []).map((s) => `${s.join ?? "?"} ~ ${s.leave ?? "?"}`), insured: p.insured ?? "",
+      role: p.role || DEPT_ROLE[e.dept] || "", company, prev, total: company + prev, certNames: cs.map((r) => r.data.name) });
     if (tech) lines.push(...mine);
   }
   const on = new Set(act.map((e) => e.name));

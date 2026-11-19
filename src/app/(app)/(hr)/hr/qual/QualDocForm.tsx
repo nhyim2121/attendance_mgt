@@ -42,6 +42,8 @@ export function QualPersonForm({ name, p, tech }: { name: string; p: QualPerson;
         {EDU.map((x) => <option key={x}>{x}</option>)}
       </select>
       <input name="eduDate" type="date" defaultValue={p.eduDate ?? ""} aria-label={`${name} 졸업일`} title="졸업일" />
+      <label className="qual-ym" title="4대보험 가입자명부의 고용보험 자격취득일">4대보험<input name="insured" type="date" defaultValue={p.insured ?? ""} aria-label={`${name} 4대보험 취득일`} style={{ width: 140 }} /></label>
+      <input name="role" defaultValue={p.role ?? ""} placeholder="담당분야 (비우면 부서로)" aria-label={`${name} 담당분야`} style={{ width: 150 }} />
       <input name="note" defaultValue={p.note ?? ""} placeholder="메모" aria-label={`${name} 메모`} />
       <button className="btn sm" disabled={pending}>{pending ? "…" : "저장"}</button>
       {r && <small className={r.ok ? "green" : "red"}>{r.ok ? "✓" : r.error}</small>}

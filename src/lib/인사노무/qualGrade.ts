@@ -20,6 +20,8 @@ export const GRADES = [
 export const EDU = ["고졸", "전문학사", "학사", "석사 이상"] as const;
 /** 기술인력으로 보는 부서 (기본값, 화면에서 바꿀 수 있음) */
 export const TECH_DEPTS = ["생산팀", "품질팀", "연구소", "일학습"];
+/** 부서 → 착안사항의 기술인력 분야 (설계·제작·정비·기술관리·품질관리·전문연구) */
+export const DEPT_ROLE: Record<string, string> = { 생산팀: "제작·정비", 품질팀: "품질관리", 연구소: "설계·전문연구", 일학습: "제작 (일학습병행)", 대전지사: "정비" };
 
 /** 사람별 추가 정보 (settings 'qual_people') */
 export interface QualPerson {
@@ -28,6 +30,8 @@ export interface QualPerson {
   eduDate?: string;   // 졸업일
   include?: boolean;  // 기술인력 포함 여부 (비우면 부서로 판단)
   note?: string;      // 메모 (4대보험 미가입 등)
+  insured?: string;   // 4대보험(고용보험) 자격취득일 — 가입자명부로 대조
+  role?: string;      // 담당 기술분야 (비우면 부서로)
 }
 export interface QualSettings { depts: string[]; people: Record<string, QualPerson> }
 export const EMPTY_QUAL: QualSettings = { depts: TECH_DEPTS, people: {} };

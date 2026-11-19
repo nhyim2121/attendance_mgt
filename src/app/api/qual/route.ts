@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (u.role !== "관리자") return new Response("내려받을 수 없습니다.", { status: 403 });
   const q = req.nextUrl.searchParams.get("day") ?? "";
   const day = isDateStr(q) ? q : todayKst();
-  const { lines } = await qualLines(day);
+  const { lines, people } = await qualLines(day);
   const dot = (d: string) => d.replaceAll("-", ".");
 
   const wb = new ExcelJS.Workbook();
@@ -38,6 +38,29 @@ export async function GET(req: NextRequest) {
     if (r > 2) c.alignment = { horizontal: "center", vertical: "middle" };
   });
   [10, 24, 13, 20, 16, 18].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+
+  // 두 번째 시트: 기술인력 입사 및 경력정보
+  const tech = people.filter((p) => lines.some((l) => l.emp === p.name));
+  const w2 = wb.addWorksheet("기술인력 입사·경력", { pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 } });
+  w2.mergeCells("A1:H1");
+  w2.getCell("A1").value = "기술인력 입사 및 경력정보";
+  w2.mergeCells("I1:K1");
+  w2.getCell("I1").value = `기준일: ${dot(day)}`;
+  w2.getRow(1).font = { bold: true, size: 12 };
+  const h2 = w2.addRow(["연번", "성명", "부서", "직급", "담당 분야", "입사일", "4대보험 취득일", "당사 근무", "이전 관련 경력", "총 근무경력", "보유 자격증"]);
+  h2.eachCell((c) => { c.font = { bold: true }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E7D3" } }; c.alignment = { horizontal: "center", vertical: "middle" }; });
+  tech.forEach((p, i) => w2.addRow([i + 1, p.name, p.dept, p.rank, p.role,
+    `${p.join ? dot(p.join) : ""}${p.prior.length ? ` (이전 ${p.prior.map(dot).join(", ")})` : ""}`, p.insured ? dot(p.insured) : "",
+    ym(p.company), p.prev ? ym(p.prev) : "-", ym(p.total), p.certNames.join(", ")]));
+  const avg = (k: "company" | "total") => (tech.length ? ym(Math.round(tech.reduce((t, p) => t + p[k], 0) / tech.length)) : "-");
+  const f2 = w2.addRow(["", `기술인력 ${tech.length}명`, "", "", "", "", "1인당 평균", avg("company"), "", avg("total"), ""]);
+  f2.font = { bold: true };
+  for (let r = 2; r <= w2.rowCount; r++) w2.getRow(r).eachCell({ includeEmpty: true }, (c, col) => {
+    if (col > 11) return;
+    c.border = { top: thin, left: thin, bottom: thin, right: thin };
+    if (r > 2) c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  });
+  [6, 10, 10, 9, 16, 26, 14, 12, 14, 14, 26].forEach((w, i) => { w2.getColumn(i + 1).width = w; });
 
   const buf = await wb.xlsx.writeBuffer();
   return new Response(buf, { headers: {

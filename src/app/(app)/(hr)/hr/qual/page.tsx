@@ -89,6 +89,33 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>
+        <div className="card-title">기술인력 입사 및 경력정보 <span className="muted" style={{ fontWeight: 400 }}>착안사항 1. 기술인력 — 1인당 평균 근무연수</span>
+          <span className="spacer" /><a className="btn sm noprint" href={`/api/qual?day=${day}`}>⬇ 엑셀 (두 번째 시트)</a></div>
+        <div className="tbl-wrap"><table className="tbl">
+          <thead><tr><th>연번</th><th>성명</th><th>부서</th><th>직급</th><th>담당 분야</th><th>입사일</th><th>4대보험 취득일</th><th>당사 근무</th><th>이전 관련 경력</th><th>총 근무경력</th><th>보유 자격증</th></tr></thead>
+          <tbody>
+            {tech.map((p, i) => {
+              const diff = p.insured && p.join && p.insured !== p.join;
+              return (
+                <tr key={p.name}>
+                  <td>{i + 1}</td><td><b>{p.name}</b></td><td>{p.dept}</td><td>{p.rank}</td><td>{p.role}</td>
+                  <td>{p.join ? dot(p.join) : <span className="red">없음</span>}{p.prior.length > 0 && <><br /><small className="muted">재입사 · 이전 {p.prior.map(dot).join(", ")}</small></>}</td>
+                  <td className={diff ? "orange" : undefined} title={diff ? "명부 입사일과 다릅니다" : undefined}>{p.insured ? dot(p.insured) : <span className="red">미입력</span>}</td>
+                  <td>{ym(p.company)}</td><td>{p.prev ? ym(p.prev) : "-"}</td><td><b>{ym(p.total)}</b></td>
+                  <td>{p.certNames.join(", ") || "-"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot><tr><th colSpan={7}>기술인력 {tech.length}명 · 1인당 평균</th>
+            <th>{tech.length ? ym(Math.round(tech.reduce((t, p) => t + p.company, 0) / tech.length)) : "-"}</th><th />
+            <th>{tech.length ? `${ym(Math.round(tech.reduce((t, p) => t + p.total, 0) / tech.length))} (${(tech.reduce((t, p) => t + p.total, 0) / tech.length / 12).toFixed(1)}년)` : "-"}</th><th /></tr></tfoot>
+        </table></div>
+        <p className="caption noprint">당사 근무 = 명부 입사일(재입사 전 근무 포함)~기준일. 이전 관련 경력은 유사 제조·정비회사 경력증명서로 확인되는 것만 &lsquo;사람별 경력·학력&rsquo;에 적으세요.
+          4대보험 취득일이 주황색이면 명부 입사일과 다른 것입니다.</p>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
         <div className="card-title">안전관리분야 국가기술자격자 <span className="muted" style={{ fontWeight: 400 }}>3. 설비/작업장/안전 › 4) 안전관리(현장정비) 가점 +2점 · 기사·기술사·지도사</span>
           <span className="spacer" /><b className={safety.length ? "green" : "red"}>{safety.length ? "가점 대상 +2점" : "보유자 없음"}</b></div>
         {safety.length ? (
