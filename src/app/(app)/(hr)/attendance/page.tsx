@@ -263,7 +263,7 @@ export default async function Home() {
             <div className="card-title">어제 근무 현황 <span className="muted" style={{ fontWeight: 400 }}>{dayLabel(yday)}</span></div>
             <div className="tiles4">
               <Tile label="출장" n={ySum("trip")} people={yRows.flatMap((r) => r.trip.map((e) => [e, r.dept] as [string, string]))} href="/evidence" />
-              <Tile label="휴가" n={ySum("leave")} people={yRows.flatMap((r) => r.leave.map((e) => [e, r.dept] as [string, string]))} href="/leave" />
+              <Tile label="휴가" n={ySum("leave")} people={yRows.flatMap((r) => r.leave.map((e) => [e, `${r.dept} · ${r.leaveKind[e]}`] as [string, string]))} href="/leave" />
               <Tile label="퇴근미체크" n={ySum("noOut")} warn people={yRows.flatMap((r) => r.noOut.map((e) => [e, r.dept] as [string, string]))}
                 href={`/sheets?tab=edit&month=${yday.slice(0, 7)}`} />
               <Tile label="연장근무" n={ySum("ot")} people={yRows.flatMap((r) => r.ot.map((o) => [o.emp, r.dept] as [string, string]))} />

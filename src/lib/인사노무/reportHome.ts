@@ -22,7 +22,9 @@ export const Y_DEPTS: [string, (dept: string, emp: string) => boolean][] = [
 ];
 
 export type YOt = { emp: string; out: number; hours: number; night: number; grp: string };
-export type YRow = { dept: string; trip: string[]; leave: string[]; noOut: string[]; ot: YOt[] };
+const LEAVE_RE = /^(연차|월차|반차|반반차|외출|조퇴|공가|경조|병가|포상|휴가)/;
+
+export type YRow = { dept: string; trip: string[]; leave: string[]; leaveKind: Record<string, string>; noOut: string[]; ot: YOt[] };
 
 /** day 바로 전 근무일 (주말·휴일은 건너뜀, 최대 14일) */
 export function prevWorkday(day: DateStr, rule: WorkRule, holidays: Record<string, string>): DateStr {
@@ -43,16 +45,24 @@ export async function yesterdayRows(days: DayRow[], leaves: Leave[], records: Ca
     const o = y.overtime.find((x) => x.emp === emp), n = nightOf.get(emp);
     return { emp, out: o?.out ?? n?.out ?? 0, hours: o?.hours ?? 0, night: n?.hours ?? 0, grp: grp(emp, o?.dept ?? n?.dept) };
   }).filter((o) => o.grp);
-  // (2026-11-19) 하이웍스 휴가 파일이 늦게 올라와도 맞도록, 그날 근태 보고서의 '휴가일정'에 적힌 사람도 휴가로 센다
+  // (2026-11-19) 하이웍스 휴가 파일이 늦게 올라와도 맞도록, 그날 근태 보고서의 근태 칸에 적힌 휴가(반차·반반차·외출 등)도 휴가로 센다.
+  // '휴가일정' 칸은 앞으로 잡힌 일정이라, 그 날짜(types)에 이날이 들어 있을 때만 센다.
   const rep = await store.loadReportRows(yday).catch(() => []);
-  const repLeave = new Set(rep.filter((r) => r.name && r.section === "휴가일정").map((r) => r.name));
+  const kindOf = new Map<string, string>();
+  for (const r of rep) {
+    if (!r.name) continue;
+    const t = (r.types ?? "").trim();
+    if (r.section === "근태" && LEAVE_RE.test(t)) kindOf.set(r.name, t);
+    else if (r.section === "휴가일정" && t.split(",").map((x) => x.trim()).includes(yday)) kindOf.set(r.name, r.title.trim() || "휴가");
+  }
+  for (const b of yBoard) if (b.group === "휴가" && !kindOf.has(b.emp)) kindOf.set(b.emp, "휴가");
   return Y_DEPTS.map(([dp]) => {
     const g = yBoard.filter((b) => grp(b.emp) === dp);
-    const leave = [...new Set([...g.filter((b) => b.group === "휴가").map((b) => b.emp), ...[...repLeave].filter((n) => grp(n) === dp)])];
+    const leave = [...kindOf.keys()].filter((n) => grp(n) === dp);
     return {
       dept: dp,
       trip: g.filter((b) => b.group === "출장·교육" && !leave.includes(b.emp)).map((b) => b.emp),
-      leave,
+      leave, leaveKind: Object.fromEntries(leave.map((n) => [n, kindOf.get(n) ?? "휴가"])),
       noOut: y.noOut.filter((d) => grp(d.emp, d.dept) === dp).map((d) => d.emp),
       ot: otAll.filter((o) => o.grp === dp).sort((a, b) => b.hours + b.night - a.hours - a.night),
     };
@@ -93,7 +103,8 @@ export async function reportHome(day: DateStr): Promise<ReportHome | null> {
     usedRate, fyLabel: `${fy}${policy.fyStartMonth === 1 ? "년" : "회계연도"}`,
     turnover: hc.turnover, joined: hc.joined.length, left: hc.left.length,
     yday,
-    trip: who((r) => r.trip), leave: who((r) => r.leave),
+    trip: who((r) => r.trip),
+    leave: rows.flatMap((r) => r.leave.map((e) => [e, `${r.dept} · ${r.leaveKind[e]}`] as [string, string])),
     ot: rows.flatMap((r) => r.ot.map((o) => [o.emp, `${r.dept} · ${hm(o.hours + o.night)}${o.night > 0 ? ` (야간 ${hm(o.night)})` : ""}`] as [string, string])),
   };
 }
