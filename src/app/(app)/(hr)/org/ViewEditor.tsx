@@ -90,6 +90,7 @@ export function PrintButton() {
 
 // A4 가로에서 여백 4mm(globals.css의 @page org)를 뺀 크기(px), 약간의 안전 여유 포함
 const [W, H] = [1084, 736];
+const FULL_H = 754; // 종이 한 장을 넘지 않는 선에서 아래까지 채울 높이
 
 /** 상위 상자를 첫·마지막 하위 상자의 가운데로 옮긴다 (--s: 상자와 연결선을 옮길 거리). 아래 단계부터 재서 올라온다. */
 function alignParents(el: HTMLElement) {
@@ -158,10 +159,12 @@ export function FitPrint({ children }: { children: ReactNode }) {
       }
       el.style.width = "";
       alignParents(el);
+      // 종이 높이(여백 뺀 약 763px)까지 늘려 로고 줄이 맨 아래에 붙게 (.ot-print는 세로 flex, .ot-co는 margin-top:auto)
+      el.style.minHeight = `${FULL_H / z}px`;
     };
     // 인쇄 창이 열릴 때도 resize가 올 수 있다. 그때 화면 맞춤이 돌면 인쇄용 크기가 지워진다
     const resize = () => { if (!printing) screen(); };
-    const done = () => { printing = false; screen(); };
+    const done = () => { printing = false; el.style.minHeight = ""; screen(); };
     screen();
     document.fonts.ready.then(() => { if (!printing) screen(); }); // 글꼴이 늦게 오면 상자 폭이 바뀐다
     window.addEventListener("resize", resize);

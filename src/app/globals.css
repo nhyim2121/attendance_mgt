@@ -303,6 +303,7 @@ fieldset.fs legend { font-weight: 700; padding: 0 6px; }
 .ot-foot { order: -1; flex: 0 0 100%; width: auto; margin: 0; }
 .ot-co img { height: 36px; width: auto; }
 .ot-co-r small, .ot-day { color: var(--muted); }
+.org-title .ot-tday { font-size: max(.8rem, .36em); font-weight: 500; color: var(--muted); margin-left: .6em; white-space: nowrap; letter-spacing: 0; }
 .ot-scroll { overflow-x: auto; padding-bottom: 6px; }
 .ot { --ot-line: #b5b9c0; width: max-content; margin: 0 auto; }
 .ot ul { display: flex; justify-content: center; margin: 0; padding: 18px 0 0; position: relative; }
@@ -350,7 +351,9 @@ fieldset.fs legend { font-weight: 700; padding: 0 6px; }
 .ot-print .ot-row { padding: var(--ot-row, 3px) 8px; }
 .ot-print .org-title.ot-title { font-size: 2.6rem; }
 .ot-print .ot-scroll { padding-bottom: 0; overflow: visible; }
-.ot-print .ot-co { flex-wrap: nowrap; align-items: flex-end; margin-top: 4px; }
+.ot-print { display: flex; flex-direction: column; }
+.ot-print .ot-co { flex-wrap: nowrap; align-items: flex-end; margin-top: auto; padding-top: 4px; min-height: 0; }
+.ot-print .ot-co img { display: block; }
 .ot-print .ot-day, .ot-print .ot-co-r { flex: 1 1 0; }
 .ot-print .ot-foot { order: 0; flex: 0 0 auto; width: max-content; }
 .ot-print .ot ul.ot-sep { margin: 0; padding: 0; border: 0; }

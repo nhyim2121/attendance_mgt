@@ -33,6 +33,7 @@ export default async function OrgPage({ searchParams }: { searchParams: Promise<
   const nodes = savedNodes?.length ? savedNodes : defaultNodes(base.employees);
   const org = buildOrg(nodes, base.employees, day, view.depts, view.exclude ?? []);
   const total = view.layout === "table" ? tree.reduce((t, d) => t + d.members.length + (d.head ? 1 : 0), 0) : org.total;
+  const dayKo = `${+day.slice(0, 4)}년 ${+day.slice(5, 7)}월 ${+day.slice(8, 10)}일`; // 제목 옆 기준일
   const title = (view.title || "조직도").replaceAll("{년}", day.slice(0, 4));
   const allDepts = orgTree(base.employees, day).map((d) => d.dept);
   const missing = view.fields.filter((f) => ["phone", "ext", "email", "position"].includes(f)
@@ -62,7 +63,7 @@ export default async function OrgPage({ searchParams }: { searchParams: Promise<
 
       {view.layout === "table" ? (
         <div className="card org-sheet">
-          <div className="org-title">{title}<small> {day} 기준{view.showCount ? ` · 총 ${total}명` : ""}</small></div>
+          <div className="org-title">{title}<small className="ot-tday">{dayKo}</small>{view.showCount && <small> 총 {total}명</small>}</div>
           <table className="tbl">
             <thead><tr><th>부서</th><th>성명</th>{view.fields.map((f) => <th key={f}>{ORG_FIELDS[f]}</th>)}</tr></thead>
             <tbody>
@@ -76,12 +77,12 @@ export default async function OrgPage({ searchParams }: { searchParams: Promise<
       ) : (
         <div className="card org-sheet">
           <FitPrint>
-            <div className="org-title ot-title">{title}</div>
+            <div className="org-title ot-title">{title}<small className="ot-tday">{dayKo}</small></div>
             <div className="ot-scroll"><div className="ot">
               <ul>{org.roots.slice(0, 1).map((r) => <Branch key={r.node.id} b={r} v={view} />)}</ul>
             </div></div>
             <div className="ot-co">
-              <span className="ot-day">{day} 기준{view.showCount ? ` · 총 ${total}명` : ""}</span>
+              <span className="ot-day">{view.showCount ? `총 ${total}명` : ""}</span>
               {org.roots.length > 1 && ( /* 화면에서는 따로 한 줄, 인쇄에서는 날짜·로고 사이 */
                 <div className="ot ot-foot"><ul className="ot-sep">{org.roots.slice(1).map((r) => <Branch key={r.node.id} b={r} v={view} />)}</ul></div>
               )}
