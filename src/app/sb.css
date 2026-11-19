@@ -74,3 +74,48 @@
 .qual-cr .tbl input[aria-label="회사"] { width: 150px; }
 .qual-pick { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 10px; }
 .qual-pick label { white-space: nowrap; font-size: .88rem; }
+
+/* 정비적격심사 한눈에 (2026-11-19): 등급 색 g1 고급 남색 · g2 중급 청록 · g3 초급 호박 · g0 해당 없음 회색 */
+.qv-sum { --g1: #0c3994; --g2: #0f7f86; --g3: #b45309; --g0: #9aa3b5; }
+.qv-tbl, .qv-legend { --g1: #0c3994; --g2: #0f7f86; --g3: #b45309; --g0: #9aa3b5; }
+.qv-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px 28px; align-items: center; }
+.qv-big { display: flex; flex-direction: column; gap: 2px; }
+.qv-big b { font-size: 2.6rem; line-height: 1; color: #0a2b70; font-weight: 900; }
+.qv-big b span { font-size: 1rem; margin-left: 2px; }
+.qv-bar { display: flex; height: 30px; border-radius: 8px; overflow: hidden; background: #eef1f6; }
+.qv-seg { display: grid; place-items: center; color: #fff; font-weight: 800; font-size: .9rem; min-width: 28px; }
+.qv-seg.g1, .qv-legend i.g1 { background: var(--g1); } .qv-seg.g2, .qv-legend i.g2 { background: var(--g2); }
+.qv-seg.g3, .qv-legend i.g3 { background: var(--g3); } .qv-seg.g0, .qv-legend i.g0 { background: var(--g0); }
+.qv-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: .85rem; color: #3b4558; }
+.qv-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.qv-kpis { display: flex; gap: 10px; }
+.qv-kpis > div { border: 1px solid #e3e8f0; border-radius: 10px; padding: 8px 14px; min-width: 96px; display: flex; flex-direction: column; }
+.qv-kpis small { color: #7a8396; font-size: .76rem; } .qv-kpis b { font-size: 1.3rem; color: #0a2b70; }
+.qv-kpis .qv-warn { border-color: #f3c08a; background: #fff7ed; } .qv-kpis .qv-warn b { color: #c2410c; }
+.qv-todo { margin-top: 12px; padding: 8px 12px; border-radius: 8px; background: #fff7ed; border: 1px solid #fde1c3; font-size: .84rem; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.qv-todo b { color: #c2410c; }
+.qv-tbl td { vertical-align: top; }
+.qv-group td { font-weight: 800; color: #fff; padding: 5px 10px !important; font-size: .86rem; }
+.qv-group.g1 td { background: var(--g1); } .qv-group.g2 td { background: var(--g2); } .qv-group.g3 td { background: var(--g3); } .qv-group.g0 td { background: var(--g0); }
+.qv-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 800; font-size: .82rem; color: #fff; white-space: nowrap; }
+.qv-badge.g1 { background: var(--g1); } .qv-badge.g2 { background: var(--g2); } .qv-badge.g3 { background: var(--g3); } .qv-badge.none { background: #eef1f6; color: #7a8396; }
+.qv-why { font-size: .84rem; color: #3b4558; }
+.qv-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.qv-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #dfe4ec; border-radius: 8px; padding: 2px 4px 2px 8px; font-size: .84rem; background: #f7f9fc; }
+.qv-chip a { color: inherit; text-decoration: none; }
+.qv-chip small { color: #7a8396; }
+.qv-chip.on { color: #fff; border-color: transparent; } .qv-chip.on small { color: rgba(255,255,255,.85); }
+.qv-chip.on.g1 { background: var(--g1); } .qv-chip.on.g2 { background: var(--g2); } .qv-chip.on.g3 { background: var(--g3); }
+.qv-chip.miss { border-color: #f5b5b0; background: #fff5f4; } .qv-chip.miss small { color: #d23a37; font-weight: 700; }
+.qv-chip form .btn { padding: 0 6px; min-height: 0; font-size: .74rem; }
+.qv-file { text-decoration: none; }
+.qv-strong { font-weight: 800; color: #0a2b70; white-space: nowrap; }
+@media (max-width: 900px) { .qv-head { grid-template-columns: minmax(0, 1fr); } }
+@media print {
+  /* 정비적격심사: 인쇄하면 요약 + 등급표만 (제출용) */
+  .qv-page > *:not(.qv-print) { display: none !important; }
+  .qv-page .qv-print { box-shadow: none; border: 0; padding: 0; margin: 0 0 10px !important; break-inside: auto; }
+  .qv-page .qv-tbl tr { break-inside: avoid; }
+  .qv-page .qv-chip { background: #fff; } .qv-page a { color: inherit; text-decoration: none; }
+  .qv-sum, .qv-tbl, .qv-legend, .qv-chip, .qv-badge, .qv-seg, .qv-group td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

@@ -28,7 +28,6 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
   const [{ lines, people, settings, safety, allCerts }, files, qf] = await Promise.all([qualLines(day), loadFiles("lg:"), loadFiles("qual:doc:")]);
   const book = "/hr/b/licenses";
   const tech = people.filter((p) => lines.some((l) => l.emp === p.name));
-  const count = GRADES.map((g) => ({ ...g, n: tech.filter((p) => p.grade === g.name).length }));
   const sum = tech.reduce((t, p) => t + p.point, 0);
   const groups = [...new Set(QUAL_DOCS.map((d) => `${d.area}|${d.group}`))];
   const certSel = settings.certs?.length ? settings.certs : CERT_DEFAULT;
@@ -36,9 +35,17 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
   const unlisted = allCerts.filter((n) => !certIn(n, certAll));
   const safeSel = settings.safety?.length ? settings.safety : SAFETY_DEFAULT;
   const out = people.filter((p) => !p.tech);
+  const dist = [...GRADES.map((g, i) => ({ key: g.name as string, name: g.name as string, point: g.point as number, cls: ["g1", "g2", "g3"][i] })),
+    { key: "", name: "해당 없음", point: 0, cls: "g0" }].map((g) => ({ ...g, n: tech.filter((p) => (p.grade || "") === g.key).length }));
+  const avgY = tech.length ? (tech.reduce((t, p) => t + p.total, 0) / tech.length / 12).toFixed(1) : "0";
+  const warn: { text: string; href?: string }[] = [
+    ...lines.filter((l) => l.cert && !l.got).map((l) => ({ text: `${l.emp} ${l.cert} 취득일 없음`, href: `${book}?edit=${l.id}#form` })),
+    ...tech.filter((p) => !p.insured).map((p) => ({ text: `${p.name} 4대보험 취득일 미입력` })),
+    ...tech.filter((p) => p.insured && p.join && p.insured !== p.join).map((p) => ({ text: `${p.name} 입사일(${dot(p.join)})≠4대보험(${dot(p.insured)})` })),
+  ];
 
   return (
-    <>
+    <div className="qv-page">
       <PageHead href="/hr/qual" title="정비적격심사 기술자 등급" emoji="🧰"
         desc="현장심사 '관련 자격증 및 관련 학과 적용' 표와 요청서류. 자격증·선임 관리 대장과 직원 명부로 기준일 경력·등급을 계산합니다." />
 
@@ -68,50 +75,81 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
       </details>
 
       <form id="qual-bulk" action={bulkInclude} />
-      <div className="card">
-        <div className="card-title">2. 관련 자격증 및 관련 학과 적용<span className="spacer" />
-          <span className="noprint row" style={{ gap: 6, fontWeight: 400 }}>
-            <input type="hidden" name="op" value="out" form="qual-bulk" />
-            <button className="btn sm danger" form="qual-bulk" title="체크한 직원을 기술인력에서 뺍니다 (아래 '빠진 직원'에서 되돌릴 수 있음)">선택한 직원 제외</button>
-          </span><span className="muted" style={{ fontWeight: 400 }}>기준일: {dot(day)}</span></div>
-        <div className="tbl-wrap"><table className="tbl qual-tbl">
-          <thead><tr><th>성명</th><th>자격증</th><th>취득월일</th><th>자격취득후 근무경력</th><th>총 근무경력</th><th>기술자 등급</th><th className="noprint">근거</th><th className="noprint">자격증 사본</th></tr></thead>
-          <tbody>
-            {lines.map((l) => {
-              const fl = l.id ? files.get(ledger.rowRef(l.id)) ?? [] : [];
-              const showTotal = !l.cert || (l.best && l.byTotal); // 총 근무경력: 자격증 없는 실무 경력자, 또는 경력으로 등급이 정해진 사람
-              return (
-                <tr key={`${l.emp}${l.id ?? ""}`}>
-                  <td>{l.first && <><input type="checkbox" name="names" value={l.emp} form="qual-bulk" className="noprint" aria-label={`${l.emp} 선택`} /> <b>{l.emp}</b> <small className="muted noprint">{l.dept}</small></>}</td>
-                  <td>{l.id ? <Link href={`${book}?edit=${l.id}#form`} title="고치기">{l.cert}</Link> : <span className="muted">-</span>}</td>
-                  <td>{l.cert ? (l.got ? dot(l.got) : <span className="red">취득일 없음</span>) : ""}</td>
-                  <td>{l.cert ? ym(l.after) : ""}</td>
-                  <td>{showTotal ? ym(l.total) : ""}</td>
-                  <td>{l.best ? (l.grade ? <b>{l.grade}</b> : <span className="muted">해당 없음</span>) : <span className="muted" title="이 사람은 다른 줄의 등급으로 셉니다">({l.grade || "-"})</span>}</td>
-                  <td className="noprint muted" style={{ fontSize: ".82rem" }}>{l.why}</td>
-                  <td className="noprint">
-                    {fl.map((a) => (
-                      <span key={a.id} className="row" style={{ gap: 4 }}>
-                        <a className="file" href={`/api/ga/file/${a.id}`} target="_blank" rel="noreferrer">📎 {a.fileName} <small>{kb(a.size)}</small></a>
-                        <DeleteFile id={a.id} name={a.fileName} />
-                      </span>
-                    ))}
-                    {l.id && <AttachRow id={l.id} />}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table></div>
-        <div className="metrics" style={{ marginTop: 12 }}>
-          <div className="metric"><div className="l">기술인력</div><div className="v">{tech.length}명</div></div>
-          {count.map((g) => <div key={g.name} className="metric"><div className="l">{g.name} ({g.point}점)</div><div className="v">{g.n}명</div></div>)}
-          <div className="metric"><div className="l">등급 점수 합 (참고)</div><div className="v">{sum}점</div></div>
+      {/* 한눈에: 기술인력 수 · 등급 분포 막대 · 점수 · 평균 경력 · 확인 필요 (2026-11-19 정리) */}
+      <div className="card qv-sum qv-print">
+        <div className="qv-head">
+          <div className="qv-big"><small>기술인력 (인정대상)</small><b>{tech.length}<span>명</span></b><small className="muted">기준일 {dot(day)}</small></div>
+          <div className="qv-dist">
+            <div className="qv-bar" role="img" aria-label="등급 분포">
+              {dist.map((g) => g.n > 0 && <span key={g.name} className={`qv-seg ${g.cls}`} style={{ flexGrow: g.n }} title={`${g.name} ${g.n}명`}>{g.n}</span>)}
+            </div>
+            <div className="qv-legend">{dist.map((g) => <span key={g.name}><i className={g.cls} />{g.name}{g.point ? ` (${g.point}점)` : ""} <b>{g.n}명</b></span>)}</div>
+          </div>
+          <div className="qv-kpis">
+            <div><small>등급 점수 합</small><b>{sum}점</b></div>
+            <div><small>1인당 평균 근무</small><b>{avgY}년</b></div>
+            <div className={warn.length ? "qv-warn" : undefined}><small>확인 필요</small><b>{warn.length}건</b></div>
+          </div>
         </div>
+        {warn.length > 0 && (
+          <div className="qv-todo noprint"><b>확인 필요</b>{warn.map((w, i) => <span key={i}>{w.href ? <Link href={w.href}>{w.text}</Link> : w.text}</span>)}</div>
+        )}
+        <div className="row noprint" style={{ gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+          <PrintButton label="🖨 이 표만 인쇄 / PDF 저장" className="btn primary" />
+          <a className="btn" href={`/api/qual?day=${day}`}>⬇ 엑셀</a>
+          <span className="spacer" />
+          <input type="hidden" name="op" value="out" form="qual-bulk" />
+          <button className="btn sm danger" form="qual-bulk" title="체크한 직원을 기술인력에서 뺍니다 (아래 '빠진 직원'에서 되돌릴 수 있음)">선택한 직원 제외</button>
+        </div>
+      </div>
+
+      <div className="card qv-print" style={{ marginTop: 16 }}>
+        <div className="card-title">2. 관련 자격증 및 관련 학과 적용 <span className="muted" style={{ fontWeight: 400 }}>사람별 · 높은 등급부터 · 색 칩 = 등급에 쓴 자격</span></div>
+        <div className="tbl-wrap"><table className="tbl qv-tbl">
+          <thead><tr><th>성명</th><th>기술자 등급</th><th>적용 기준</th><th>보유 자격증 (취득월일)</th><th>자격취득후 근무경력</th><th>총 근무경력</th></tr></thead>
+          {dist.map((g) => {
+            const ps = tech.filter((p) => (p.grade || "") === g.key);
+            if (!ps.length) return null;
+            return (
+              <tbody key={g.name}>
+                <tr className={`qv-group ${g.cls}`}><td colSpan={6}>{g.name}{g.point ? ` · 인당 ${g.point}점` : ""} <b>{ps.length}명</b></td></tr>
+                {ps.map((p) => {
+                  const ls = lines.filter((l) => l.emp === p.name);
+                  const best = ls.find((l) => l.best)!;
+                  const certs = ls.filter((l) => l.cert);
+                  return (
+                    <tr key={p.name}>
+                      <td><input type="checkbox" name="names" value={p.name} form="qual-bulk" className="noprint" aria-label={`${p.name} 선택`} /> <b>{p.name}</b><br /><small className="muted">{p.dept} · {p.rank}</small></td>
+                      <td>{best.grade ? <span className={`qv-badge ${g.cls}`}>{best.grade.replace("기술자", "")}</span> : <span className="qv-badge none">해당 없음</span>}</td>
+                      <td className="qv-why">{best.why || <span className="muted">{ym(p.total)} — 3년 미만</span>}</td>
+                      <td>
+                        {certs.length === 0 && <span className="muted">자격증 없음 (실무 경력)</span>}
+                        <div className="qv-chips">
+                          {certs.map((l) => {
+                            const fl = l.id ? files.get(ledger.rowRef(l.id)) ?? [] : [];
+                            return (
+                              <span key={l.id} className={`qv-chip${l.best && !best.byTotal ? ` on ${g.cls}` : ""}${l.got ? "" : " miss"}`}>
+                                <Link href={`${book}?edit=${l.id}#form`} title="자격증·선임 관리에서 고치기">{l.cert}</Link>
+                                <small>{l.got ? dot(l.got) : "취득일 없음"}</small>
+                                {fl.map((a) => <a key={a.id} className="qv-file" href={`/api/ga/file/${a.id}`} target="_blank" rel="noreferrer" title={a.fileName}>📎</a>)}
+                                <span className="noprint">{l.id && <AttachRow id={l.id} />}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </td>
+                      <td className={best.cert && !best.byTotal ? "qv-strong" : "muted"}>{best.cert ? ym(best.after) : "-"}</td>
+                      <td className={!best.cert || best.byTotal ? "qv-strong" : "muted"}>{ym(p.total)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            );
+          })}
+        </table></div>
         <p className="caption noprint">
-          당사 경력은 직원 명부의 입사일(재입사 전 근무 포함)부터 기준일까지 자동으로 셉니다. 다른 회사의 관련 경력·학력은 아래 &lsquo;사람별 경력·학력&rsquo;에,
-          자격증은 <Link href={book}>자격증·선임 관리</Link>에 적습니다. 한 사람이 자격증이 여럿이면 가장 높은 등급 하나로 셉니다.
-          배점 산식(30점 만점 환산)은 지침에 따로 없어 합만 참고로 보여 줍니다.
+          굵은 경력 = 등급을 정한 경력입니다. 당사 경력은 직원 명부 입사일(재입사 전 근무 포함)부터, 다른 회사 관련 경력은 아래 &lsquo;사람별 경력·학력&rsquo;의 4대보험 이력에서 셉니다.
+          자격증이 여럿이면 가장 높은 등급 하나로 셉니다. 회색 칩은 등급에 쓰지 않은 자격, 빨간 칩은 취득일이 없어 계산하지 못한 자격입니다.
         </p>
       </div>
 
@@ -230,6 +268,6 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
         <p className="caption">인정대상: 4대 보험에 가입된 상시 근무 인원 · 기술인력은 조직표상 설계·제작·정비·기술관리·품질관리·전문연구 부서 인원 ·
           유사 제조·정비회사 근무경력은 확인 가능하면 근무연수로 인정 · 경력수첩은 자격증으로 인정 불가 · &lsquo;기능사 이상 관련 직무교육 이수자&rsquo;는 자동으로 따지지 않음</p>
       </div>
-    </>
+    </div>
   );
 }
