@@ -343,11 +343,13 @@ function scheduleCalendar(day: DateStr, sub: ReportRow[]): string {
 }
 
 /** 요약 카드 숫자 (사람 수). 휴일·연장은 근태 목록 + 휴일근무 표. */
-export function reportCounts(rows: ReportRow[]): Record<string, number> {
+export function reportCounts(rows: ReportRow[], day?: DateStr): Record<string, number> {
   const att = rows.filter((r) => r.section === "근태");
   const out: Record<string, number> = {};
   for (const [label, , types] of SUMMARY_CARDS) {
     const names = new Set(att.filter((r) => splitReportTypes(r.types).some((t) => types.has(t))).map((r) => r.name));
+    // (2026-11-19) '휴가일정' 칸은 앞으로의 일정이라, 적힌 날짜에 보고일이 들어 있을 때만 그날 휴가로 센다
+    if (label === "휴가") rows.filter((r) => r.section === "휴가일정" && splitReportTypes(r.types).includes(day ?? r.day ?? "")).forEach((r) => names.add(r.name));
     if (label === "휴일") rows.filter((r) => r.section === "휴일근무" && !isOtRow(r)).forEach((r) => names.add(r.name));
     if (label === "연장") rows.filter((r) => r.section === "휴일근무" && isOtRow(r)).forEach((r) => names.add(r.name));
     out[label] = names.size;
@@ -457,7 +459,7 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   }
 
   // 한 줄 요약 (메일에서도 나란히 보이도록 표로)
-  const counts = reportCounts(rows);
+  const counts = reportCounts(rows, day);
   if (home) parts.push(glance(home, counts, withTitle), yesterdayCards(home));
   else {
     // 홈 숫자가 없을 때 (예전 방식): 칸 사이 세로선, 0명은 흐리게
