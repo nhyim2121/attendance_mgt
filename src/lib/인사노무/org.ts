@@ -125,13 +125,24 @@ export function buildOrg(nodes: OrgNode[], emps: Employee[], day: DateStr, depts
     const people = [...ms.map(person), ...n.extra.filter((x) => x.trim()).map(parseExtra).filter((p) => !out.has(p.name))]
       .map((p, i) => ({ p, i, o: p.emp?.ord ?? 9e9 }))
       .sort((a, b) => rankIdx(a.p.rank) - rankIdx(b.p.rank) || a.o - b.o || a.i - b.i).map((x) => x.p);
-    const children = nodes.filter((c) => c.parent === n.id && !path.includes(c.id))
+    const children = live.filter((c) => up(c) === n.id && !path.includes(c.id))
       .map((c) => make(c, [...path, c.id], color || inherit));
     return { node: n, color, head, people, children,
       count: (head ? 1 : 0) + people.length + children.reduce((t, c) => t + c.count, 0) };
   };
-  const ids = new Set(nodes.map((n) => n.id));
-  const roots = nodes.filter((n) => !n.parent || !ids.has(n.parent)).map((n) => make(n, [n.id], ""));
+  // 임원 상자(부사장 등)는 그 사람이 기준일에 재직하지 않으면(입사 전·퇴사 후) 상자째 없애고, 아래 상자는 한 단계 위에 붙인다.
+  // 명부에 없는 사람(대표 등 직접 적은 이름)이나 사람이 따로 들어 있는 상자는 그대로 둔다.
+  const gone = new Set(nodes.filter((n) => n.kind === "exec" && n.head && !n.members.length && !n.dept && !n.extra.some((x) => x.trim())
+    && emps.some((e) => e.name === n.head) && !emps.some((e) => e.name === n.head && employedOn(e, day))).map((n) => n.id));
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const up = (n: OrgNode): string | null => {
+    let p = n.parent;
+    for (let i = 0; p && gone.has(p) && i < nodes.length; i++) p = byId.get(p)?.parent ?? null;
+    return p;
+  };
+  const live = nodes.filter((n) => !gone.has(n.id));
+  const ids = new Set(live.map((n) => n.id));
+  const roots = live.filter((n) => { const p = up(n); return !p || !ids.has(p); }).map((n) => make(n, [n.id], ""));
   return { roots, unplaced: act.filter((e) => !seen.has(e.name)), total: roots.reduce((t, r) => t + r.count, 0) };
 }
 
