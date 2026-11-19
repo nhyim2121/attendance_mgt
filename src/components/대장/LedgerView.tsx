@@ -78,6 +78,7 @@ export default async function LedgerView({ area, bookKey, sp }: { area: Area; bo
         )}
       </div>
       {area === "hr" && <SiteLinks sites={HR_SITES[hrSlugOf(path) ?? ""] ?? []} />}
+      {book.key === "licenses" && <p style={{ margin: "0 0 12px" }}><Link className="btn" href="/hr/qual">🧰 정비적격심사 기술자 등급표 (경력·등급 자동, 서류 첨부)</Link></p>}
 
       {alerts.length > 0 && (
         <div className="card" style={{ marginBottom: 16 }}>
