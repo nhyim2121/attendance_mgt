@@ -31,10 +31,46 @@ export interface QualPerson {
   include?: boolean;  // 기술인력 포함 여부 (비우면 부서로 판단)
   note?: string;      // 메모 (4대보험 미가입 등)
   insured?: string;   // 4대보험(고용보험) 자격취득일 — 가입자명부로 대조
+  careers?: Career[]; // 4대보험 이력(건강보험 자격득실확인서·고용보험 가입이력)에서 읽은 다른 회사 근무. related = 관련 경력으로 인정
   role?: string;      // 담당 기술분야 (비우면 부서로)
 }
-export interface QualSettings { depts: string[]; people: Record<string, QualPerson> }
+/** 다른 회사 근무 한 줄 (to 비우면 지금까지) */
+export interface Career { company: string; from: string; to: string; related: boolean }
+export interface QualSettings {
+  depts: string[]; people: Record<string, QualPerson>;
+  certs?: string[];   // 관련 자격증 (이 이름으로 끝나는 국가기술자격만 등급에 씀). 비우면 CERT_DEFAULT
+  safety?: string[];  // 안전관리 가점으로 볼 자격. 비우면 SAFETY_DEFAULT
+}
 export const EMPTY_QUAL: QualSettings = { depts: TECH_DEPTS, people: {} };
+
+/** 회사 '지원 자격증' 표 (2026-11-19 사용자 제공) */
+export const CERT_DEFAULT = ["전기기능사", "전기산업기사", "전기공사기사", "전기공사산업기사", "전기기사", "기능장", "기술사", "지게차운전기능사",
+  "전산응용기계제도기능사" /* 처음 엑셀(변진수) */, "승강기기능사", "컴퓨터응용선반기능사", "용접기능사", "정보기기운용기능사", "생산자동화기능사", "전자캐드기능사", "전자기기기능사", "전자부품장착기능사"];
+/** 고를 수 있게 더 보여 줄 후보 (기계·전자 계열) */
+export const CERT_MORE = ["컴퓨터응용밀링기능사", "기계설계산업기사", "일반기계기사", "전자기능사", "전자산업기사", "전자기사",
+  "자기비파괴검사기사", "초음파비파괴검사기사", "공조냉동기계기능사", "에너지관리기능사", "특수용접기능사", "굴착기운전기능사"];
+/** 안전관리분야 국가기술자격 (큐넷 직무분야 '안전관리' — 중직무 안전관리·비파괴검사) + 국가전문자격 지도사.
+ *  가점(+2점)은 기사·기술사·지도사만 (부록-1 기술분야 3-4) */
+export const SAFETY_CERTS: { group: string; items: string[] }[] = [
+  { group: "산업·건설안전", items: ["산업안전기사", "산업안전산업기사", "건설안전기사", "건설안전산업기사", "건설안전기술사", "기계안전기술사", "전기안전기술사", "화공안전기술사", "산업안전지도사"] },
+  { group: "보건·인간공학", items: ["산업위생관리기사", "산업위생관리산업기사", "산업위생관리기술사", "인간공학기사", "인간공학기술사", "산업보건지도사"] },
+  { group: "소방", items: ["소방설비기사(기계)", "소방설비기사(전기)", "소방설비산업기사(기계)", "소방설비산업기사(전기)", "소방기술사"] },
+  { group: "가스·위험물", items: ["가스기사", "가스산업기사", "가스기능장", "가스기술사", "위험물기능장", "위험물산업기사"] },
+  { group: "비파괴검사", items: ["초음파비파괴검사기사", "방사선비파괴검사기사", "자기비파괴검사기사", "침투비파괴검사기사", "와전류비파괴검사기사", "누설비파괴검사기사", "비파괴검사기술사"] },
+];
+export const SAFETY_DEFAULT = SAFETY_CERTS.flatMap((g) => g.items).filter((x) => /(기사|기술사|지도사)(\(.*\))?$/.test(x) && !/산업기사/.test(x));
+
+const norm = (s: string) => s.replace(/\s|\(.*?\)/g, "");
+/** 자격증 이름이 목록 중 하나로 끝나면 해당 (전기용접기능사 → 용접기능사, 발송배전기술사 → 기술사). 오타 대비해 '파과'도 받는다 */
+export const certIn = (name: string, list: string[]) => { const n = norm(name).replace("파과", "파괴"); return list.some((x) => n.endsWith(norm(x))); };
+
+/** 다른 회사 관련 경력 개월 (기준일까지, after 이후만) */
+export function careerMonths(cs: Career[] | undefined, day: DateStr, after = ""): number {
+  return (cs ?? []).filter((c) => c.related && c.from).reduce((t, c) => {
+    const a = [c.from, after].sort().pop()!, b = c.to && c.to < day ? c.to : day;
+    return t + monthsBetween(a, b);
+  }, 0);
+}
 
 /** 자격증 이름 끝으로 종류를 가린다 (전기산업기사 → 산업기사, 전산응용기계제도기능사 → 기능사) */
 export function certLevel(name: string): CertLevel {
@@ -110,11 +146,7 @@ export function qualOf(cert: Cert | null, p: QualPerson, e: Employee | undefined
 
 /** 안전관리 가점(+2점, 부록-1 기술분야 3-4): 안전관리분야 국가기술자격 기사·기술사·지도사 (산업기사는 아님)
  *  예: 산업안전기사, 건설안전기사, 산업안전지도사, 산업위생관리기사, 인간공학기사, 소방설비기사, 산업안전기술사 */
-export function isSafetyCert(name: string): boolean {
-  const n = name.replace(/\s/g, "");
-  if (/산업기사$/.test(n)) return false;
-  return /(안전|위생|인간공학|소방)/.test(n) && /(기사|기술사|지도사)$/.test(n);
-}
+export const isSafetyCert = (name: string, list: string[] = SAFETY_DEFAULT) => certIn(name, list);
 
 /** 정비적격심사 요청서류 (붙임3 품질분야 · 붙임4 기술분야). key = 첨부 ref 'qual:doc:<key>' */
 export const QUAL_DOCS: { area: string; group: string; key: string; item: string; docs: string[]; note?: string }[] = [

@@ -11,10 +11,11 @@ import { DeleteFile } from "@/app/(app)/(ga)/ga/mail/forms";
 import { requireAdminPage } from "@/lib/auth";
 import * as ledger from "@/lib/대장/store";
 import { qualLines } from "@/lib/인사노무/qualData";
-import { GRADES, QUAL_DOCS, ym } from "@/lib/인사노무/qualGrade";
+import { CERT_DEFAULT, CERT_MORE, certIn, GRADES, QUAL_DOCS, SAFETY_CERTS, SAFETY_DEFAULT, ym } from "@/lib/인사노무/qualGrade";
 import { loadFiles } from "@/lib/총무/mail";
 import { isDateStr, todayKst } from "@/lib/time";
-import QualDocForm, { QualPersonForm } from "./QualDocForm";
+import { bulkInclude, saveQualCerts } from "./actions";
+import QualDocForm, { QualCareerEditor, QualPersonForm } from "./QualDocForm";
 
 export const metadata = { title: "정비적격심사 기술자 등급 · 통합관리시스템" };
 const kb = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)}MB` : `${Math.max(1, Math.round(n / 1024))}KB`);
@@ -24,12 +25,17 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
   await requireAdminPage();
   const sp = await searchParams;
   const day = isDateStr(sp.day) ? sp.day : todayKst();
-  const [{ lines, people, settings, safety }, files, qf] = await Promise.all([qualLines(day), loadFiles("lg:"), loadFiles("qual:doc:")]);
+  const [{ lines, people, settings, safety, allCerts }, files, qf] = await Promise.all([qualLines(day), loadFiles("lg:"), loadFiles("qual:doc:")]);
   const book = "/hr/b/licenses";
   const tech = people.filter((p) => lines.some((l) => l.emp === p.name));
   const count = GRADES.map((g) => ({ ...g, n: tech.filter((p) => p.grade === g.name).length }));
   const sum = tech.reduce((t, p) => t + p.point, 0);
   const groups = [...new Set(QUAL_DOCS.map((d) => `${d.area}|${d.group}`))];
+  const certSel = settings.certs?.length ? settings.certs : CERT_DEFAULT;
+  const certAll = [...new Set([...CERT_DEFAULT, ...CERT_MORE, ...certSel])];
+  const unlisted = allCerts.filter((n) => !certIn(n, certAll));
+  const safeSel = settings.safety?.length ? settings.safety : SAFETY_DEFAULT;
+  const out = people.filter((p) => !p.tech);
 
   return (
     <>
@@ -45,8 +51,29 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
         </span>
       </div>
 
+      <details className="card fold noprint" style={{ marginBottom: 16 }}>
+        <summary className="card-title" style={{ cursor: "pointer" }}>관련 자격증 · 안전관리 자격 고르기 <span className="muted" style={{ fontWeight: 400 }}>등급에 쓸 자격 {certSel.length}개 · 안전 가점 자격 {safeSel.length}개</span></summary>
+        <form action={saveQualCerts}>
+          <b>관련 자격증</b> <small className="muted">체크한 이름으로 끝나는 국가기술자격만 기술자 등급에 씁니다 (예: 용접기능사 → 전기용접기능사도 해당). 기본값 = 회사 지원 자격증 표</small>
+          <div className="qual-pick">{certAll.map((c) => <label key={c}><input type="checkbox" name="certs" value={c} defaultChecked={certSel.includes(c)} /> {c}</label>)}</div>
+          {unlisted.length > 0 && <p className="caption" style={{ margin: "0 0 6px" }}>대장에 있지만 위 목록에 없는 자격: {unlisted.join(", ")} — 쓰려면 아래에 적으세요.</p>}
+          <label className="field" style={{ maxWidth: 520 }}>더 넣을 자격 (쉼표로)<input name="extra" placeholder="예: 공조냉동기계기사, 전기기능장" /></label>
+          <b style={{ display: "block", marginTop: 12 }}>안전관리분야 국가기술자격</b> <small className="muted">큐넷 직무분야 &lsquo;안전관리&rsquo;(안전관리·비파괴검사) + 지도사. 가점(+2점)은 기사·기술사·지도사만 체크해 두었습니다</small>
+          {SAFETY_CERTS.map((g) => (
+            <div key={g.group}><small className="muted">{g.group}</small>
+              <div className="qual-pick">{g.items.map((c) => <label key={c}><input type="checkbox" name="safety" value={c} defaultChecked={safeSel.includes(c)} /> {c}</label>)}</div></div>
+          ))}
+          <button className="btn primary">저장</button>
+        </form>
+      </details>
+
+      <form id="qual-bulk" action={bulkInclude} />
       <div className="card">
-        <div className="card-title">2. 관련 자격증 및 관련 학과 적용<span className="spacer" /><span className="muted" style={{ fontWeight: 400 }}>기준일: {dot(day)}</span></div>
+        <div className="card-title">2. 관련 자격증 및 관련 학과 적용<span className="spacer" />
+          <span className="noprint row" style={{ gap: 6, fontWeight: 400 }}>
+            <input type="hidden" name="op" value="out" form="qual-bulk" />
+            <button className="btn sm danger" form="qual-bulk" title="체크한 직원을 기술인력에서 뺍니다 (아래 '빠진 직원'에서 되돌릴 수 있음)">선택한 직원 제외</button>
+          </span><span className="muted" style={{ fontWeight: 400 }}>기준일: {dot(day)}</span></div>
         <div className="tbl-wrap"><table className="tbl qual-tbl">
           <thead><tr><th>성명</th><th>자격증</th><th>취득월일</th><th>자격취득후 근무경력</th><th>총 근무경력</th><th>기술자 등급</th><th className="noprint">근거</th><th className="noprint">자격증 사본</th></tr></thead>
           <tbody>
@@ -55,7 +82,7 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
               const showTotal = !l.cert || (l.best && l.byTotal); // 총 근무경력: 자격증 없는 실무 경력자, 또는 경력으로 등급이 정해진 사람
               return (
                 <tr key={`${l.emp}${l.id ?? ""}`}>
-                  <td>{l.first && <><b>{l.emp}</b> <small className="muted noprint">{l.dept}</small></>}</td>
+                  <td>{l.first && <><input type="checkbox" name="names" value={l.emp} form="qual-bulk" className="noprint" aria-label={`${l.emp} 선택`} /> <b>{l.emp}</b> <small className="muted noprint">{l.dept}</small></>}</td>
                   <td>{l.id ? <Link href={`${book}?edit=${l.id}#form`} title="고치기">{l.cert}</Link> : <span className="muted">-</span>}</td>
                   <td>{l.cert ? (l.got ? dot(l.got) : <span className="red">취득일 없음</span>) : ""}</td>
                   <td>{l.cert ? ym(l.after) : ""}</td>
@@ -124,11 +151,22 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
         ) : <p className="muted" style={{ margin: 0 }}>자격증·선임 관리 대장에 산업안전기사·건설안전기사·산업안전지도사 같은 자격이 적힌 재직자가 없습니다. 있으면 <Link href={`${book}#form`}>자격증 적기</Link>로 넣어 주세요. (산업기사는 해당 없음, 안전관리분야 최대 10점)</p>}
       </div>
 
+      {out.length > 0 && (
+        <div className="card noprint" style={{ marginTop: 16 }}>
+          <form action={bulkInclude} className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <input type="hidden" name="op" value="in" />
+            <b>빠진 직원 {out.length}명</b>
+            {out.map((p) => <label key={p.name} className="check"><input type="checkbox" name="names" value={p.name} /> {p.name} <small className="muted">{p.dept}{p.person.note ? ` · ${p.person.note}` : ""}</small></label>)}
+            <button className="btn sm">선택한 직원 다시 넣기</button>
+          </form>
+        </div>
+      )}
+
       <details className="card fold noprint" style={{ marginTop: 16 }}>
         <summary className="card-title" style={{ cursor: "pointer" }}>사람별 경력·학력 <span className="muted" style={{ fontWeight: 400 }}>이전 직장 관련 경력(경력증명서·경력수첩으로 확인되는 것), 관련 학과 졸업</span></summary>
         <p className="caption">기술인력 부서: {settings.depts.join(", ")} · 자격증이 있으면 부서와 관계없이 포함. 4대보험에 없는 사람(상시 근무 아님)은 &lsquo;제외&rsquo;로 두세요.</p>
         <div className="tbl-wrap"><table className="tbl">
-          <thead><tr><th>성명</th><th>부서·직급</th><th>자격증</th><th>등급</th><th>포함 · 이전 경력 · 학력 · 졸업일 · 메모</th></tr></thead>
+          <thead><tr><th>성명</th><th>부서·직급</th><th>자격증</th><th>등급</th><th>다른 회사 근무 (4대보험 이력)</th><th>포함 · 이전 경력(직접) · 학력 · 졸업일 · 4대보험 · 분야 · 메모</th></tr></thead>
           <tbody>
             {people.map((p) => (
               <tr key={p.name} className={lines.some((l) => l.emp === p.name) ? undefined : "muted"}>
@@ -136,6 +174,7 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
                 <td>{p.dept} · {p.rank}</td>
                 <td>{p.certs ? `${p.certs}개` : "-"}</td>
                 <td>{p.grade || "-"}</td>
+                <td><QualCareerEditor name={p.name} careers={p.person.careers ?? []} day={day} /></td>
                 <td><QualPersonForm name={p.name} p={p.person} tech={settings.depts.includes(p.dept) || p.certs > 0} /></td>
               </tr>
             ))}

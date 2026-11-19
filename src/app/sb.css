@@ -69,3 +69,8 @@
 .qual-pf .qual-ym { display: inline-flex; align-items: center; gap: 3px; font-size: .85rem; }
 .qual-pf .qual-ym input { width: 56px; }
 .qual-pf input[name="note"] { width: 150px; }
+.qual-cr { min-width: 420px; }
+.qual-cr .tbl input:not([type="checkbox"]) { font: inherit; font-size: .82rem; padding: 2px 4px; }
+.qual-cr .tbl input[aria-label="회사"] { width: 150px; }
+.qual-pick { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 10px; }
+.qual-pick label { white-space: nowrap; font-size: .88rem; }
