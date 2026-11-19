@@ -18,7 +18,7 @@ import { loadBooks } from "../대장/store";
 import { getSetting } from "../store";
 import { addDays, type DateStr, daysBetween, todayKst } from "../time";
 import { loadBase } from "./data";
-import type { Employee } from "./employees";
+import { type Employee, employedOn } from "./employees";
 
 export type Cycle = "year" | "half1" | "half2";
 export interface LegalDef {
@@ -80,7 +80,7 @@ const ALL_RE = /전\s*(직원|사원|임직원)|전원/;
 /** 한 교육 기록의 참석자 (직원 관리 이름과 맞춘다) */
 export function attendeesOf(d: Data, day: string, emps: Employee[]): string[] {
   const who = d.who ?? "";
-  const on = emps.filter((e) => (!e.joinDate || e.joinDate <= day) && (!e.leaveDate || e.leaveDate >= day));
+  const on = emps.filter((e) => employedOn(e, day));
   if (ALL_RE.test(who)) return on.map((e) => e.name);
   const names = new Set(emps.map((e) => e.name));
   return [...new Set(splitNames(who).filter((n) => names.has(n)))];
@@ -240,7 +240,7 @@ export async function trainingView(year = +todayKst().slice(0, 4)): Promise<Trai
 // ---------------------------------------------------------------- 수강 현황 (과정별 대상·수료·미수료·수료증)
 export interface Course { row: Row; done: string[]; target: string[]; cert: string[] }
 const namesIn = (s: string | undefined, emps: Employee[], day: string) => {
-  if (ALL_RE.test(s ?? "")) return emps.filter((e) => (!e.joinDate || e.joinDate <= day) && (!e.leaveDate || e.leaveDate >= day)).map((e) => e.name);
+  if (ALL_RE.test(s ?? "")) return emps.filter((e) => employedOn(e, day)).map((e) => e.name);
   const set = new Set(emps.map((e) => e.name));
   return [...new Set(splitNames(s ?? "").filter((n) => set.has(n)))];
 };

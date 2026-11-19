@@ -1,5 +1,5 @@
 /** 조직도 보기 설정: 사내용(연락처 포함)·대외용(부서·직급·성명) 등 용도별로 보여 줄 항목을 저장해 두고 골라 쓴다. */
-import type { Employee } from "./employees";
+import { asOf, type Employee, employedOn } from "./employees";
 import type { DateStr } from "../time";
 
 export const ORG_FIELDS = {
@@ -33,7 +33,7 @@ export interface OrgDept {
 
 /** 기준일 재직자를 부서별로 (명부 순서). 직책이 있는 사람을 앞에 둔다. */
 export function orgTree(emps: Employee[], day: DateStr, depts: string[] = []): OrgDept[] {
-  const act = emps.filter((e) => (!e.joinDate || e.joinDate <= day) && (!e.leaveDate || e.leaveDate >= day));
+  const act = emps.filter((e) => employedOn(e, day)).map((e) => asOf(e, day)); // 그날 부서·직급
   const order: string[] = [];
   for (const e of act) if (!order.includes(e.dept || "(부서 없음)")) order.push(e.dept || "(부서 없음)");
   return order.filter((d) => !depts.length || depts.includes(d)).map((dept) => {
@@ -98,10 +98,17 @@ function parseExtra(t: string): OrgPerson {
 /** 기준일 재직자를 구조에 앉힌다. 어디에도 안 들어간 직원은 unplaced. */
 export function buildOrg(nodes: OrgNode[], emps: Employee[], day: DateStr, depts: string[] = [], exclude: string[] = []) {
   const out = new Set(exclude);
-  const act = emps.filter((e) => (!e.joinDate || e.joinDate <= day) && (!e.leaveDate || e.leaveDate >= day)
-    && (!depts.length || depts.includes(e.dept)) && !out.has(e.name));
+  const now = new Map(emps.map((e) => [e.name, e.dept]));
+  const act = emps.filter((e) => employedOn(e, day)).map((e) => asOf(e, day)) // 그날 부서·직급 (보직 이력)
+    .filter((e) => (!depts.length || depts.includes(e.dept)) && !out.has(e.name));
   const byName = new Map(act.map((e) => [e.name, e]));
-  const placed = new Set([...nodes.map((n) => n.head), ...nodes.flatMap((n) => n.members)].filter((x) => byName.has(x)));
+  // 상자에 직접 넣은 자리는 '지금' 기준. 그날 부서가 지금과 다르거나(이동 전) 상자에 걸린 부서와 다르면 그날 부서 상자로 자동 배치.
+  const fits = (n: OrgNode, name: string) => {
+    const e = byName.get(name);
+    return !!e && e.dept === now.get(name) && (!n.dept || n.dept === e.dept);
+  };
+  const placed = new Set([...nodes.map((n) => n.head).filter((x) => byName.has(x)),
+    ...nodes.flatMap((n) => n.members.filter((m) => fits(n, m)))]);
   const seen = new Set<string>();
   const person = (e: Employee): OrgPerson => ({ rank: e.rank, name: e.name, emp: e });
   let auto = 0;
@@ -111,7 +118,7 @@ export function buildOrg(nodes: OrgNode[], emps: Employee[], day: DateStr, depts
     const head = h && !h.emp && (out.has(h.name) || emps.some((e) => e.name === h.name)) ? null : h; // 뺀 사람·퇴사자
     if (head && !head.emp) head.phone = n.headPhone;
     if (head?.emp) seen.add(head.name);
-    const ms = [...n.members.filter((m) => byName.has(m)).map((m) => byName.get(m)!),
+    const ms = [...n.members.filter((m) => fits(n, m)).map((m) => byName.get(m)!),
       ...(n.dept ? act.filter((e) => e.dept === n.dept && !placed.has(e.name)) : [])]
       .filter((e, i, xs) => xs.indexOf(e) === i);
     ms.forEach((e) => seen.add(e.name));

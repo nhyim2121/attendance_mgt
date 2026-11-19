@@ -14,6 +14,7 @@ import { kindsOf, proofOf } from "@/lib/인사노무/proof";
 import { noProofFor } from "@/lib/config";
 import Editor, { type EditRow } from "./Editor";
 import { Kinds, rowTone, kindCls, isLeaveText } from "./kinds";
+import { activeNames } from "@/lib/인사노무/employees";
 
 const C = (name: string) => SHEET_COLUMNS.indexOf(name);
 
@@ -34,7 +35,7 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
   const present = new Set(records.map((r) => r.emp));
   // 그 달 캡스 기록이 있는 직원 + 기록이 없어도 직접 기입한 날이 있거나 직원별 근무 기준(도제 등)이 있는 재직자
   const typedIn = new Set(base.overrides.filter((o) => o.day.startsWith(month)).map((o) => o.employee));
-  const employed = new Set(base.employees.filter((e) => (!e.leaveDate || e.leaveDate >= `${month}-01`) && (!e.joinDate || e.joinDate <= `${month}-31`)).map((e) => e.name));
+  const employed = new Set(base.employees.filter((e) => activeNames([e], `${month}-01`, `${month}-31`).length > 0).map((e) => e.name));
   let names = base.roster.map((r) => r.name).filter((x) => present.has(x) || (employed.has(x) && (typedIn.has(x) || !!rule.byEmp?.[x])));
   if (!names.length) names = [...present].sort();
   const emp = names.includes(String(sp.emp)) ? String(sp.emp) : names[0];
@@ -240,7 +241,7 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
       <div className="card noprint">
         <div className="card-title">{mine[0]?.dept} {emp} · {y}년 {m}월</div>
         <Editor key={`${emp}|${month}`} employee={emp} rows={rows}
-          staff={base.employees.filter((e) => (!e.leaveDate || e.leaveDate >= `${month}-01`) && (!e.joinDate || e.joinDate <= `${month}-31`)).map((e) => e.name)} />
+          staff={base.employees.filter((e) => activeNames([e], `${month}-01`, `${month}-31`).length > 0).map((e) => e.name)} />
         <p className="caption" style={{ marginTop: 10 }}>
           시각을 직접 넣은 행은 엑셀의 인증 칸에 &apos;수기입력&apos;으로 표시됩니다. 근무형태(휴일·연장)는 기준에 따라 자동으로 적고, 고쳐 쓰면 그 값이 저장됩니다. 근무지·인원·업무내용은 일일 근태 보고서에 적은 값이 <span style={{ color: "#0c3994", fontWeight: 700 }}>파란 글씨</span>로 들어오고, 고쳐 쓰면 근태 기입 값으로 저장됩니다.
         </p>

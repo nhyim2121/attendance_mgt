@@ -5,7 +5,7 @@ import { Table } from "@/components/ui";
 import { currentUser } from "@/lib/auth";
 import { rankMap, scheduleToday, summaryText, weekendBefore } from "@/lib/인사노무/daily";
 import { computeDays, getHolidays, getRecords, getRule, loadBase, type SearchParams } from "@/lib/인사노무/data";
-import { activeNames } from "@/lib/인사노무/employees";
+import { activeNames, employedOn } from "@/lib/인사노무/employees";
 import { employeeRows, SHEET_COLUMNS } from "@/lib/인사노무/splitter";
 import { loadMailConfig } from "@/lib/mailer";
 import * as store from "@/lib/store";
@@ -33,7 +33,7 @@ export default async function ReportView({ sp }: { sp: SearchParams }) {
   const home = await reportHome(day).catch(() => null);
   // 일학습병행(도제) 학생: 직원 관리에 직급 '도제'(또는 부서 이름에 일학습·도제)로 등록된, 보고일에 재직 중인 사람
   const apprentices = base.employees
-    .filter((e) => (e.rank === "도제" || /일학습|도제/.test(e.dept)) && (!e.leaveDate || e.leaveDate >= day) && (!e.joinDate || e.joinDate <= day))
+    .filter((e) => (e.rank === "도제" || /일학습|도제/.test(e.dept)) && employedOn(e, day))
     .map((e) => e.name);
 
   // 그날 퇴근 기록 (캡스·수기입력): 연장근무 카드에서 같이 근무한 사람들의 퇴근 시각·근무형태를 보여 준다

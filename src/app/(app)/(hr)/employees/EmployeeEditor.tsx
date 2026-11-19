@@ -18,7 +18,7 @@ export interface Extra {
 
 const COLORS = ["#0c3994", "#0e7490", "#b45309", "#15803d", "#6d28d9", "#be185d"];
 const colorOf = (name: string) => COLORS[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORS.length];
-const BLANK: Employee = { name: "", capsName: "", empId: "", dept: "", rank: "", position: "", phone: "", ext: "", email: "", joinDate: null, leaveDate: null, prior: [], note: "", ord: 0 };
+const BLANK: Employee = { name: "", capsName: "", empId: "", dept: "", rank: "", position: "", phone: "", ext: "", email: "", joinDate: null, leaveDate: null, prior: [], moves: [], note: "", ord: 0 };
 const KIND_TONE: Record<string, string> = { "수습 종료": "b", "1년 근속": "g", "근속 기념": "v", "퇴사 예정": "o" };
 const dday = (n: number) => (n < 0 ? `${-n}일 지남` : n === 0 ? "오늘" : `D-${n}`);
 const n1 = (x: number) => Math.round(x * 10) / 10;
@@ -373,6 +373,26 @@ function Drawer({ emp, today, extra, admin, avatar, fyLabel, onClose }: {
             ))}
             <span className="ep-inline" style={{ marginTop: 4 }}>
               <button type="button" className="ep-btn sm" onClick={() => set({ prior: [...(e.prior ?? []), { join: null, leave: null }] })}>＋ 이전 근무 기간</button>
+            </span>
+          </div>
+          <div className="wide">
+            <span title="부서·직급이 바뀐 직원: 바뀌기 전 마지막 날과 그때 부서·직급. 조직도는 기준일의 부서·직급으로 그립니다. 지금 값은 위 부서·직급.">
+              보직 이력 <small className="muted2">부서 이동·승진 전 · 그날까지의 부서·직급</small></span>
+            {(e.moves ?? []).map((m, i) => {
+              const put = (p: Partial<typeof m>) => set({ moves: (e.moves ?? []).map((x, j) => (j === i ? { ...x, ...p } : x)) });
+              return (
+                <span key={i} className="ep-inline" style={{ marginTop: 4 }}>
+                  <input type="date" aria-label={`보직 ${i + 1} 마지막 날`} value={m.until} onChange={(ev) => put({ until: ev.target.value })} />
+                  <span>까지</span>
+                  <input list="depts" aria-label={`보직 ${i + 1} 부서`} placeholder="부서" value={m.dept} onChange={(ev) => put({ dept: ev.target.value })} style={{ width: 110 }} />
+                  <input aria-label={`보직 ${i + 1} 직급`} placeholder="직급" value={m.rank} onChange={(ev) => put({ rank: ev.target.value })} style={{ width: 80 }} />
+                  <button type="button" className="ep-btn sm ghost" aria-label={`보직 ${i + 1} 지우기`}
+                    onClick={() => set({ moves: (e.moves ?? []).filter((_, j) => j !== i) })}>×</button>
+                </span>
+              );
+            })}
+            <span className="ep-inline" style={{ marginTop: 4 }}>
+              <button type="button" className="ep-btn sm" onClick={() => set({ moves: [...(e.moves ?? []), { until: "", dept: e.dept, rank: e.rank }] })}>＋ 보직 이력</button>
             </span>
           </div>
           {field("phone", "휴대전화")}

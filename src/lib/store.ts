@@ -310,7 +310,7 @@ export async function loadEmployees(): Promise<Employee[]> {
   return rows.map((r) => ({
     name: r.name, capsName: r.caps_name, empId: r.emp_id, dept: r.dept, rank: r.rank, position: r.position ?? "",
     phone: r.phone ?? "", ext: r.ext ?? "", email: r.email ?? "", joinDate: r.join_date, leaveDate: r.leave_date,
-    prior: Array.isArray(r.prior) ? r.prior : [], note: r.note, ord: r.ord,
+    prior: Array.isArray(r.prior) ? r.prior : [], moves: Array.isArray(r.moves) ? r.moves : [], note: r.note, ord: r.ord,
   }));
 }
 
@@ -327,6 +327,7 @@ export async function saveEmployees(list: Employee[], user: string): Promise<num
     position: e.position.trim(), phone: e.phone.trim(), ext: e.ext.trim(), email: e.email.trim(),
     join_date: e.joinDate || null, leave_date: e.leaveDate || null, note: e.note.trim(), ord: i + 1,
     prior: (e.prior ?? []).filter((x) => x.join || x.leave).map((x) => ({ join: x.join || null, leave: x.leave || null })),
+    moves: (e.moves ?? []).filter((m) => m.until).map((m) => ({ until: m.until, dept: m.dept.trim(), rank: m.rank.trim() })),
   }));
   const sb = await createClient();
   return check(await sb.rpc("save_employees", { p_rows: rows, p_user: user }), "직원 명부 저장") as number;

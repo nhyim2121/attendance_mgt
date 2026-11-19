@@ -10,6 +10,7 @@ import { courseOf, DEFAULT_OPTS, gradesOf, isOffice, LEGAL, type TrainOpts } fro
 import { getSetting } from "@/lib/store";
 import { addDays, todayKst } from "@/lib/time";
 import RecordForm, { type Init } from "./RecordForm";
+import { employedOn } from "@/lib/인사노무/employees";
 
 export const metadata = { title: "교육 실시 기록 · 통합관리시스템" };
 type Sp = Record<string, string | string[] | undefined>;
@@ -32,7 +33,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
   const absent: Record<string, Record<string, string>> = {};
   for (let d = from; d <= today; d = addDays(d, 1)) {
     if (isHoliday(d, rule, holidays) || !days.some((x) => x.day === d)) continue;
-    const staff = emps.filter((e) => (!e.joinDate || e.joinDate <= d) && (!e.leaveDate || e.leaveDate >= d)).map((e): [string, string] => [e.name, e.dept]);
+    const staff = emps.filter((e) => employedOn(e, d)).map((e): [string, string] => [e.name, e.dept]);
     const m: Record<string, string> = {};
     for (const b of dailyBoard(days, base.leaves, staff, d, rule)) if (ABSENT.has(b.group)) m[b.emp] = b.group === "기록 없음" ? "미출근" : b.group;
     absent[d] = m;

@@ -11,6 +11,7 @@ import { leaveBook } from "./leaveBook";
 import { fyOf, type LeavePolicy } from "./vacation";
 import * as store from "@/lib/store";
 import type { ReportHome } from "./daily";
+import { employedOn } from "./employees";
 
 // 어제 현황은 부서별로 (2026-11-11 사용자 결정): 생산팀, 품질팀(김동수 제외), 영업팀, 연구소, 관리팀
 export const Y_DEPTS: [string, (dept: string, emp: string) => boolean][] = [
@@ -73,7 +74,7 @@ export async function yesterdayRows(days: DayRow[], leaves: Leave[], records: Ca
 export async function annualUsage(day: DateStr, policy: LeavePolicy) {
   const [base, adjusts] = await Promise.all([loadBase(), store.loadAdjusts()]);
   const fy = fyOf(day, policy);
-  const active = base.employees.filter((e) => (!e.leaveDate || e.leaveDate >= day) && (!e.joinDate || e.joinDate <= day));
+  const active = base.employees.filter((e) => employedOn(e, day));
   const excl = new Set(policy.exclude ?? []);
   const bal = leaveBook(active, base.leaves, adjusts, fy, policy, await store.loadLeaveStatus(fy))(day, (b) => !excl.has(b.name))
     .bal.filter((b) => b.total > 0);

@@ -20,6 +20,10 @@ const cleanOne = (e: Employee, ord: number): Employee => ({
     .map((s) => ({ join: isDateStr(s?.join) ? s.join : null, leave: isDateStr(s?.leave) ? s.leave : null }))
     .filter((s) => s.join || s.leave)
     .sort((a, b) => (a.join ?? "").localeCompare(b.join ?? "")),
+  moves: (Array.isArray(e.moves) ? e.moves : [])
+    .map((m) => ({ until: isDateStr(m?.until) ? m.until : "", dept: String(m?.dept ?? "").trim(), rank: String(m?.rank ?? "").trim() }))
+    .filter((m) => m.until && (m.dept || m.rank))
+    .sort((a, b) => a.until.localeCompare(b.until)),
 });
 
 /** 이전 근무 기간 확인: 기간마다 입사 ≤ 퇴사, 퇴사일 필수, 서로 겹치지 않고 지금 입사일보다 앞 */

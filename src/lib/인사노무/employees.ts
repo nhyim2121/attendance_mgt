@@ -4,6 +4,8 @@ import type { CapsRecord } from "./loader";
 import type { DateStr } from "../time";
 
 export interface Stint { join: DateStr | null; leave: DateStr | null }
+/** 보직 이력 한 줄: 이 날(until)까지는 이 부서·직급이었다. 지금 부서·직급은 마지막 이동 뒤. */
+export interface Move { until: DateStr; dept: string; rank: string }
 
 export interface Employee {
   name: string;
@@ -19,6 +21,8 @@ export interface Employee {
   leaveDate: DateStr | null; // 마지막 근무일
   /** 재입사 직원의 이전 근무 기간 (2026-11-17). 그 기간의 기록도 재직으로 집계한다. 연차·근속은 지금 입사일 기준. */
   prior?: Stint[];
+  /** 보직 이력 (2026-11-19): 기준일이 until 이하인 첫 줄의 부서·직급을 쓴다 (조직도 기준일 등) */
+  moves?: Move[];
   note: string;
   ord: number;
 }
@@ -78,6 +82,15 @@ export function isEmployed(spans: Span | Span[] | undefined, day: DateStr): bool
   const list = (Array.isArray(spans[0]) || !spans.length ? spans : [spans]) as Span[];
   return list.some(([start, end]) => (start === null || day >= start) && (end === null || day <= end));
 }
+
+/** 그날의 부서·직급 (보직 이력 반영). 이동 전이면 사본, 아니면 그대로. */
+export function asOf(e: Employee, day: DateStr): Employee {
+  const m = [...(e.moves ?? [])].sort((a, b) => a.until.localeCompare(b.until)).find((x) => day <= x.until);
+  return m ? { ...e, dept: m.dept || e.dept, rank: m.rank || e.rank } : e;
+}
+
+/** 그날 재직 중인가 (재입사 전 근무 기간 포함) */
+export const employedOn = (e: Employee, day: DateStr) => isEmployed(spansOf(e), day);
 
 /** 기간 [lo, hi] 중 하루라도 재직한 직원 (명부 순서). */
 export function activeNames(emps: Employee[], lo: DateStr, hi: DateStr): string[] {
