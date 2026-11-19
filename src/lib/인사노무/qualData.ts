@@ -3,7 +3,7 @@ import "server-only";
 import * as ledger from "@/lib/대장/store";
 import { getSetting, loadEmployees } from "@/lib/store";
 import { asOf, employedOn, type Employee } from "./employees";
-import { companyMonths, DEPT_ROLE, EMPTY_QUAL, isSafetyCert, qualOf, type QualPerson, type QualRow, type QualSettings } from "./qualGrade";
+import { certLevel, companyMonths, DEPT_ROLE, EMPTY_QUAL, isSafetyCert, qualOf, type QualPerson, type QualRow, type QualSettings } from "./qualGrade";
 import type { DateStr } from "../time";
 
 export interface QualLine extends QualRow {
@@ -24,7 +24,8 @@ export async function qualLines(day: DateStr): Promise<{ lines: QualLine[]; peop
   const [rows, emps, settings] = await Promise.all([ledger.loadRows("licenses"), loadEmployees(), loadQualSettings()]);
   const act = emps.filter((e) => employedOn(e, day)).map((e) => asOf(e, day));
   const certsOf = new Map<string, typeof rows>();
-  for (const r of rows) if (r.data.name && r.data.audit !== "제외") certsOf.set(r.data.emp ?? "", [...(certsOf.get(r.data.emp ?? "") ?? []), r]);
+  // 등급은 국가기술자격(기능사 이상)만. 경력수첩·선임·연구원 같은 줄은 등급 계산에서 뺀다
+  for (const r of rows) if (r.data.name && r.data.audit !== "제외" && certLevel(r.data.name)) certsOf.set(r.data.emp ?? "", [...(certsOf.get(r.data.emp ?? "") ?? []), r]);
   const isTech = (e: Employee) => settings.people[e.name]?.include ?? (settings.depts.includes(e.dept) || certsOf.has(e.name));
   const lines: QualLine[] = [];
   const people: QualPersonRow[] = [];
