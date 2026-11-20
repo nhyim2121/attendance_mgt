@@ -47,7 +47,7 @@ const soon = (label: string): MenuItem => ({ href: `/ga/soon?g=${encodeURICompon
 const gaGroup = ([label, ks]: [string, string[]]): MenuGroup => ({
   label,
   items: [
-    ...(label === "2. 복리 및 후생" ? [{ href: "/ga/ppe", label: "보호구·피복 관리", desc: "현장직·연구소·일용직 개인별 지급 현황, 교체 시기, 일괄 지급, 재고", also: ["/ga/b/ppe", "/ga/b/ppepeople", "/ga/b/ppestock"] }] : []),
+    ...(label === "2. 복리 및 후생" ? [{ href: "/ga/ppe", label: "보호구·피복 관리", desc: "지급 현황·직원 현황표, 지급·구매·교체·반납·폐기, 피복 관리 규정·양식, 이카운트·작업복 바로가기", also: ["/ga/b/ppe", "/ga/b/ppepeople", "/ga/b/ppestock"] }] : []),
     ...(label === "12. 지원사업 관리" ? [{ href: "/ga/grants", label: "지원사업 관리", desc: "신청중·선정·완료 폴더별 정리, 사업 기간·다음 할 일, 지원사업 사이트 바로가기" }] : []),
     ...(label === "10. 입찰관리" ? [{ href: "/bid", label: "입찰관리", desc: "입찰 사이트 바로가기, 공고·투찰·개찰·제출 마감" }] : []),
     ...(label === "3. 보안·전산" ? [{ href: "/it?from=ga", label: "보안전산 영역", desc: "보안전산(IT) 영역에서 관리: 전산장비·계정·보안점검·개인정보·백업·방문자·CCTV" }] : []),

@@ -7,7 +7,7 @@ import { requireAdmin } from "@/lib/auth";
 import { bookOf } from "@/lib/대장/books";
 import { cleanData, type Data } from "@/lib/대장/logic";
 import * as store from "@/lib/대장/store";
-import { addFile, deleteFilesOf } from "@/lib/총무/mail";
+import { addFile, deleteFile, deleteFilesOf, loadFileData } from "@/lib/총무/mail";
 import { GIVE_KINDS, PPE_GROUPS } from "@/lib/총무/ppe";
 import { nowKst } from "@/lib/time";
 
@@ -39,7 +39,7 @@ export async function givePpe(f: FormData): Promise<void> {
   let n = 0;
   for (const w of who) {
     const [name, group] = w.split("|");
-    const size = s(f, `size_${name}`) || w.split("|")[2] || "";
+    const size = s(f, `size_${name}`) || w.split("|")[2] || s(f, "size");
     const paper: Data = sign === "받음" ? { signHow: "종이 서명", signAt: nowKst() } : {};
     const err = await put("ppe", 0, { day, emp: name, group: PPE_GROUPS.includes(group as never) ? group : "", kind, item, size, qty, sign, note, ...paper });
     if (err) redirect(withMsg(back, err));
@@ -139,8 +139,39 @@ export async function addPpeStock(f: FormData): Promise<void> {
   await requireAdmin();
   const back = backOf(f);
   const raw: Data = Object.fromEntries(["day", "item", "size", "qty", "vendor", "price", "kcs", "note"].map((k) => [k, s(f, k)]));
+  raw.kind = s(f, "kind") === "폐기" ? "폐기" : "입고";
   const err = await put("ppestock", 0, raw);
   if (err) redirect(withMsg(back, err));
   done();
-  redirect(withMsg(back, `${raw.item} ${raw.size} ${raw.qty}개 입고를 적었습니다.`));
+  redirect(withMsg(back, `${raw.item} ${raw.size} ${raw.qty}개 ${raw.kind}를 적었습니다.`));
+}
+
+/** 규정·양식 파일 올리기 (ga_files ref = 'ppe:rule' 피복관리규정 · 'ppe:form' 양식) */
+const FILE_REFS = ["ppe:rule", "ppe:form"];
+const OK_EXT = /\.(pdf|png|jpe?g|gif|webp|hwpx?|docx?|xlsx?|pptx?|zip)$/i;
+export async function uploadPpeFile(f: FormData): Promise<void> {
+  await requirePerm("create");
+  await requireAdmin();
+  const back = backOf(f, "/ga/ppe?tab=rule");
+  const ref = s(f, "ref");
+  if (!FILE_REFS.includes(ref)) redirect(withMsg(back, "올릴 곳을 확인해 주세요."));
+  const files = f.getAll("file").filter((x): x is File => x instanceof File && x.size > 0);
+  if (!files.length) redirect(withMsg(back, "파일을 골라 주세요."));
+  const bad = files.filter((x) => x.size > 20 * 1024 * 1024 || !OK_EXT.test(x.name));
+  if (bad.length) redirect(withMsg(back, `20MB 이하 PDF·한글·오피스·이미지 파일만 올릴 수 있습니다: ${bad.map((x) => x.name).join(", ")}`));
+  for (const x of files) await addFile(ref, x.name, x.type || "application/octet-stream", new Uint8Array(await x.arrayBuffer()));
+  done();
+  redirect(withMsg(back, `${files.length}개 올렸습니다.`));
+}
+
+export async function deletePpeFile(f: FormData): Promise<void> {
+  await requirePerm("delete");
+  await requireAdmin();
+  const back = backOf(f, "/ga/ppe?tab=rule");
+  const id = Number(s(f, "id"));
+  const a = id ? await loadFileData(id) : null;
+  if (!a || !FILE_REFS.includes(a.ref)) redirect(withMsg(back, "없는 파일입니다."));
+  await deleteFile(id);
+  done();
+  redirect(withMsg(back, `${a.fileName} 지웠습니다.`));
 }

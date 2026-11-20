@@ -23,7 +23,7 @@ export function CellView({ c, title }: { c: Cell; title?: string }) {
 }
 
 export const TABS: [key: string, label: string][] = [
-  ["", "📊 대시보드"], ["people", "🧍 개인별 현황"], ["give", "🎽 일괄 지급"], ["stock", "📦 재고·입고"], ["duty", "📋 업무분장·기준"],
+  ["", "한눈에"], ["people", "직원 현황표"], ["give", "지급"], ["buy", "구매·입고"], ["keep", "유지 (교체·반납·폐기)"], ["rule", "규정·양식"],
 ];
 export function Tabs({ tab }: { tab: string }) {
   return (
@@ -32,7 +32,7 @@ export function Tabs({ tab }: { tab: string }) {
       <span className="pp-tabs-sp" />
       <Link href="/ga/b/ppe">지급 기록 전체</Link>
       <Link href="/ga/b/ppepeople">사이즈·명단 대장</Link>
-      <Link href="/ga/b/ppestock">입고 대장</Link>
+      <Link href="/ga/b/ppestock">입고·폐기 대장</Link>
     </nav>
   );
 }

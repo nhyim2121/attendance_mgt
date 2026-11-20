@@ -4,7 +4,7 @@ import { getSetting, setSetting } from "../store";
 import { GRANT_LINKS } from "../총무/grants";
 
 export type Link = { group: string; name: string; url: string };
-export const SCOPES = ["all", "hr", "ga", "ehs", "it", "cert", "misc", "grants"] as const;
+export const SCOPES = ["all", "hr", "ga", "ehs", "it", "cert", "misc", "grants", "ppe"] as const;
 export type Scope = (typeof SCOPES)[number];
 
 const L = (group: string, name: string, url: string): Link => ({ group, name, url });
@@ -22,6 +22,8 @@ const DEFAULT: Record<Scope, Link[]> = {
   cert: [L("확인·인증", "벤처확인시스템", "https://www.smes.go.kr/venturein"), L("확인·인증", "이노비즈", "https://www.innobiz.net"), L("연구소", "한국산업기술진흥협회", "https://www.koita.or.kr")],
   misc: [L("업무", "하이웍스", "https://office.hiworks.com")],
   grants: GRANT_LINKS,
+  ppe: [L("구매", "이카운트 ERP", "https://login.ecount.com"), L("구매", "쿠팡", "https://www.coupang.com"), L("구매", "11번가", "https://www.11st.co.kr"),
+    L("안전인증", "안전보건공단", "https://www.kosha.or.kr"), L("안전인증", "안전보건공단 포털 (보호구 인증 조회)", "https://portal.kosha.or.kr")],
 };
 
 export const isScope = (s: string): s is Scope => (SCOPES as readonly string[]).includes(s);

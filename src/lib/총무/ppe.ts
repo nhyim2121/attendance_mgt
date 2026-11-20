@@ -168,24 +168,37 @@ export function seasonal(today: string) {
   return PPE_ITEMS.filter((i) => i.season?.includes(m) || i.season?.includes(next)).map((i) => ({ item: i, now: !!i.season?.includes(m) }));
 }
 
+/** 정기 지급일 (피복 관리 규정 제5조): 춘추복 3/25 · 하복 4/25 · 춘추복 9/10 · 동복 10/15 */
+export const SEASON_DAYS: { item: string; md: string }[] = [
+  { item: "춘추복", md: "03-25" }, { item: "하복", md: "04-25" }, { item: "춘추복", md: "09-10" }, { item: "동복", md: "10-15" },
+];
+/** 오늘 이후 가장 가까운 정기 지급 */
+export function nextSeason(today: string): { item: string; day: string; left: number } {
+  const y = +today.slice(0, 4);
+  const all = [y, y + 1].flatMap((yy) => SEASON_DAYS.map((s) => ({ item: s.item, day: `${yy}-${s.md}` })));
+  const n = all.find((s) => s.day >= today)!;
+  return { ...n, left: daysTo(today, n.day) };
+}
+
 // ------------------------------------------------------------------ 재고
-export interface StockLine { item: string; size: string; inQty: number; outQty: number; left: number }
+export interface StockLine { item: string; size: string; inQty: number; outQty: number; disQty: number; left: number }
+export const isDispose = (kind: string | undefined) => kind === "폐기";
 /** 품목·사이즈별 재고 = 입고 합 − 지급 합 (반납은 다시 쓰지 않는 것으로 보고 더하지 않는다).
  *  지급은 그 품목의 첫 입고일부터만 센다 — 입고 기록이 없는 예전 지급 이력(2018~)까지 빼면 재고가 마이너스가 되므로. */
 export function stockOf(stock: RowLike[], issues: RowLike[]): StockLine[] {
   const first = new Map<string, string>();
-  for (const r of stock) if (r.data.item && r.day && (!first.has(r.data.item) || r.day < first.get(r.data.item)!)) first.set(r.data.item, r.day);
+  for (const r of stock) if (r.data.item && r.day && !isDispose(r.data.kind) && (!first.has(r.data.item) || r.day < first.get(r.data.item)!)) first.set(r.data.item, r.day);
   issues = issues.filter((r) => { const f = first.get(r.data.item ?? ""); return !!f && !!r.data.day && r.data.day >= f; });
   const m = new Map<string, StockLine>();
   const at = (item: string, size: string) => {
     const k = `${item}|${size}`;
-    if (!m.has(k)) m.set(k, { item, size, inQty: 0, outQty: 0, left: 0 });
+    if (!m.has(k)) m.set(k, { item, size, inQty: 0, outQty: 0, disQty: 0, left: 0 });
     return m.get(k)!;
   };
-  for (const r of stock) if (r.data.item) at(r.data.item, r.data.size ?? "").inQty += +r.data.qty || 0;
+  for (const r of stock) if (r.data.item) { const l = at(r.data.item, r.data.size ?? ""); if (isDispose(r.data.kind)) l.disQty += +r.data.qty || 0; else l.inQty += +r.data.qty || 0; }
   for (const r of issues) if (r.data.item && isGive(r.data.kind)) at(r.data.item, r.data.size ?? "").outQty += +r.data.qty || 1;
   const order = (s: string) => { const i = PPE_ITEMS.findIndex((x) => x.name === s); return i < 0 ? 99 : i; };
-  return [...m.values()].map((x) => ({ ...x, left: x.inQty - x.outQty }))
+  return [...m.values()].map((x) => ({ ...x, left: x.inQty - x.outQty - x.disQty }))
     .sort((a, b) => order(a.item) - order(b.item) || a.item.localeCompare(b.item) || a.size.localeCompare(b.size, "ko", { numeric: true }));
 }
 

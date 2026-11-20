@@ -166,10 +166,11 @@ export const BOOKS: Book[] = [
     ],
   },
   {
-    key: "ppestock", area: "ga", title: "보호구·피복 입고 기록", desc: "구매·입고 수량, KCs 인증번호 (재고 = 입고 − 지급)", folder: "1. 총무\\2. 복리 및 후생\\2-1. 피복 및 보호구",
+    key: "ppestock", area: "ga", title: "보호구·피복 입고·폐기 기록", desc: "구매·입고와 폐기 수량, KCs 인증번호 (재고 = 입고 − 지급 − 폐기)", folder: "1. 총무\\2. 복리 및 후생\\2-1. 피복 및 보호구",
     day: "day", title1: "item", filters: ["item"],
     fields: [
-      { k: "day", label: "입고일", type: "date", req: true, aliases: ["구입일", "구매일"] },
+      { k: "day", label: "입고일", type: "date", req: true, aliases: ["구입일", "구매일", "날짜"] },
+      { k: "kind", label: "구분", type: "select", options: ["입고", "폐기"] },
       { k: "item", label: "품목", type: "suggest", req: true, options: PPE_ITEMS.map((i) => i.name) },
       { k: "size", label: "규격·사이즈", type: "text", aliases: ["사이즈"] },
       { k: "qty", label: "수량", type: "number", req: true },
