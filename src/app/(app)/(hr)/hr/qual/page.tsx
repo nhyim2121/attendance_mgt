@@ -45,7 +45,7 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
   ];
 
   return (
-    <div className="qv-page">
+    <div className="qv-page print-fill">
       <PageHead href="/hr/qual" title="정비적격심사 기술자 등급" emoji="🧰"
         desc="현장심사 '관련 자격증 및 관련 학과 적용' 표와 요청서류. 자격증·선임 관리 대장과 직원 명부로 기준일 경력·등급을 계산합니다." />
 
