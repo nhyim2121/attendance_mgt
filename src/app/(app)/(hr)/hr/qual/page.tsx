@@ -16,7 +16,6 @@ import { loadFiles } from "@/lib/총무/mail";
 import { isDateStr, todayKst } from "@/lib/time";
 import { bulkInclude, saveQualCerts } from "./actions";
 import QualDocForm, { QualCareerEditor, QualPersonForm } from "./QualDocForm";
-import QvPrintFit from "./QvPrintFit";
 
 export const metadata = { title: "정비적격심사 기술자 등급 · 통합관리시스템" };
 const kb = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)}MB` : `${Math.max(1, Math.round(n / 1024))}KB`);
@@ -47,7 +46,6 @@ export default async function QualPage({ searchParams }: { searchParams: Promise
 
   return (
     <div className="qv-page">
-      <QvPrintFit />
       <PageHead href="/hr/qual" title="정비적격심사 기술자 등급" emoji="🧰"
         desc="현장심사 '관련 자격증 및 관련 학과 적용' 표와 요청서류. 자격증·선임 관리 대장과 직원 명부로 기준일 경력·등급을 계산합니다." />
 
