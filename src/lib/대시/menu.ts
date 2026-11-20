@@ -178,11 +178,17 @@ export const MENU: MenuArea[] = [
     ],
   },
 ];
-export const menuOf = (key: string) => MENU.find((a) => a.key === key)!;
+/** 총무는 업무를 하나씩 다시 만드는 중 (2026-11-20): 관리자 메뉴·총무 홈에는 여기 적은 화면만 보인다.
+ *  주소·권한(areaOfPath)은 전체 MENU 기준 그대로 — 입찰(/bid)을 같이 쓰는 담당자 계정 메뉴도 그대로 둔다. */
+export const GA_SHOW = ["/ga/ppe"];
+const gaShown = (a: MenuArea): MenuArea => (a.key !== "ga" ? a
+  : { ...a, groups: a.groups.map((g) => ({ ...g, items: g.items.filter((i) => GA_SHOW.includes(i.href)) })).filter((g) => g.items.length) });
+export const menuOf = (key: string) => gaShown(MENU.find((a) => a.key === key)!);
 /** 이 계정에 보이는 메뉴: 관리자 전용 영역·화면을 뺀다 */
 /** 보이는 메뉴. areas = 계정별 권한으로 '읽기'가 있는 영역 (권한을 직접 정한 계정만, 아니면 null = 역할 규칙) */
 export const menuFor = (admin: boolean, areas: string[] | null = null): MenuArea[] => MENU
   .filter((a) => (areas ? areas.includes(a.key) : admin || !a.adminOnly))
+  .map((a) => (admin ? gaShown(a) : a))
   .map((a) => ({ ...a, groups: a.groups.map((g) => ({ ...g, items: g.items.filter((i) => admin || !!areas || !i.admin) })).filter((g) => g.items.length) }));
 
 /** 메뉴 이모지 (사이드바·전체 메뉴). 영역은 키, 화면은 주소, 대장은 끝 이름으로 찾는다. */
