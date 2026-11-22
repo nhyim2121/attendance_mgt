@@ -488,16 +488,11 @@ export default function ReportEditor(p: Props) {
                               <span key={d} className="name-chip">{dayLabel(d)}
                                 <button type="button" title="빼기" onClick={() => set(i, { types: ds.filter((x) => x !== d).join(",") })}>×</button></span>
                             ))}
-                            <input type="date" value="" title="날짜 하나 추가" style={{ width: 140 }} onChange={(e) => {
+                            <input type="date" value="" title="날짜 추가" style={{ width: 140 }} onChange={(e) => {
                               const v = e.target.value;
                               if (v && !ds.includes(v)) set(i, { types: [...ds, v].sort().join(","), title: kind });
                             }} />
                           </div>
-                          {!partial && <RangeAdd onAdd={(from, to) => {
-                            const add: string[] = [];
-                            for (let d = from; d <= to && add.length < 60; d = addDays(d, 1)) if (isWorkday(d)) add.push(d);
-                            set(i, { types: [...new Set([...ds, ...add])].sort().join(","), title: kind });
-                          }} />}
                         </div>
                         {unit !== "day" && (
                           <div className="rg-cell"><span className="rg-lbl">{unit === "free" ? "시간 (30분 단위)" : `시간 (${unit}시간)`}</span>
@@ -900,21 +895,4 @@ function GroupFields({ g, setG }: { g: { id: number; types: string; title: strin
     </>;
   }
   return <><div className="rg-cell">{title("장소·사유", "")}</div><div className="rg-cell">{detail("내용", "")}</div></>;
-}
-
-/** 휴가일정: 연속 휴가 한 번에 넣기 (시작일~종료일 사이의 근무일만, 주말·공휴일 빼고) */
-function RangeAdd({ onAdd }: { onAdd: (from: string, to: string) => void }) {
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const ok = isDateStr(from) && isDateStr(to) && to >= from;
-  return (
-    <div className="row" style={{ gap: 4, marginTop: 6, flexWrap: "wrap", alignItems: "center" }}>
-      <small className="muted" style={{ marginRight: 2 }}>연속</small>
-      <input type="date" value={from} onChange={(e) => { setFrom(e.target.value); if (!to || e.target.value > to) setTo(e.target.value); }} style={{ width: 140 }} aria-label="연속 휴가 시작일" />
-      <span>~</span>
-      <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} aria-label="연속 휴가 종료일" />
-      <button type="button" className="btn sm" disabled={!ok} onClick={() => { onAdd(from, to); setFrom(""); setTo(""); }}>기간 넣기</button>
-      <small className="muted">주말·공휴일은 빼고 넣습니다</small>
-    </div>
-  );
 }
