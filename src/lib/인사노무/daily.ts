@@ -486,11 +486,6 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
     const rk = (r: string) => (RANK_ORDER.includes(r) ? RANK_ORDER.indexOf(r) : RANK_ORDER.length);
     return [...g].sort((a, b) => order.indexOf(a.dept) - order.indexOf(b.dept) || rk(a.rank) - rk(b.rank));
   };
-  const deptLines = (g: ReportRow[]) => g.map((r, i) => {
-    const first = i === 0 || g[i - 1].dept !== r.dept;
-    return `<div style="${TXT}line-height:1.6;${first ? "font-weight:700" : ""}">${first ? esc(r.dept) || "&nbsp;" : "&nbsp;"}</div>`;
-  }).join("");
-  const nameLines = (g: ReportRow[]) => g.map((r) => `<div style="${TXT}line-height:1.6">${person(r)}</div>`).join("");
   const inner = att.length ? attPanels(groupAttendance(att).map(byDept))
     : `<div style="${TXT}color:${SUB};padding:6px 0">오늘 근태 특이사항이 없습니다.</div>`;
   parts.push(section(SECTION_TITLES.근태, att.length, inner));
@@ -499,47 +494,9 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   let sub = rows.filter((r) => r.section === "휴가일정");
   if (sub.length) parts.push(scheduleCalendar(day, sub));
 
-  // 휴일 근무: 날짜별로 나누고, 같은 날 근무지·작업내용이 같은 사람들은 한 줄로 (부서 순서대로)
+  // 휴일·연장 근무 (2026-11-23 C안): 위에 주간 띠(근무 있는 날만 색·인원), 아래에 한 줄씩 목록 (휴일 주황 · 연장 빨강 왼쪽 띠)
   sub = rows.filter((r) => r.section === "휴일근무");
-  if (sub.length) {
-    const [hfg, hbg] = BADGE.휴일근무;
-    const split = (t: string) => {
-      const cut = t.indexOf("/");
-      return cut < 0 ? [t.trim(), ""] : [t.slice(0, cut).trim(), t.slice(cut + 1).trim()];
-    };
-    const byDay = new Map<string, Map<string, ReportRow[]>>();
-    for (const r of sub) {
-      const ds = splitReportTypes(r.types).filter(isDateStr);
-      for (const d of ds.length ? ds : [""]) {
-        const m = byDay.get(d) ?? new Map<string, ReportRow[]>();
-        const k = [isOtRow(r) ? "연장" : "휴일", ...split(r.title)].join("|");
-        m.set(k, [...(m.get(k) ?? []), r]);
-        byDay.set(d, m);
-      }
-    }
-    const placeCell = (g: ReportRow[]) => {
-      const notes = [...new Set(g.map((x) => x.note.trim()).filter(Boolean))];
-      const [place] = split(g[0].title);
-      return (place
-        ? `<span style="display:inline-block;${TXT}font-size:12px;font-weight:700;color:${hfg};background:${hbg};`
-          + `border-left:3px solid ${hfg};border-radius:4px;padding:2px 8px;margin:0 4px 3px 0">${esc(place)}</span>`
-        : `<span style="color:${SUB}">-</span>`)
-        + notes.map((n) => `<div style="${TXT}font-size:13px;color:${SUB};margin-top:3px">${esc(n)}</div>`).join("");
-    };
-    const workCell = (g: ReportRow[]) => {
-      const [, work] = split(g[0].title);
-      return work ? `<div style="${TXT}font-weight:700">${esc(work)}</div>` : `<span style="color:${SUB}">-</span>`;
-    };
-    const body: string[][] = [];
-    for (const d of [...byDay.keys()].sort((a, b) => (a || "9").localeCompare(b || "9"))) {
-      [...byDay.get(d)!.values()].sort((a, b) => Number(isOtRow(a[0])) - Number(isOtRow(b[0]))).map(byDept).forEach((g, i) => body.push([
-        i ? "" : `<div style="${TXT}font-weight:700;white-space:nowrap">${d ? esc(dayLabel(d)) : "-"}</div>`,
-        badge(isOtRow(g[0]) ? "연장근무" : "휴일근무"), deptLines(g), nameLines(g), placeCell(g), workCell(g),
-      ]));
-    }
-    parts.push(section(SECTION_TITLES.휴일근무, new Set(sub.map((r) => r.name)).size,
-      table([["근무일", "90px"], ["구분", "90px"], ["부서", "80px"], ["성명", "110px"], ["근무지", "120px"], ["작업내용", ""]], body)));
-  }
+  if (sub.length) parts.push(section(SECTION_TITLES.휴일근무, new Set(sub.map((r) => r.name)).size, workWeek(sub)));
 
   // 일학습병행(도제)
   sub = rows.filter((r) => r.section === "도제");
@@ -554,6 +511,94 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   }
   parts.push("</div>");
   return parts.join("");
+}
+
+/** 휴일·연장 근무 칸 (2026-11-23 C안). 메일에서도 보이도록 표와 인라인 스타일만. */
+function workWeek(sub: ReportRow[]): string {
+  const HOL = "#b45309", OT = "#be123c", HOL_BG = "#fdf8ee", OT_BG = "#fff5f7";
+  const small = `${TXT}font-size:12px;color:${SUB};`;
+  const split = (t: string) => {
+    const cut = t.indexOf("/");
+    return cut < 0 ? [t.trim(), ""] : [t.slice(0, cut).trim(), t.slice(cut + 1).trim()];
+  };
+  // 날짜 → (구분|근무지|작업내용) → 사람들
+  const byDay = new Map<string, Map<string, ReportRow[]>>();
+  for (const r of sub) {
+    const ds = splitReportTypes(r.types).filter(isDateStr);
+    for (const d of ds.length ? ds : [""]) {
+      const m = byDay.get(d) ?? new Map<string, ReportRow[]>();
+      const k = [isOtRow(r) ? "연장" : "휴일", ...split(r.title)].join("|");
+      m.set(k, [...(m.get(k) ?? []), r]);
+      byDay.set(d, m);
+    }
+  }
+  const rk = (r: string) => (RANK_ORDER.includes(r) ? RANK_ORDER.indexOf(r) : RANK_ORDER.length);
+  const sortG = (g: ReportRow[]) => {
+    const order = [...new Set(g.map((r) => r.dept))];
+    return [...g].sort((a, b) => order.indexOf(a.dept) - order.indexOf(b.dept) || rk(a.rank) - rk(b.rank));
+  };
+  const namesOf = (d: string, ot: boolean) => new Set([...(byDay.get(d)?.values() ?? [])].flat().filter((r) => isOtRow(r) === ot).map((r) => r.name)).size;
+
+  // 주말 달력 (사용자 요청: 주말만): 주말 근무가 있는 첫 주 ~ 마지막 주의 토·일 (최대 8주). 평일 연장근무는 아래 목록에만
+  const dates = [...byDay.keys()].filter(Boolean).sort();
+  let strip = "";
+  const wk = dates.filter((d) => weekday(d) >= 5);
+  if (wk.length) {
+    const first = addDays(wk[0], 5 - weekday(wk[0]));
+    const last = wk[wk.length - 1];
+    const lastSun = addDays(last, 6 - weekday(last));
+    const days: string[] = [];
+    for (let sat = first; sat <= lastSun && days.length < 16; sat = addDays(sat, 7)) days.push(sat, addDays(sat, 1));
+    const cell = (d: string) => {
+      const h = namesOf(d, false), o = namesOf(d, true);
+      const on = h + o > 0;
+      const c = h ? HOL : OT;
+      const label = `<div style="${TXT}font-size:12px;${on ? `font-weight:700;color:${c}` : `color:${SUB}`}">${esc(dayLabel(d))}</div>`;
+      const num = (n: number, col: string, t: string) => n
+        ? `<div style="${TXT}font-size:20px;font-weight:800;line-height:1.2;color:${col}">${n}<span style="${TXT}font-size:11px;font-weight:600;color:${col};margin-left:2px">명 ${t}</span></div>` : "";
+      const bar = on ? `<div style="height:5px;border-radius:3px;margin-top:5px;background:${h && o ? `linear-gradient(90deg,${HOL} 50%,${OT} 50%)` : c}"></div>` : "";
+      const body = on ? num(h, HOL, "휴일") + num(o, OT, "연장") + bar : `<div style="${TXT}font-size:12px;color:#b6bdca;margin-top:4px">없음</div>`;
+      return `<div style="border:${on ? `2px solid ${c}` : `1px solid ${LINE}`};background:${on ? (h ? HOL_BG : OT_BG) : "#ffffff"};border-radius:8px;padding:${on ? 7 : 8}px;min-height:62px;box-sizing:border-box">${label}${body}</div>`;
+    };
+    // 한 줄에 주말 4번(8칸)까지, 주말 사이는 조금 더 띄운다
+    const PER = 8, w = 100 / Math.min(PER, days.length);
+    const trs: string[] = [];
+    for (let i = 0; i < days.length; i += PER) {
+      const row = days.slice(i, i + PER);
+      trs.push(`<tr>${row.map((d, j) => `<td style="width:${w}%;vertical-align:top;padding:0 ${j === row.length - 1 ? 0 : j % 2 ? 14 : 5}px 6px 0">${cell(d)}</td>`).join("")}</tr>`);
+    }
+    const legend = (c: string, t: string) => `<span style="${small}margin-left:12px"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${c};vertical-align:-1px;margin-right:5px"></span>${t}</span>`;
+    strip = `<div style="text-align:right;margin:-4px 0 6px">${legend(HOL, "휴일근무")}${legend(OT, "연장근무")}</div>`
+      + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed">${trs.join("")}</table>`;
+  }
+
+  // 목록: 근무일 | 근무지 | 작업내용 | 근무자(부서별 한 줄) | 인원
+  const TD = `${TXT}font-size:14px;line-height:1.55;padding:10px 12px;border-bottom:1px solid ${LINE};text-align:left;vertical-align:top;`;
+  const heads: [string, string][] = [["근무일", "92px"], ["근무지", "120px"], ["작업내용", ""], ["근무자", "230px"], ["인원", "44px"]];
+  const head = heads.map(([h, w], i) => `<th style="${HEAD}${w ? `width:${w};` : ""}${i === 4 ? "text-align:right;" : ""}">${h}</th>`).join("");
+  const body: string[] = [];
+  for (const d of [...byDay.keys()].sort((a, b) => (a || "9").localeCompare(b || "9"))) {
+    const groups = [...byDay.get(d)!.values()].sort((a, b) => Number(isOtRow(a[0])) - Number(isOtRow(b[0]))).map(sortG);
+    groups.forEach((g, i) => {
+      const ot = isOtRow(g[0]);
+      const c = ot ? OT : HOL;
+      const [place, work] = split(g[0].title);
+      const until = ot ? otUntil(g[0]) : "";
+      const notes = [...new Set(g.map((x) => x.note.trim()).filter(Boolean))];
+      const placeCell = (place ? `<div style="${TXT}font-size:13px;font-weight:700;color:${c}">${esc(place)}</div>` : `<span style="color:${SUB}">-</span>`)
+        + (until ? `<div style="${TXT}font-size:12px;font-weight:700;color:${OT}">~${esc(until)}</div>` : "");
+      const workCell = (work ? `<div style="${TXT}font-weight:700">${esc(work)}</div>` : `<span style="color:${SUB}">-</span>`)
+        + notes.map((n) => `<div style="${small}margin-top:2px">${esc(n)}</div>`).join("");
+      const people = [...new Set(g.map((r) => r.dept))].map((dp) =>
+        `<div style="${TXT}font-size:13px;line-height:1.6">${dp ? `<span style="${small}margin-right:6px">${esc(dp)}</span>` : ""}`
+        + g.filter((r) => r.dept === dp).map((r) => `${esc(r.name)}${r.rank ? `<span style="${small}"> ${esc(r.rank)}</span>` : ""}`).join(`<span style="color:#c3c9d4"> · </span>`)
+        + `</div>`).join("");
+      const dayCell = i ? "" : `<div style="${TXT}font-weight:700;white-space:nowrap">${d ? esc(dayLabel(d)) : "-"}</div>`;
+      body.push(`<tr><td style="${TD}border-left:4px solid ${c};">${dayCell}</td><td style="${TD}">${placeCell}</td><td style="${TD}">${workCell}</td>`
+        + `<td style="${TD}">${people}</td><td style="${TD}text-align:right;font-weight:800;color:${c}">${g.length}</td></tr>`);
+    });
+  }
+  return strip + `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;margin-top:8px"><tr>${head}</tr>${body.join("")}</table>`;
 }
 
 /** 근태 현황 칸 그리기 (2026-11-11 메모지형): 있는 종류만, 종류마다 한 줄 전체를 쓰고
