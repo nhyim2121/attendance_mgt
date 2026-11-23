@@ -36,18 +36,49 @@ export interface PpeItem {
   /** 구분별 지급 기준: 숫자 = n개월마다 교체, 0 = 처음 1회(파손·분실 때 교체), 없음 = 꼭 줄 대상 아님 */
   cycle: Partial<Record<PpeGroup, number>>;
   season?: number[];                               // 정기 지급하는 달 (하복 4월, 춘추복 3·9월, 동복 10월)
+  set?: SeasonSet;                                 // 어느 계절 근무복인지 (정기 지급일·착용 기간 연결)
+  qty?: Partial<Record<PpeGroup, number>>;         // 한 번에 주는 벌·켤레 수 (규정 제7조, 없으면 1)
   kcs?: boolean;                                   // 안전인증(KCs) 대상
   note?: string;
 }
+export type SeasonSet = "하복" | "춘추복" | "동복";
 
-/** 품목과 회사 지급 기준 — 「피복 관리 규정」(SN-MI-1042, 23.09.27) 제5·7조. 소모품은 개인별 주기 대신 재고·지급 수량만 본다. */
+/** 품목과 회사 지급 기준 — 「피복 관리 규정」(SN-MI-1042, 23.09.27) 제5·7조.
+ *  연구소 = 규정의 '사무직' (현장 업무를 자주 하는 사무직은 현장직 기준 — 제5조 단서). 안전모는 규정에 없어 회사 기준. */
 export const PPE_ITEMS: PpeItem[] = [
-  { name: "안전화", kind: "보호구", size: "shoe", cycle: { 현장직: 12, 연구소: 24, 일용직: 0 }, kcs: true, note: "현장직 1켤레/1년 · 사무직 1켤레/2년 (규정 제7조), 들어온 시점 기준으로 교체" },
-  { name: "하복", kind: "피복", size: "top", cycle: { 현장직: 12 }, season: [4], note: "현장직 상·하의 3벌/1년 · 지급 4/25 (착용 5/10~9/30)" },
-  { name: "춘추복", kind: "피복", size: "top", cycle: { 현장직: 24, 연구소: 24 }, season: [3, 9], note: "현장직 상·하의 2벌/2년, 점퍼는 전 직원 1벌/2년 · 지급 3/25·9/10" },
-  { name: "동복", kind: "피복", size: "top", cycle: { 현장직: 24, 연구소: 24 }, season: [10], note: "현장직 상·하의 1벌/2년, 점퍼는 전 직원 1벌/2년 · 지급 10/15 (착용 11/1~2/29)" },
-  { name: "안전모", kind: "보호구", cycle: { 현장직: 36, 연구소: 0, 일용직: 0 }, kcs: true, note: "물체 낙하·비래, 추락 위험 작업. 충격을 받았거나 금이 가면 바로 교체" },
+  { name: "안전화", kind: "보호구", size: "shoe", cycle: { 현장직: 12, 연구소: 24, 일용직: 0 }, kcs: true, note: "제7조 동계: 현장직 1켤레/1년 · 사무직 1켤레/2년. 들어온 시점 기준으로 교체" },
+  { name: "하복 상의", kind: "피복", size: "top", set: "하복", cycle: { 현장직: 12 }, qty: { 현장직: 3 }, season: [4], note: "현장직 3벌/1년 · 지급 4/25 · 착용 5/10~9/30" },
+  { name: "하복 하의", kind: "피복", size: "bottom", set: "하복", cycle: { 현장직: 12 }, qty: { 현장직: 3 }, season: [4], note: "현장직 3벌/1년 · 지급 4/25 · 착용 5/10~9/30" },
+  { name: "춘추복 상의", kind: "피복", size: "top", set: "춘추복", cycle: { 현장직: 24 }, qty: { 현장직: 2 }, season: [3, 9], note: "현장직 2벌/2년 · 지급 3/25·9/10 · 착용 3/1~5/31, 9/15~10/31" },
+  { name: "춘추복 하의", kind: "피복", size: "bottom", set: "춘추복", cycle: { 현장직: 24 }, qty: { 현장직: 2 }, season: [3, 9], note: "현장직 2벌/2년 · 지급 3/25·9/10" },
+  { name: "춘추 점퍼", kind: "피복", size: "top", set: "춘추복", cycle: { 현장직: 24, 연구소: 24 }, season: [3, 9], note: "전 직원 1벌/2년 · 지급 3/25·9/10" },
+  { name: "동복 상의", kind: "피복", size: "top", set: "동복", cycle: { 현장직: 24 }, season: [10], note: "현장직 1벌/2년 · 지급 10/15 · 착용 11/1~2월 말" },
+  { name: "동복 하의", kind: "피복", size: "bottom", set: "동복", cycle: { 현장직: 24 }, season: [10], note: "현장직 1벌/2년 · 지급 10/15" },
+  { name: "동계 점퍼", kind: "피복", size: "top", set: "동복", cycle: { 현장직: 24, 연구소: 24 }, season: [10], note: "전 직원 1벌/2년 · 지급 10/15" },
+  { name: "안전모", kind: "보호구", cycle: { 현장직: 36, 연구소: 0, 일용직: 0 }, kcs: true, note: "규정에 없는 회사 기준. 물체 낙하·비래, 추락 위험 작업. 충격을 받았거나 금이 가면 바로 교체" },
 ];
+export const unitOf = (name: string) => (itemOf(name)?.size === "shoe" ? "켤레" : itemOf(name)?.kind === "피복" ? "벌" : "개");
+export const qtyFor = (item: PpeItem, g: PpeGroup) => item.qty?.[g] ?? 1;
+/** 지급 기준 글자: "3벌/1년", "1켤레/2년", "처음 1회·파손 때", "대상 아님" */
+export function ruleText(item: PpeItem, g: PpeGroup): string {
+  const n = item.cycle[g];
+  if (n === undefined) return "대상 아님";
+  if (n === 0) return "처음 1회·파손 때";
+  return `${qtyFor(item, g)}${unitOf(item.name)}/${n % 12 === 0 ? `${n / 12}년` : `${n}개월`}`;
+}
+
+/** 착용 기간 (규정 제5조①) — 근무 지역·기후에 따라 조정 가능(②) */
+export const WEAR_PERIODS: { set: SeasonSet; from: string; to: string; label: string }[] = [
+  { set: "춘추복", from: "03-01", to: "05-31", label: "3/1~5/31" },
+  { set: "하복", from: "05-10", to: "09-30", label: "5/10~9/30" },
+  { set: "춘추복", from: "09-15", to: "10-31", label: "9/15~10/31" },
+  { set: "동복", from: "11-01", to: "02-29", label: "11/1~2월 말" },
+];
+/** 오늘 입는 근무복 (겹치는 기간이면 둘 다) */
+export function wearingNow(today: string) {
+  const md = today.slice(5);
+  return WEAR_PERIODS.filter((w) => (w.from <= w.to ? md >= w.from && md <= w.to : md >= w.from || md <= w.to));
+}
 // 관리하는 보호구는 안전화·안전모 두 가지 (2026-11-11). 보안경·안전대·마스크 등을 더 관리하게 되면 위에 한 줄씩 더한다.
 export const itemOf = (name: string) => PPE_ITEMS.find((i) => i.name === name);
 /** 이 구분이 꼭 받아야 하는 품목 (개인별 현황표의 칸) */
@@ -155,6 +186,8 @@ export function dueList(people: PpePerson[], issues: RowLike[], today: string) {
   const out: { p: PpePerson; item: PpeItem; cell: Cell }[] = [];
   for (const p of people) for (const item of requiredItems(p.group)) {
     const cell = cellOf(p, item, issues, today);
+    // 신입직원은 다음 유니폼 제작 때까지 기존(퇴사자) 유니폼을 입으므로 (규정 제7조) 피복 '미지급'은 할 일로 띄우지 않는다
+    if (cell.status === "none" && item.kind === "피복") continue;
     if (cell.status === "none" || cell.status === "late" || cell.status === "soon") out.push({ p, item, cell });
   }
   const rank: Record<Status, number> = { late: 0, none: 1, soon: 2, ok: 3, na: 4 };
@@ -178,6 +211,32 @@ export function nextSeason(today: string): { item: string; day: string; left: nu
   const all = [y, y + 1].flatMap((yy) => SEASON_DAYS.map((s) => ({ item: s.item, day: `${yy}-${s.md}` })));
   const n = all.find((s) => s.day >= today)!;
   return { ...n, left: daysTo(today, n.day) };
+}
+
+// ------------------------------------------------------------------ 퇴직 반납 (규정 제8조)
+/** 퇴직 전 1년 안에 받은 피복은 전량 반납. 못 하면 급료·퇴직금에서 공제:
+ *  지급 후 1개월 미만 전액 · 1~6개월 미만 2/3 · 6개월~1년 미만 1/2 */
+export function deductRate(give: string, leave: string): string {
+  if (leave < addMonths(give, 1)) return "전액";
+  if (leave < addMonths(give, 6)) return "2/3";
+  return "1/2";
+}
+export interface ReturnDue { p: PpePerson; item: string; size?: string; qty: number; day: string; rate: string; returned: boolean; price?: string }
+/** 최근 1년 안에 퇴사한 직원의 반납 대상 피복 (반납 기록이 있으면 returned) */
+export function returnDue(people: PpePerson[], issues: RowLike[], today: string): ReturnDue[] {
+  const out: ReturnDue[] = [];
+  for (const p of people) {
+    if (p.daily || !p.retired || p.retired < addMonths(today, -12)) continue;
+    const leave = p.retired;
+    const mine = issues.filter((r) => r.data.emp === p.name && r.data.day);
+    for (const r of mine) {
+      const d = r.data.day!;
+      if (!isGive(r.data.kind) || itemOf(r.data.item ?? "")?.kind !== "피복" || d > leave || d <= addMonths(leave, -12)) continue;
+      const returned = mine.some((x) => x.data.kind === "반납" && x.data.item === r.data.item && x.data.day! >= d);
+      out.push({ p, item: r.data.item!, size: r.data.size, qty: +r.data.qty || 1, day: d, rate: deductRate(d, leave), returned, price: r.data.price });
+    }
+  }
+  return out.sort((a, b) => Number(a.returned) - Number(b.returned) || (b.p.retired ?? "").localeCompare(a.p.retired ?? ""));
 }
 
 // ------------------------------------------------------------------ 재고
@@ -211,10 +270,10 @@ export const PPE_DUTIES: { step: string; task: string; cycle: string; note?: str
   { step: "조사", task: "개인별 사이즈 조사 (상의·하의·안전화), 입사자·일용직 투입 시 바로 받기", cycle: "매년 · 입사 때" },
   { step: "구매", task: "필요 수량 = 지급 예정 + 예비분, KCs 안전인증품 확인 후 구매", cycle: "반기", note: "산안법 제84조 안전인증 대상: 안전화·안전모" },
   { step: "입고", task: "입고 수량·사이즈·인증번호 확인, 재고 대장 기록", cycle: "구매 때" },
-  { step: "지급", task: "정기 지급 (춘추복 3/25·하복 4/25·춘추복 9/10·동복 10/15, 피복 관리 규정 제5조), 신규 입사·일용직 투입 시 즉시 지급", cycle: "반기 · 수시" },
-  { step: "수령", task: "수령 서명 받기 (지급대장 = 법적 증빙)", cycle: "지급 때" },
-  { step: "교체", task: "파손·분실·오염 시 교체 신청 받아 재지급, 사유 기록", cycle: "수시", note: "규칙 제33조: 상시 점검, 이상 있으면 수리·교환" },
+  { step: "지급", task: "정기 지급 (춘추복 3/25·하복 4/25·춘추복 9/10·동복 10/15, 피복 관리 규정 제5조). 신입직원은 다음 유니폼 제작 때까지 기존 유니폼(팀장 판단 시 신규), 안전화·안전모는 입사·일용직 투입 때 바로", cycle: "반기 · 수시", note: "규정 제7조 신입직원" },
+  { step: "수령", task: "사원피복지급현황 기록부(별지 제3호)에 수령 서명 받기", cycle: "지급 때", note: "규정 제5조④ · 지급대장은 법적 증빙" },
+  { step: "교체", task: "노후·훼손 시 피복지급신청서(사진 첨부) 받고, 헌 피복 반납받은 뒤 재지급. 본인 과실(고의훼손·분실)은 지급 안 함", cycle: "수시", note: "규정 제4조④·제7조 기타사항 · 규칙 제33조" },
   { step: "점검", task: "착용 상태·보관 상태 점검 (안전모 균열·턱끈, 안전화 밑창 마모·앞코 변형)", cycle: "분기" },
-  { step: "반납", task: "퇴사·일용직 종료 시 반납 확인, 재사용 불가품 폐기", cycle: "변경 때" },
+  { step: "반납", task: "퇴직 시 1년 안에 받은 피복 전량 반납(세탁해서). 못 하면 공제: 1개월 미만 전액 · 6개월 미만 2/3 · 1년 미만 1/2", cycle: "퇴사 때", note: "규정 제8조 · 재활용 못 할 상태면 미반납으로 봄" },
   { step: "재고", task: "품목·사이즈별 재고 확인, 부족분 구매 요청", cycle: "분기" },
 ];

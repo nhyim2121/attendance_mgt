@@ -9,7 +9,7 @@ import { requireAdminPage } from "@/lib/auth";
 import * as store from "@/lib/대장/store";
 import { loadEmployees } from "@/lib/store";
 import { loadFiles } from "@/lib/총무/mail";
-import { buildPeople, cellOf, GIVE_KINDS, PPE_ITEMS, requiredItems, SIZE_LABEL, type SizeKey, STATUS_LABEL } from "@/lib/총무/ppe";
+import { buildPeople, cellOf, GIVE_KINDS, PPE_ITEMS, requiredItems, ruleText, SIZE_LABEL, type SizeKey, STATUS_LABEL } from "@/lib/총무/ppe";
 import { todayKst } from "@/lib/time";
 import { givePpe, savePpePerson, savePpeRow, signPpe } from "../actions";
 import { CellView, GroupChip, Msg, ymd } from "../ui";
@@ -18,7 +18,6 @@ import SignPad from "./SignPad";
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ name?: string }> }) {
   return { title: `${(await searchParams).name ?? ""} 보호구·피복 지급대장 · 통합관리시스템` };
 }
-const cycleText = (n: number | undefined) => (n === undefined ? "" : n === 0 ? "처음 1회·파손 때" : n % 12 === 0 ? `${n / 12}년마다` : `${n}개월마다`);
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ name?: string; msg?: string; edit?: string }> }) {
   await requireAdminPage();
@@ -127,7 +126,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
               return (
                 <tr key={it.name}>
                   <td><b>{it.name}</b></td>
-                  <td className="fd-sub">{cycleText(it.cycle[p.group]) || "필요할 때"}</td>
+                  <td className="fd-sub">{it.cycle[p.group] === undefined ? "필요할 때" : ruleText(it, p.group)}</td>
                   <td>{ymd(c.last) || "-"}</td><td>{c.size}</td><td>{p.retired ? "" : ymd(c.next)}</td>
                   <td>{p.retired ? <span className="muted">{p.daily ? "종료" : "퇴사"}</span> : <><CellView c={c} /> {c.status !== "na" && c.status !== "none" && <small className="muted">{STATUS_LABEL[c.status]}</small>}</>}</td>
                 </tr>

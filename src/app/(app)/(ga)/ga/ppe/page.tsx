@@ -12,7 +12,7 @@ import { loadLinks } from "@/lib/대시/links";
 import { loadEmployees } from "@/lib/store";
 import {
   activeOnly, buildPeople, byDept, cellOf, requiredItems, dueList, GIVE_KINDS, GROUP_COLOR, isDispose, isGive, itemOf, MATRIX_ITEMS, matrix, nextSeason, PPE_DUTIES, PPE_GROUPS, PPE_ITEMS,
-  type PpeGroup, type PpePerson, SEASON_DAYS, SIZE_LABEL, sizeFor, stockOf,
+  type PpeGroup, type PpePerson, SEASON_DAYS, SIZE_LABEL, sizeFor, stockOf, ruleText, unitOf, wearingNow, WEAR_PERIODS, returnDue, qtyFor,
 } from "@/lib/총무/ppe";
 import { loadFiles } from "@/lib/총무/mail";
 import { todayKst } from "@/lib/time";
@@ -54,7 +54,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
         : <Circles people={everyone} issues={issues} today={today} g={g} q={(sp.q ?? "").trim()} />)}
       {tab === "give" && <><Give people={people} issues={issues} today={today} g={g} item={sp.item ?? ""} all={sp.all === "1"} /><Unsigned issues={issues} /></>}
       {tab === "buy" && <Buy people={people} issues={issues} stock={stock} today={today} links={linkCard} />}
-      {tab === "keep" && <Keep people={people} issues={issues} stock={stock} today={today} />}
+      {tab === "keep" && <Keep people={people} everyone={everyone} issues={issues} stock={stock} today={today} />}
       {tab === "rule" && <Rule />}
     </div>
   );
@@ -62,7 +62,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sp>
 
 type Rows = Awaited<ReturnType<typeof store.loadRows>>;
 const qtyOf = (r: Rows[number]) => +r.data.qty || 1;
-const unitOf = (item: string) => (itemOf(item)?.size === "shoe" ? "켤레" : itemOf(item)?.kind === "피복" ? "벌" : "개");
 
 // ================================================================== 한눈에 (시안 ①)
 function Dash({ people, issues, stock, today, links }: { people: PpePerson[]; issues: Rows; stock: Rows; today: string; links: React.ReactNode }) {
@@ -88,11 +87,12 @@ function Dash({ people, issues, stock, today, links }: { people: PpePerson[]; is
       <div className="pp2-band">
         <div><span>다음 정기 지급</span><b>{ns.item} · {+ns.day.slice(0, 4)}년 {+ns.day.slice(5, 7)}월 {+ns.day.slice(8)}일</b></div>
         <strong>D-{ns.left}</strong>
+        <div><span>지금 입는 근무복</span><b>{wearingNow(today).map((w) => `${w.set} (${w.label})`).join(" · ") || "-"}</b></div>
         <div className="pp2-chips">
           {SEASON_DAYS.map((s) => {
             const day = `${today.slice(0, 4)}-${s.md}`;
-            const given = day < today && issues.some((r) => r.data.item === s.item && isGive(r.data.kind) && (r.data.day ?? "") >= day && (r.data.day ?? "") <= `${today.slice(0, 4)}-12-31`);
-            return <Link key={s.md} href={`/ga/ppe?tab=give&item=${encodeURIComponent(s.item)}`} className={`${given ? "done" : ""} ${ns.day.endsWith(s.md) ? "next" : ""}`}>{s.item} {+s.md.slice(0, 2)}/{+s.md.slice(3)}{given ? " ✓" : ""}</Link>;
+            const given = day < today && issues.some((r) => itemOf(r.data.item ?? "")?.set === s.item && isGive(r.data.kind) && (r.data.day ?? "") >= day && (r.data.day ?? "") <= `${today.slice(0, 4)}-12-31`);
+            return <Link key={s.md} href={`/ga/ppe?tab=give&item=${encodeURIComponent(`${s.item} 상의`)}`} className={`${given ? "done" : ""} ${ns.day.endsWith(s.md) ? "next" : ""}`}>{s.item} {+s.md.slice(0, 2)}/{+s.md.slice(3)}{given ? " ✓" : ""}</Link>;
           })}
         </div>
       </div>
@@ -114,10 +114,10 @@ function Dash({ people, issues, stock, today, links }: { people: PpePerson[]; is
             const left = stockLines.filter((x) => x.item === it.name).reduce((t, x) => t + x.left, 0);
             const hasStock = stockLines.some((x) => x.item === it.name);
             const todo = due.filter((d) => d.item.name === it.name && d.cell.status !== "soon").length;
-            const cyc = Object.values(it.cycle).find((n) => n);
+            const g0 = PPE_GROUPS.find((x) => it.cycle[x]);
             return (
               <Link key={it.name} href={`/ga/ppe?tab=give&item=${encodeURIComponent(it.name)}`} className="pp2-item">
-                <div><b>{it.name}</b><small>{it.kind}{cyc ? ` · ${cyc % 12 ? `${cyc}개월` : `${cyc / 12}년`}` : ""}</small></div>
+                <div><b>{it.name}</b><small>{g0 ? ruleText(it, g0) : it.kind}</small></div>
                 <p><b>{got}</b> / {tg.length}명</p>
                 <div className="pp-bar"><i style={{ width: `${pct}%`, background: pct === 100 ? "var(--green)" : "#0f2a5c" }} /></div>
                 <div className="pp2-foot">
@@ -328,7 +328,7 @@ function People({ people, issues, today, g, q }: { people: PpePerson[]; issues: 
         <table className="tbl pp-matrix">
           <thead><tr>
             <th>구분</th><th>소속</th><th>이름</th><th>상의</th><th>하의</th><th>안전화</th>
-            {cols.map((i) => <th key={i.name} title={PPE_GROUPS.map((x) => `${x} ${cycleText(i.cycle[x])}`).join(" · ")}>{i.name}</th>)}
+            {cols.map((i) => <th key={i.name} title={PPE_GROUPS.map((x) => `${x} ${ruleText(i, x)}`).join(" · ")}>{i.name}</th>)}
           </tr></thead>
           <tbody>{rows.map(({ p, cells }) => (
             <tr key={p.name}>
@@ -347,7 +347,6 @@ function People({ people, issues, today, g, q }: { people: PpePerson[]; issues: 
     </Win>
   );
 }
-const cycleText = (n: number | undefined) => (n === undefined ? "대상 아님" : n === 0 ? "처음 1회·파손 때" : n % 12 === 0 ? `${n / 12}년마다` : `${n}개월마다`);
 
 // ================================================================== 일괄 지급
 function Give({ people, issues, today, g, item, all }: { people: PpePerson[]; issues: Rows; today: string; g: PpeGroup | ""; item: string; all: boolean }) {
@@ -374,7 +373,8 @@ function Give({ people, issues, today, g, item, all }: { people: PpePerson[]; is
           <button className="btn sm primary">사람 불러오기</button>
         </form>
         {it && <p className="caption" style={{ marginBottom: 0 }}>
-          <b>{it.name}</b> ({it.kind}{it.kcs ? " · KCs 안전인증 대상" : ""}) 지급 기준: {PPE_GROUPS.map((x) => `${x} ${cycleText(it.cycle[x])}`).join(" / ")}{it.note ? ` — ${it.note}` : ""}
+          <b>{it.name}</b> ({it.kind}{it.kcs ? " · KCs 안전인증 대상" : ""}) 지급 기준: {PPE_GROUPS.filter((x) => it.cycle[x] !== undefined).map((x) => `${x} ${ruleText(it, x)}`).join(" / ")}{it.note ? ` — ${it.note}` : ""}
+          {it.kind === "피복" && <><br />신입직원은 다음 유니폼 제작 때까지 기존(퇴사자) 유니폼을 입습니다 — 새로 줄 때만 체크하세요 (규정 제7조, 팀장 판단).</>}
         </p>}
       </Win>
 
@@ -386,7 +386,7 @@ function Give({ people, issues, today, g, item, all }: { people: PpePerson[]; is
             <div className="pp-form" style={{ marginBottom: 10 }}>
               <label>지급일 *<input type="date" name="day" defaultValue={today} required /></label>
               <label>지급 사유<select name="kind" defaultValue={it.season ? "정기 지급" : "신규 지급"}>{GIVE_KINDS.map((k) => <option key={k}>{k}</option>)}</select></label>
-              <label>수량(1인)<input name="qty" defaultValue="1" inputMode="numeric" /></label>
+              <label>수량(1인)<input name="qty" defaultValue={String(Math.max(...PPE_GROUPS.filter((x) => it.cycle[x] !== undefined).map((x) => qtyFor(it, x)), 1))} inputMode="numeric" /></label>
               <label>수령 확인<select name="sign" defaultValue="안 받음"><option>안 받음</option><option>받음</option></select></label>
               <label className="grow">비고<input name="note" placeholder="예: 2026 동계 정기 지급" /></label>
             </div>
@@ -501,7 +501,9 @@ const ItemList = () => <datalist id="pp-items">{PPE_ITEMS.map((i) => <option key
 
 // ================================================================== 유지 (교체·반납·폐기·점검)
 const KEEP_KINDS = ["교체(파손·분실)", "반납", "추가 지급"] as const;
-function Keep({ people, issues, stock, today }: { people: PpePerson[]; issues: Rows; stock: Rows; today: string }) {
+function Keep({ people, everyone, issues, stock, today }: { people: PpePerson[]; everyone: PpePerson[]; issues: Rows; stock: Rows; today: string }) {
+  const ret = returnDue(everyone, issues, today);
+  const retired = everyone.filter((p) => p.retired && !p.daily);
   const log = [
     ...issues.filter((r) => (KEEP_KINDS as readonly string[]).includes(r.data.kind ?? "")).map((r) => ({ id: `i${r.id}`, day: r.data.day ?? "", kind: r.data.kind!, what: `${r.data.item ?? ""}${r.data.size ? ` ${r.data.size}` : ""}`, who: r.data.emp ?? "", note: r.data.note ?? "", qty: qtyOf(r) })),
     ...stock.filter((r) => isDispose(r.data.kind)).map((r) => ({ id: `s${r.id}`, day: r.data.day ?? "", kind: "폐기", what: `${r.data.item ?? ""}${r.data.size ? ` ${r.data.size}` : ""}`, who: "", note: r.data.note ?? "", qty: +r.data.qty || 0 })),
@@ -525,6 +527,7 @@ function Keep({ people, issues, stock, today }: { people: PpePerson[]; issues: R
             <label>받은·돌려준 사람 *<select name="who" required defaultValue="">
               <option value="" disabled>사람 고르기</option>
               {PPE_GROUPS.map((gr) => <optgroup key={gr} label={gr}>{people.filter((p) => p.group === gr).map((p) => <option key={p.name} value={`${p.name}|${p.group}`}>{p.name} ({p.dept})</option>)}</optgroup>)}
+              {retired.length > 0 && <optgroup label="퇴사자 (반납)">{retired.map((p) => <option key={p.name} value={`${p.name}|${p.group}`}>{p.name} ({p.dept}, {ymd(p.retired)} 퇴사)</option>)}</optgroup>}
             </select></label>
             <label>품목 *<input name="item" list="pp-items" required /></label>
             <label>사이즈<input name="size" placeholder="비우면 개인 사이즈" /></label>
@@ -534,6 +537,7 @@ function Keep({ people, issues, stock, today }: { people: PpePerson[]; issues: R
             <ItemList />
             <button className="btn primary">기록</button>
           </form>
+          <p className="caption"><b>교체 조건 (규정 제7조)</b>: 피복지급신청서 접수(사진 필히 첨부) + 노후·파손된 피복 반납 후 지급. 본인의 명백한 과실(고의 훼손·분실)은 지급하지 않습니다. 훼손으로 못 입게 되면 피복훼손보고서(별지 제2호)를 받습니다.</p>
           <p className="caption">교체·추가 지급은 재고에서 빠지고, 다음 교체일이 이 날짜부터 다시 계산됩니다. 반납품은 다시 쓰지 않는 것으로 보고 재고에 더하지 않습니다(다시 쓸 수 있으면 입고로 적으세요).</p>
         </Win>
         <Win en="DISPOSE" ko="폐기 (재고에서 빼기)">
@@ -556,6 +560,22 @@ function Keep({ people, issues, stock, today }: { people: PpePerson[]; issues: R
           </ul>
         </Win>
       </div>
+      <Win en="RETURN" ko={`퇴직 반납 확인 (규정 제8조) · 최근 1년 퇴사자 ${ret.filter((x) => !x.returned).length}건 남음`}>
+        {ret.length ? (
+          <table className="tbl pp-mini">
+            <thead><tr><th>퇴사자</th><th>퇴사일</th><th>받은 피복</th><th>지급일</th><th style={{ textAlign: "right" }}>수량</th><th>반납</th><th>못 돌려받으면 공제</th></tr></thead>
+            <tbody>{ret.map((x, i) => (
+              <tr key={i} className={x.returned ? "inactive" : ""}>
+                <td><Link href={`/ga/ppe/person?name=${encodeURIComponent(x.p.name)}`}><b>{x.p.name}</b></Link> <small className="muted">{x.p.dept}</small></td>
+                <td>{ymd(x.p.retired)}</td><td>{x.item}{x.size ? ` ${x.size}` : ""}</td><td>{ymd(x.day)}</td><td style={{ textAlign: "right" }}>{x.qty}</td>
+                <td>{x.returned ? <span className="green">✓ 반납</span> : <b className="red">아직</b>}</td>
+                <td>{x.returned ? "" : <>지급금액의 <b>{x.rate}</b>{x.price ? ` (${Math.round(Number(x.price) * (x.rate === "전액" ? 1 : x.rate === "2/3" ? 2 / 3 : 0.5)).toLocaleString()}원)` : ""}</>}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        ) : <p className="fd-empty">최근 1년 안에 퇴사한 사람 중 1년 안에 받은 피복이 있는 사람이 없습니다.</p>}
+        <p className="caption">퇴직 전 1년 안에 받은 피복은 세탁해서 전량 반납합니다. 반납하면 위 [교체·반납] 칸에서 퇴사자를 골라 &lsquo;반납&rsquo;으로 적으세요. 못 돌려받으면 지급 후 1개월 미만 전액 · 1~6개월 미만 2/3 · 6개월~1년 미만 1/2을 급료·퇴직금에서 공제합니다 (재활용 못 할 상태면 미반납으로 봄).</p>
+      </Win>
       <Win en="LOG" ko={`교체·반납·폐기 기록 · ${log.length}건`}>
         {log.length ? (
           <table className="tbl pp-mini">
@@ -607,15 +627,21 @@ async function Rule() {
       <div className="pp-two">
         <Win en="RULE" ko="피복 관리 규정">
           {box("ppe:rule", "피복 관리 규정", "피복 관리 규정 파일(PDF·한글)을 올려 두세요. 최신본을 맨 아래에 올리면 됩니다.")}
-          <h4 className="pp2-h4">규정 요점 (지금 화면 계산에 쓰는 기준)</h4>
+          <h4 className="pp2-h4">규정 요점 — SN-MI-1042 (관리팀 주관, 23.09.27 제정)</h4>
           <ul className="pp-law">
-            <li><b>정기 지급일 (제5조)</b> — 춘추복 3/25 · 하복 4/25 · 춘추복 9/10 · 동복 10/15</li>
-            <li><b>안전화 (제7조)</b> — 현장직 1켤레/1년, 사무직 1켤레/2년. 들어온 시점 기준으로 교체</li>
-            <li><b>피복</b> — 하복 상·하의 3벌/1년, 춘추복 2벌/2년, 동복 1벌/2년 (현장직). 점퍼는 전 직원 1벌/2년</li>
+            <li><b>적용 (제2·3조)</b> — 본사 직원. 피복 = 회사 지정 제복·제모·작업화와 부속 장구류</li>
+            <li><b>책임 (제4조)</b> — 지급은 관리팀 주관, 피복관리대장(별지 1호) 정리, 부서장은 착용 지도, 훼손 시 피복훼손보고서(별지 2호), 세탁·수리는 자비</li>
+            <li><b>정기 지급일·착용 기간 (제5조)</b> — {WEAR_PERIODS.map((w) => w.set + " " + w.label).join(" · ")} / 지급 춘추복 3/25 · 하복 4/25 · 춘추복 9/10 · 동복 10/15. 기후에 따라 기간 조정 가능</li>
+            <li><b>수령 확인 (제5조④)</b> — 사원피복지급현황 기록부(별지 3호)에 서명</li>
+            <li><b>지급 기준 (제7조)</b> — 하계 상·하의 현장직 3벌/1년 · 춘추 상·하의 현장직 2벌/2년 · 동계 상·하의 현장직 1벌/2년 · 점퍼(춘추·동계) 전 직원 1벌/2년 · 안전화 현장직 1켤레/1년, 사무직 1켤레/2년. 현장 업무가 잦은 사무직은 현장직 기준</li>
+            <li><b>신입직원</b> — 다음 유니폼 제작 때까지 기존(퇴사자) 유니폼. 주관팀장 판단으로 신규 지급 가능</li>
+            <li><b>교체</b> — 기간을 정해 부서별로 일괄 회수 후 교체. 노후·훼손은 피복지급신청서(사진 첨부)+헌 피복 반납, 본인 과실은 지급 안 함. 안전화는 들어온 시점 기준</li>
+            <li><b>관리 (제6조)</b> — 지급받은 근무복을 임의로 바꾸지 않고 단정하게 착용</li>
+            <li><b>반납 (제8조)</b> — 퇴직 시 1년 안에 받은 피복 전량 반납, 못 하면 공제(1개월 미만 전액 · 6개월 미만 2/3 · 1년 미만 1/2)</li>
           </ul>
         </Win>
         <Win en="FORMS" ko="양식">
-          {box("ppe:form", "양식", "지급대장·수령증·사이즈 조사표 등 쓰는 양식을 올려 두세요.")}
+          {box("ppe:form", "양식", "규정의 별지 서식을 올려 두세요: 제1호 피복관리대장 · 제2호 피복훼손보고서 · 제3호 사원피복지급현황 기록부 (+ 피복지급신청서).")}
           <h4 className="pp2-h4">이 화면에서 바로 뽑기</h4>
           <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
             <Link className="btn sm" href="/ga/ppe?tab=people&view=table">개인별 현황표 (인쇄)</Link>
@@ -625,14 +651,14 @@ async function Rule() {
           </div>
         </Win>
       </div>
-      <Win en="STANDARD" ko="품목별 지급 기준 (고치려면 알려 주세요)">
+      <Win en="STANDARD" ko="품목별 지급 기준 (피복 관리 규정 제7조 · 연구소 = 사무직)">
         <div className="tbl-wrap">
           <table className="tbl pp-mini">
             <thead><tr><th>품목</th><th>종류</th>{PPE_GROUPS.map((x) => <th key={x}>{x}</th>)}<th>정기 지급 달</th><th>KCs</th><th>메모</th></tr></thead>
             <tbody>{PPE_ITEMS.map((i) => (
               <tr key={i.name}>
                 <td><b>{i.name}</b></td><td>{i.kind}</td>
-                {PPE_GROUPS.map((x) => <td key={x} className={i.cycle[x] === undefined ? "pp-na" : ""}>{i.kind === "소모품" ? "필요할 때" : cycleText(i.cycle[x])}</td>)}
+                {PPE_GROUPS.map((x) => <td key={x} className={i.cycle[x] === undefined ? "pp-na" : ""}>{i.kind === "소모품" ? "필요할 때" : ruleText(i, x)}</td>)}
                 <td>{i.season ? `${i.season.join("·")}월` : ""}</td><td>{i.kcs ? "✔" : ""}</td>
                 <td className="fd-sub" style={{ whiteSpace: "normal" }}>{i.note}</td>
               </tr>
