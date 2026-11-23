@@ -9,7 +9,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return new Response("잘못된 주소입니다.", { status: 400 });
   const doc = await iso.loadDoc(id);
-  const form = doc && iso.formOf(doc.form);
+  const form = doc && (await iso.findForm(doc.form));
   if (!doc || !form) return new Response("문서가 없습니다.", { status: 404 });
   if (!(await iso.templateReady())) return new Response("양식 파일(데이터/iso27001/template.hwpx)이 없습니다.", { status: 500 });
   const bytes = await iso.exportHwpx(form, doc.data, doc.title || form.title);

@@ -16,7 +16,8 @@ type Sp = Record<string, string | string[] | undefined>;
 export default async function IsoDocPage({ searchParams }: { searchParams: Promise<Sp> }) {
   await requireAdminPage();
   const sp = await searchParams;
-  const form = iso.formOf(String(sp.form ?? ""));
+  const forms = await iso.allForms();
+  const form = forms.find((f) => f.key === String(sp.form ?? ""));
   if (!form) notFound();
   if (!(await iso.templateReady())) {
     return <><PageHead href="/cert/iso" title={form.title} /><div className="msg err">양식 파일이 없습니다: 데이터\iso27001\template.hwpx</div></>;
@@ -26,8 +27,8 @@ export default async function IsoDocPage({ searchParams }: { searchParams: Promi
   const doc = id ? await iso.loadDoc(id) : null;
   const cur = doc && doc.form === form.key ? doc : null;
   const sheet = await iso.sheetOf(form, cur?.data.rows ?? {});
-  const i = iso.FORMS.indexOf(form);
-  const prev = iso.FORMS[i - 1], next = iso.FORMS[i + 1];
+  const i = forms.indexOf(form);
+  const prev = forms[i - 1], next = forms[i + 1];
 
   return (
     <>

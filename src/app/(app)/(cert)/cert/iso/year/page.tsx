@@ -15,7 +15,8 @@ export default async function IsoYear({ searchParams }: { searchParams: Promise<
   const sp = await searchParams;
   const today = todayKst();
   const year = /^\d{4}$/.test(String(sp.year)) ? String(sp.year) : today.slice(0, 4);
-  const docs = (await iso.listDocs()).filter((d) => d.day.startsWith(year));
+  const [all, FORMS] = await Promise.all([iso.listDocs(), iso.allForms()]);
+  const docs = all.filter((d) => d.day.startsWith(year));
   const nowM = year === today.slice(0, 4) ? +today.slice(5, 7) : year < today.slice(0, 4) ? 12 : 0;
   const cnt = (k: string, m: number) => docs.filter((d) => d.form === k && +d.day.slice(5, 7) === m).length;
   /** 써야 하는데 아직인 달: 매월 = 지난달까지 매달, 반기 = 6·12월, 매년 = 그해 아무 때나 (12월 칸에 표시) */
@@ -38,9 +39,9 @@ export default async function IsoYear({ searchParams }: { searchParams: Promise<
         <table className="tbl iso-year">
           <thead><tr><th style={{ textAlign: "left" }}>양식</th><th>주기</th>{MONTHS.map((m) => <th key={m}>{m}월</th>)}<th>합계</th></tr></thead>
           <tbody>
-            {iso.GROUPS.map((g) => [
+            {iso.GROUPS.filter((g) => FORMS.some((f) => f.group === g)).map((g) => [
               <tr key={g} className="iso-yg"><td colSpan={15}>{g}</td></tr>,
-              ...iso.FORMS.filter((f) => f.group === g).map((f) => {
+              ...FORMS.filter((f) => f.group === g).map((f) => {
                 const total = docs.filter((d) => d.form === f.key).length;
                 return (
                   <tr key={f.key}>

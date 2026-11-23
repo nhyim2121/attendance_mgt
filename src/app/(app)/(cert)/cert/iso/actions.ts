@@ -10,7 +10,7 @@ import { isDateStr, todayKst } from "@/lib/time";
 export async function createIsoDoc(f: FormData) {
   await requirePerm("create");
   const u = await requireAdmin();
-  const form = iso.formOf(String(f.get("form") ?? ""));
+  const form = await iso.findForm(String(f.get("form") ?? ""));
   if (!form) throw new Error("양식을 찾을 수 없습니다.");
   const from = Number(f.get("copy") || 0);
   const src = from ? await iso.loadDoc(from) : null;

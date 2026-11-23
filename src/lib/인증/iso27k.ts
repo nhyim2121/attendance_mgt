@@ -4,10 +4,13 @@
  *  IP 관리대장 등 사내 정보가 있어 저장소에는 올리지 않는다). 양식 한 장 = 그 파일 본문의 문단 범위(FORMS의 sec·from·to).
  *  양식 파일을 바꾸면 범위가 달라질 수 있으니 FORMS를 다시 맞춘다 (scratchpad의 hwpx_chunks.py 같은 방식으로 문단 번호 확인).
  *
+ *  추가 양식 (2026-11-23): 데이터/iso27001/추가/ 에 .hwpx 파일을 넣으면 파일 하나 = 양식 하나로 자동으로 생긴다
+ *  (키 = 'x-' + 파일 이름, 분류는 이름으로 짐작). .hwp·.docx는 한글에서 '다른 이름으로 저장 → HWPX'로 바꿔 넣는다.
+ *
  *  작성한 문서 = iso_docs 한 줄: data.v = { 칸 id: 고친 글 }, data.rows = { 표 id: 늘린 줄 수 }.
  *  화면은 양식을 그대로 그려 칸마다 바로 적게 하고, 내려받기는 양식 파일에 적은 글만 바꿔 넣은 한글 파일(.hwpx)이다. */
 import "server-only";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import JSZip from "jszip";
 import { createClient } from "../supabase/server";
@@ -15,11 +18,11 @@ import type { DateStr } from "../time";
 import { attr, clone, isEl, kid, kids, parse, setAttr, unesc, walk, write, esc, type XEl } from "./hwpxml";
 
 // ---------------------------------------------------------------- 양식 목록
-export interface IsoForm { key: string; code: string; title: string; group: string; cycle: string; sec: number; from: number; to: number }
+export interface IsoForm { key: string; code: string; title: string; group: string; cycle: string; sec: number; from: number; to: number; file?: string }
 const F = (key: string, title: string, group: string, cycle: string, from: number, to: number, sec = 0, code = key.replace(/b$/, "")): IsoForm =>
   ({ key, code: `SN-ISP-${code}`, title, group, cycle, sec, from, to });
 
-export const GROUPS = ["조직·점검", "자산·변경", "운영·사고·외부업체", "인적 보안·교육", "문서 관리", "기술 보안", "성과 평가", "개선"] as const;
+export const GROUPS = ["조직·점검", "자산·변경", "운영·사고·외부업체", "인적 보안·교육", "문서 관리", "기술 보안", "성과 평가", "개선", "추가 양식"] as const;
 
 export const FORMS: IsoForm[] = [
   F("401-01", "이해관계자 파악표", "조직·점검", "매년", 33, 41),
@@ -66,22 +69,53 @@ export const FORMS: IsoForm[] = [
 ];
 export const formOf = (key: string) => FORMS.find((f) => f.key === key);
 
+// ---------------------------------------------------------------- 추가 양식 (파일 하나 = 양식 하나)
+const EXTRA_DIR = join(process.cwd(), "데이터", "iso27001", "추가");
+export const EXTRA_DIR_LABEL = "데이터\\iso27001\\추가";
+const GUESS: [RegExp, string, string][] = [
+  [/SWOT|이해관계자|점검표/, "조직·점검", "매년"],
+  [/장비|변경|패치|자산/, "자산·변경", "건별"],
+  [/침해|사고|장애|비상연락|재해|외부업체|출입|위탁/, "운영·사고·외부업체", "바뀔 때"],
+  [/교육|서약|반납|입사|퇴직/, "인적 보안·교육", "교육 때"],
+  [/문서|배포|심의|규격/, "문서 관리", "개정 때"],
+  [/계정|권한|접근|VPN|IP|암호|네트워크|서버|프로그램/, "기술 보안", "건별"],
+  [/심사|경영검토|성과/, "성과 평가", "매년"],
+  [/시정|개선/, "개선", "건별"],
+];
+/** 기본 양식 + 추가 폴더의 hwpx (파일 이름 앞 번호·밑줄은 떼고 제목으로) */
+export async function allForms(): Promise<IsoForm[]> {
+  let names: string[] = [];
+  try { names = (await readdir(EXTRA_DIR)).filter((n) => /\.hwpx$/i.test(n) && !n.startsWith("~$")).sort((a, b) => a.localeCompare(b, "ko", { numeric: true })); } catch { /* 폴더 없음 */ }
+  const extra = names.map((n): IsoForm => {
+    const base = n.replace(/\.hwpx$/i, "");
+    const title = base.replace(/^[0-9]+[_.\s-]*/, "").replace(/^첨부\d*[_.\s-]*/, "").trim() || base;
+    const g = GUESS.find(([re]) => re.test(title));
+    const no = base.match(/^(\d+)/)?.[1];
+    return { key: `x-${base}`, code: no ? `추가 ${no}` : "추가", title, group: g?.[1] ?? "추가 양식", cycle: g?.[2] ?? "건별", sec: 0, from: 0, to: -1, file: join(EXTRA_DIR, n) };
+  });
+  return [...FORMS, ...extra];
+}
+export async function findForm(key: string): Promise<IsoForm | undefined> {
+  return formOf(key) ?? (await allForms()).find((f) => f.key === key);
+}
+
 // ---------------------------------------------------------------- 양식 파일
 const TEMPLATE = join(process.cwd(), "데이터", "iso27001", "template.hwpx");
 const HP = "hp:";
 interface Styles { char: Map<string, { pt: number; bold: boolean; color: string }>; para: Map<string, string>; fill: Map<string, BorderFill> }
 interface BorderFill { bg?: string; l: string; r: string; t: string; b: string }
 interface Tpl { bytes: Buffer; zip: JSZip; secs: { head: string; root: XEl }[]; styles: Styles; margin: { l: number; r: number; t: number; b: number } }
-let cache: { at: number; tpl: Promise<Tpl> } | null = null;
+const caches = new Map<string, { at: number; tpl: Promise<Tpl> }>();
 
 export async function templateReady(): Promise<boolean> {
   try { await readFile(TEMPLATE); return true; } catch { return false; }
 }
 
-async function template(): Promise<Tpl> {
+async function template(file = TEMPLATE): Promise<Tpl> {
+  const cache = caches.get(file);
   if (cache && Date.now() - cache.at < 10 * 60_000) return cache.tpl;
   const tpl = (async () => {
-    const bytes = await readFile(TEMPLATE);
+    const bytes = await readFile(file);
     const zip = await JSZip.loadAsync(bytes);
     const names = Object.keys(zip.files).filter((n) => /^Contents\/section\d+\.xml$/.test(n)).sort((a, b) => +a.match(/\d+/)![0] - +b.match(/\d+/)![0]);
     const secs = await Promise.all(names.map(async (n) => parse(await zip.file(n)!.async("string"))));
@@ -108,8 +142,8 @@ async function template(): Promise<Tpl> {
     const u = (k: string) => Math.round(+(attr(m ?? secs[0].root, k) ?? 0) / 75);
     return { bytes, zip, secs, styles, margin: { l: u("left"), r: u("right"), t: u("top"), b: u("bottom") } };
   })();
-  cache = { at: Date.now(), tpl };
-  tpl.catch(() => { cache = null; });
+  caches.set(file, { at: Date.now(), tpl });
+  tpl.catch(() => { caches.delete(file); });
   return tpl;
 }
 
@@ -135,8 +169,7 @@ const tablesIn = (p: XEl) => kids(p, HP + "run").flatMap((r) => kids(r, HP + "tb
 
 /** 문단·표·칸에 id를 붙여 찾기 쉽게: 맨 위 문단 = "번호", 표 = "번호.t순서", 칸 = "표id:행,열", 칸 안 표 = "칸id.p문단.t순서" */
 type Node = { kind: "p"; el: XEl } | { kind: "t"; el: XEl } | { kind: "c"; el: XEl };
-function index(ps: XEl[], from: number): Map<string, Node> {
-  const m = new Map<string, Node>();
+function index(ps: XEl[], from: number, pre = "", m = new Map<string, Node>()): Map<string, Node> {
   const tbl = (t: XEl, id: string) => {
     m.set(id, { kind: "t", el: t });
     for (const tr of kids(t, HP + "tr")) for (const tc of kids(tr, HP + "tc")) {
@@ -150,7 +183,7 @@ function index(ps: XEl[], from: number): Map<string, Node> {
     }
   };
   ps.forEach((p, i) => {
-    const id = String(from + i);
+    const id = pre + String(from + i);
     m.set(id, { kind: "p", el: p });
     tablesIn(p).forEach((t, k) => tbl(t, `${id}.t${k}`));
   });
@@ -205,22 +238,24 @@ function setCellText(tc: XEl, text: string) {
   setParaText(first, text);
 }
 
-/** 양식 한 장의 문단 (줄 늘림 반영) */
+/** 양식 한 장의 문단 (줄 늘림 반영). 추가 양식(파일 하나)은 모든 구역, 구역이 둘 이상이면 id 앞에 's구역-' */
 async function formParas(form: IsoForm, rows: IsoData["rows"]) {
-  const tpl = await template();
-  const sec = tpl.secs[form.sec];
-  const ps = kids(sec.root, HP + "p").slice(form.from, form.to).map(clone);
-  const ix = index(ps, form.from);
+  const tpl = await template(form.file);
+  const parts = form.file
+    ? tpl.secs.map((sec, i) => ({ sec, ps: kids(sec.root, HP + "p").map(clone), from: 0, pre: tpl.secs.length > 1 ? `s${i}-` : "" }))
+    : [{ sec: tpl.secs[form.sec], ps: kids(tpl.secs[form.sec].root, HP + "p").slice(form.from, form.to).map(clone), from: form.from, pre: "" }];
+  const all = () => { const m = new Map<string, Node>(); for (const p of parts) index(p.ps, p.from, p.pre, m); return m; };
+  const ix0 = all();
   for (const [id, n] of Object.entries(rows ?? {})) {
-    const node = ix.get(id);
+    const node = ix0.get(id);
     if (node?.kind === "t" && n > 0 && canGrow(node.el)) growTable(node.el, Math.min(n, 200));
   }
-  return { tpl, sec, ps, ix: index(ps, form.from) };
+  return { tpl, parts, sec: parts[0].sec, ps: parts[0].ps, ix: all() };
 }
 
 /** 화면용: 양식 모양 + 칸마다 양식에 적힌 글 */
 export async function sheetOf(form: IsoForm, rows: IsoData["rows"] = {}): Promise<Sheet> {
-  const { tpl, ps } = await formParas(form, rows);
+  const { tpl, parts } = await formParas(form, rows);
   const st = tpl.styles;
   const look = (p?: XEl) => {
     const r = p && kids(p, HP + "run").find((x) => kid(x, HP + "t")) || (p && kid(p, HP + "run"));
@@ -264,8 +299,8 @@ export async function sheetOf(form: IsoForm, rows: IsoData["rows"] = {}): Promis
     return { k: "t", id, cols: cols.map((x) => Math.round(x || 40)), rows, addRow: canGrow(t), align: "center" };
   };
   const blocks: Block[] = [];
-  ps.forEach((p, i) => {
-    const id = String(form.from + i);
+  for (const { ps, from, pre } of parts) ps.forEach((p, i) => {
+    const id = pre + String(from + i);
     const tbls = tablesIn(p);
     const text = paraText(p);
     if (!tbls.length || text.trim()) blocks.push({ k: "p", id, text, edit: !!text.trim() && !tbls.length, ...look(p) });
@@ -288,7 +323,7 @@ export function textsOf(s: Sheet): Record<string, string> {
 
 // ---------------------------------------------------------------- 한글 파일로 내보내기
 export async function exportHwpx(form: IsoForm, data: IsoData, title: string): Promise<Uint8Array> {
-  const { tpl, sec, ps, ix } = await formParas(form, data.rows);
+  const { tpl, sec, ps, ix, parts } = await formParas(form, data.rows);
   for (const [id, val] of Object.entries(data.v ?? {})) {
     const node = ix.get(id);
     if (!node) continue;
@@ -297,6 +332,12 @@ export async function exportHwpx(form: IsoForm, data: IsoData, title: string): P
       const cur = kids(kid(node.el, HP + "subList") ?? node.el, HP + "p").filter((p) => !tablesIn(p).length).map(paraText).join("\n");
       if (cur !== val) setCellText(node.el, val);
     }
+  }
+  if (form.file) { // 추가 양식: 파일 그대로, 구역마다 글만 바뀐 본문
+    const out = await JSZip.loadAsync(tpl.bytes);
+    const names = Object.keys(out.files).filter((n) => /^Contents\/section\d+\.xml$/.test(n)).sort((a, b) => +a.match(/\d+/)![0] - +b.match(/\d+/)![0]);
+    parts.forEach((p, i) => { if (names[i]) out.file(names[i], `${p.sec.head}${write({ ...p.sec.root, kids: p.ps } as XEl)}`); });
+    return pack(out, title);
   }
   if (ps[0]) setAttr(ps[0], "pageBreak", "0");
   // 구역 첫 문단에는 용지·여백 설정(secPr)이 있어 늘 맨 앞에 둔다 (양식이 첫 문단부터가 아니면 설정만 떼어 붙임)
@@ -316,9 +357,13 @@ export async function exportHwpx(form: IsoForm, data: IsoData, title: string): P
     .replace(/<opf:item id="section[1-9]\d*"[^>]*\/>/g, "").replace(/<opf:itemref idref="section[1-9]\d*"[^>]*\/>/g, "")
     .replace(/<opf:title>[^<]*<\/opf:title>/, `<opf:title>${esc(title)}</opf:title>`);
   out.file("Contents/content.hpf", hpf);
-  out.file("Preview/PrvText.txt", title);
+  return pack(out, title);
+}
+
+async function pack(out: JSZip, title: string): Promise<Uint8Array> {
+  if (out.file("Preview/PrvText.txt")) out.file("Preview/PrvText.txt", title);
   // mimetype은 압축하지 않고 맨 앞에 (hwpx 규칙)
-  const mt = await out.file("mimetype")!.async("string");
+  const mt = (await out.file("mimetype")?.async("string")) ?? "application/hwp+zip";
   out.remove("mimetype");
   const fin = new JSZip();
   fin.file("mimetype", mt, { compression: "STORE" });

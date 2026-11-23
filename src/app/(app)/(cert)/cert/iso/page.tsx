@@ -14,33 +14,35 @@ export default async function IsoBoard({ searchParams }: { searchParams: Promise
   await requireAdminPage();
   const sp = await searchParams;
   const year = /^\d{4}$/.test(String(sp.year)) ? String(sp.year) : todayKst().slice(0, 4);
-  const [docs, ready] = await Promise.all([iso.listDocs(), iso.templateReady()]);
+  const [docs, ready, FORMS] = await Promise.all([iso.listDocs(), iso.templateReady(), iso.allForms()]);
   const mine = docs.filter((d) => d.day.startsWith(year));
   const by = (k: string) => mine.filter((d) => d.form === k);
   const years = [...new Set([todayKst().slice(0, 4), ...docs.map((d) => d.day.slice(0, 4))])].sort().reverse();
-  const done = iso.FORMS.filter((f) => by(f.key).length).length;
-  const yearly = iso.FORMS.filter((f) => f.cycle === "매년" || f.cycle === "반기" || f.cycle === "매월");
+  const done = FORMS.filter((f) => by(f.key).length).length;
+  const yearly = FORMS.filter((f) => f.cycle === "매년" || f.cycle === "반기" || f.cycle === "매월");
   const missing = yearly.filter((f) => !by(f.key).length);
 
   return (
     <>
-      <PageHead href="/cert/iso" mark={`${year}년`} desc={<>정보보호경영시스템 업무실적문서 양식 {iso.FORMS.length}종. 양식을 골라 화면에서 바로 적으면 자동 저장되고, 한글 파일(.hwpx)이나 PDF로 뽑을 수 있습니다.</>}>
+      <PageHead href="/cert/iso" mark={`${year}년`} desc={<>정보보호경영시스템 업무실적문서 양식 {FORMS.length}종. 양식을 골라 화면에서 바로 적으면 자동 저장되고, 한글 파일(.hwpx)이나 PDF로 뽑을 수 있습니다.</>}>
         <span className="row" style={{ gap: 6 }}>
           {years.map((y) => <Link key={y} className={`btn sm${y === year ? " primary" : ""}`} href={`/cert/iso?year=${y}`}>{y}</Link>)}
         </span>
       </PageHead>
       <IsoTabs on="board" year={year} />
+      <p className="caption noprint">양식을 더 넣으려면 한글 파일을 <b>{iso.EXTRA_DIR_LABEL}</b> 폴더에 .hwpx로 넣으세요. 파일 하나가 양식 하나로 바로 생깁니다 (.hwp·.docx는 한글에서 '다른 이름으로 저장 → HWPX').</p>
       {!ready && <div className="msg err">양식 파일이 없습니다: 데이터\iso27001\template.hwpx 에 ★ ISO-IEC27001-2022 업무실적문서.hwpx 를 넣어 주세요.</div>}
 
       <div className="metrics">
-        <Metric label="양식" value={`${iso.FORMS.length}종`} />
+        <Metric label="양식" value={`${FORMS.length}종`} />
         <Metric label={`${year}년 작성한 양식`} value={`${done}종`} />
         <Metric label={`${year}년 문서`} value={`${mine.length}건`} />
         <Metric label="매년·매월 쓰는데 아직" value={<span className={missing.length ? "orange" : ""}>{missing.length}종</span>} />
       </div>
 
       {iso.GROUPS.map((g) => {
-        const fs = iso.FORMS.filter((f) => f.group === g);
+        const fs = FORMS.filter((f) => f.group === g);
+        if (!fs.length) return null;
         return (
           <section key={g} className="iso-group">
             <h2 className="iso-gh">{g} <small>{fs.length}종</small></h2>
