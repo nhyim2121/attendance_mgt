@@ -675,6 +675,8 @@ function attPanels(groups: ReportRow[][]): string {
     };
     const blocks = [...byType.entries()].map(([k, rs]) => {
       const types = k.split(",");
+      // 사유 칸에 종류 이름(연차 등)만 적힌 경우는 왼쪽에 이미 있으니 다시 적지 않는다
+      const why = (r: ReportRow) => { const t = r.title.trim(); return t && !types.includes(t) && !SCHEDULE_TYPES.includes(t) ? t : ""; };
       const [fg] = BADGE[types[0]] ?? ["#1f8a3b", "#e3f4e8"];
       const [bgSoft, bd] = types.some((t) => t === "반차" || t === "반반차") ? ["#f1faf8", "#cdebe6"] : types.includes("외출") ? ["#fff8f3", "#f6dcc8"] : PANEL_SOFT.휴가;
       const timed = rs.some((r) => span(r.detail));
@@ -692,13 +694,13 @@ function attPanels(groups: ReportRow[][]): string {
           + sorted.map((r, i) => `<tr>${deptLabel(i && sorted[i - 1].dept === r.dept ? "" : r.dept)}`
             + `<td style="width:130px;vertical-align:middle">${chip(r, bd)}</td>`
             + `<td style="vertical-align:middle;padding:0 0 4px">${bar(r.detail, fg) || `<span style="${small}">${esc(timeLabel(r.detail) || r.detail)}</span>`}</td>`
-            + `<td style="${small}vertical-align:middle;padding:0 0 4px 8px;width:150px">${esc([wide(r.detail) ? timeLabel(r.detail).replace(/^.*\(/, "(") : timeLabel(r.detail), r.title.trim()].filter(Boolean).join(" "))}</td></tr>`).join("")
+            + `<td style="${small}vertical-align:middle;padding:0 0 4px 8px;width:150px">${esc([wide(r.detail) ? timeLabel(r.detail).replace(/^.*\(/, "(") : timeLabel(r.detail), why(r)].filter(Boolean).join(" "))}</td></tr>`).join("")
           + `</table>`;
       } else {
         // 부서마다 한 줄: 부서 | 이름표들 (사유는 이름 뒤 괄호)
         right = `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">`
           + order.map((dp) => `<tr>${deptLabel(dp)}<td style="vertical-align:top">`
-            + sorted.filter((r) => r.dept === dp).map((r) => chip(r, bd) + (r.title.trim() ? `<span style="${small}margin:0 8px 0 -2px">(${esc(r.title.trim())})</span>` : "")).join("")
+            + sorted.filter((r) => r.dept === dp).map((r) => chip(r, bd) + (why(r) ? `<span style="${small}margin:0 8px 0 -2px">(${esc(why(r))})</span>` : "")).join("")
             + `</td></tr>`).join("")
           + `</table>`;
       }
