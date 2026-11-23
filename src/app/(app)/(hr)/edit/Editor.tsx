@@ -73,6 +73,10 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
   const [today, setToday] = useState("");
   useEffect(() => setToday(new Date().toLocaleDateString("sv-SE")), []);
 
+  // 보기 방식 (2026-11-23): 표 보기(지금) / 달력 보기(날짜를 누르면 오른쪽 입력판). 고른 보기는 이 브라우저에 기억
+  const [view, setView] = useState<"table" | "cal">("table");
+  useEffect(() => { try { if (localStorage.getItem("edit-view") === "cal") setView("cal"); } catch { /* 저장소를 못 쓰면 표 보기 */ } }, []);
+  const pickView = (v: "table" | "cal") => { setView(v); try { localStorage.setItem("edit-view", v); } catch { /* 무시 */ } };
   const set = (i: number, k: keyof EditRow, v: string) => setDraft((d) => d.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
   // 인원 체크: 비고 칸의 이름 목록에 넣고 뺀다 (이름이 아닌 글은 그대로 둔다)
   const toggleMate = (i: number, name: string) => {
@@ -122,7 +126,13 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
       {msg?.ok && <div className="msg ok">{msg.ok}</div>}
       {msg?.error && <div className="msg err">{msg.error}</div>}
       {bad.length > 0 && <div className="msg err">시각 형식이 맞지 않습니다 (HH:MM): {bad.join(", ")}</div>}
-      <div className="tbl-wrap">
+      <div className="ed-views" role="tablist" aria-label="보기 방식">
+        <button type="button" role="tab" aria-selected={view === "table"} className={view === "table" ? "on" : ""} onClick={() => pickView("table")}>표 보기</button>
+        <button type="button" role="tab" aria-selected={view === "cal"} className={view === "cal" ? "on" : ""} onClick={() => pickView("cal")}>달력 보기</button>
+      </div>
+      {view === "cal" && <CalView draft={draft} rows={rows} today={today} employee={employee} staff={staff}
+        set={set} changed={(i) => COLS.some(([k]) => changed(i, k))} toggleMate={toggleMate} />}
+      {view === "table" && <div className="tbl-wrap">
         <table className="tbl edit ed2">
           <thead>
             <tr>
@@ -175,7 +185,7 @@ export default function Editor({ employee, rows, staff = [] }: { employee: strin
             ))}
           </tbody>
         </table>
-      </div>
+      </div>}
       <div className="row" style={{ marginTop: 12 }}>
         <button className="btn primary" disabled={pending || !changes.length || bad.length > 0}
           onClick={() => run(() => saveEdits(changes as Parameters<typeof saveEdits>[0]))}>
@@ -232,6 +242,99 @@ function AttachCell({ employee, day, proof, files }: { employee: string; day: st
       ))}
       <AttachInline name={employee} type={miss[0] ?? (proof?.need[0] ?? "기타")} from={day} to={day} title={miss[0] ? `${miss[0]} 신청서` : "근태 증빙"}
         label="📎" />
+    </div>
+  );
+}
+
+/** 달력 보기 (2026-11-23 B안): 왼쪽 달력(근태 구분·출퇴근·신청서/퇴근 없음 표시) + 오른쪽 그날 입력판.
+ *  표 보기와 같은 입력값(draft)과 자동 저장을 쓴다. */
+const WD = ["월", "화", "수", "목", "금", "토", "일"];
+const FULL_LEAVE = ["연차", "월차", "공가", "경조휴가", "병가"];
+const noOutOf = (r: EditRow) => !!r.clock_in && !r.clock_out && !r.kinds.some((k) => FULL_LEAVE.includes(k));
+const needs = (r: EditRow) => !!r.proof?.missing.length || noOutOf(r);
+function CalView({ draft, rows, today, employee, staff, set, changed, toggleMate }: {
+  draft: EditRow[]; rows: EditRow[]; today: string; employee: string; staff: string[];
+  set: (i: number, k: keyof EditRow, v: string) => void; changed: (i: number) => boolean; toggleMate: (i: number, name: string) => void;
+}) {
+  const [sel, setSel] = useState(() => {
+    const f = rows.findIndex(needs);
+    const t = rows.findIndex((x) => x.day === new Date().toLocaleDateString("sv-SE"));
+    return f >= 0 ? f : t >= 0 ? t : 0;
+  });
+  if (!draft.length) return null;
+  const r = draft[sel] ?? draft[0];
+  const lead = Math.max(0, WD.indexOf(draft[0].wd));
+  const hm = (t: string) => t.slice(0, 5);
+  // 이번 달에 쓴 근무지 (자주 쓰는 순) → 빠른 버튼
+  const count = new Map<string, number>();
+  for (const x of draft) if (x.place.trim()) count.set(x.place.trim(), (count.get(x.place.trim()) ?? 0) + 1);
+  const places = [...count].sort((a, b) => b[1] - a[1]).map(([p]) => p).slice(0, 5);
+  const nextNeed = () => {
+    for (let j = sel + 1; j < draft.length; j++) if (needs(rows[j] ?? draft[j]) || draft[j].kinds.length) return j;
+    return Math.min(sel + 1, draft.length - 1);
+  };
+  const field = (k: keyof EditRow, label: string, ph = "", wide = false) => (
+    <label className={`ed-cal-f${wide ? " wide" : ""}`}><span>{label}</span>
+      <input type="text" value={String(r[k])} placeholder={ph} onChange={(e) => set(sel, k, e.target.value)}
+        className={(k === "clock_in" || k === "clock_out") && !TIME_RE.test(String(r[k]).trim()) ? "bad" : ""} /></label>
+  );
+  const chip = (k: keyof EditRow, v: string) => (
+    <button key={v} type="button" className={`ed-chip${String(r[k]).trim() === v ? " on" : ""}`} onClick={() => set(sel, k, String(r[k]).trim() === v ? "" : v)}>{v}</button>
+  );
+  return (
+    <div className="ed-cal">
+      <div className="ed-cal-grid">
+        {WD.map((w) => <div key={w} className={`ed-cal-wd${w === "토" ? " sat" : w === "일" ? " sun" : ""}`}>{w}</div>)}
+        {Array.from({ length: lead }, (_, i) => <div key={`b${i}`} />)}
+        {draft.map((d, i) => {
+          const base = rows[i] ?? d;
+          const miss = base.proof?.missing ?? [];
+          const ok = !miss.length && !!base.proof?.need.length;
+          return (
+            <button key={d.day} type="button" onClick={() => setSel(i)}
+              className={`ed-cal-day ${rowTone(d)}${i === sel ? " sel" : ""}${d.day === today ? " today" : ""}${changed(i) ? " changed" : ""}`}>
+              <b className={d.wd === "일" || d.holiday ? "sun" : d.wd === "토" ? "sat" : ""}>{+d.day.slice(8)}</b>
+              {d.kinds.length > 0 && <span className="ed-cal-k">{d.kinds.join(" · ")}</span>}
+              {(d.clock_in || d.clock_out) && <span className="ed-cal-t">{hm(d.clock_in) || "?"} → {d.clock_out ? hm(d.clock_out) : <b className="red">?</b>}</span>}
+              {miss.length > 0 && <span className="ed-cal-miss">● 신청서 없음</span>}
+              {!miss.length && noOutOf(d) && <span className="ed-cal-miss">● 퇴근 없음</span>}
+              {ok && <span className="ed-cal-ok">✓ 신청서</span>}
+            </button>
+          );
+        })}
+      </div>
+      <div className="ed-cal-panel">
+        <div className="ed-cal-head">
+          <b>{+r.day.slice(5, 7)}월 {+r.day.slice(8)}일 ({r.wd})</b>
+          <Kinds r={r} />
+        </div>
+        <div className="ed-cal-two">{field("clock_in", "출근 시각", "08:30")}{field("clock_out", "퇴근 시각", "17:30")}</div>
+        <div className="ed-cal-two">{field("in_type", "출근 근무형태", r.inAuto || "예: 조출(08:00)")}{field("out_type", "퇴근 근무형태", r.outAuto || "예: 연장(20:00)")}</div>
+        {(r.inAuto || r.outAuto) && !r.in_type && !r.out_type && (
+          <p className="caption" style={{ margin: "-4px 0 0" }}>근무형태를 비워 두면 자동 값({[r.inAuto, r.outAuto].filter(Boolean).join(" ~ ")})으로 인쇄됩니다.</p>)}
+        <div className="ed-cal-f wide"><span>근무지</span>
+          {places.length > 0 && <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>{places.map((p) => chip("place", p))}</div>}
+          <input type="text" value={r.place} placeholder={r.placeHint || "직접 적기"} onChange={(e) => set(sel, "place", e.target.value)} />
+        </div>
+        {staff.length > 0 && (
+          <div className="ed-cal-f wide"><span>같이 근무한 사람 <small className="muted">(고른 사람의 같은 날에도 함께 저장)</small></span>
+            <div className="mates-grid">
+              {staff.filter((n) => n !== employee).map((n) => (
+                <label key={n}><input type="checkbox" checked={splitNote(r.note).includes(n)} onChange={() => toggleMate(sel, n)} />{n}</label>
+              ))}
+            </div>
+          </div>
+        )}
+        {field("work", "업무내용", r.workHint || "그날 한 업무", true)}
+        <div className="ed-cal-f wide"><span>신청서 · 증빙</span>
+          <AttachCell employee={employee} day={r.day} proof={rows[sel]?.proof} files={rows[sel]?.files ?? []} />
+        </div>
+        <div className="row" style={{ gap: 6, marginTop: 4 }}>
+          <button type="button" className="btn" disabled={sel === 0} onClick={() => setSel(sel - 1)}>‹ 전날</button>
+          <button type="button" className="btn primary" style={{ flex: 1 }} onClick={() => setSel(nextNeed())}>다음 볼 날 ›</button>
+        </div>
+        <p className="caption" style={{ margin: 0 }}>적은 내용은 잠시 뒤 자동 저장됩니다 (아래 저장 버튼도 그대로).</p>
+      </div>
     </div>
   );
 }
