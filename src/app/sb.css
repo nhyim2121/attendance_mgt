@@ -309,3 +309,17 @@
   .iso-page { box-shadow: none; border-radius: 0; width: 210mm; min-height: 0; }
   .iso-ed:hover, .iso-ed:focus { background: none; box-shadow: none; }
 }
+/* ISO 작성 매뉴얼 */
+.iso-guide { width: 100%; padding: 0; overflow: hidden; }
+.iso-guide > summary { cursor: pointer; padding: 11px 14px; font-weight: 700; color: #0a2b70; list-style-position: inside; }
+.iso-guide > summary small { font-weight: 500; color: var(--muted); margin-left: 6px; }
+.iso-guide[open] > summary { border-bottom: 1px solid var(--line-2); background: #fbf7f0; }
+.iso-guide-b { padding: 12px 16px 14px; font-size: .9rem; line-height: 1.6; }
+.iso-guide-b p { margin: 0 0 8px; } .iso-guide-b b { color: #0a2b70; margin-right: 4px; }
+.iso-guide-b ol, .iso-guide-b ul { margin: 4px 0 10px; padding-left: 22px; } .iso-guide-b li { margin: 2px 0; }
+.iso-guide-iso { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.iso-guide-iso .tag { background: #fdf3e7; color: #92400e; border-color: #ecc58a; }
+.iso-guide-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; } @media (max-width: 800px) { .iso-guide-2 { grid-template-columns: 1fr; } }
+.iso-guide-full { margin-bottom: 12px; break-inside: avoid; } .iso-guide-full h3 { margin: 0 0 4px; font-size: 1.05rem; color: #0a2b70; }
+.iso-guide-full .iso-guide-b { padding: 4px 0 0; }
+.iso-guide-intro { margin-bottom: 14px; font-size: .9rem; line-height: 1.6; } .iso-guide-intro ul { margin: 6px 0 10px; padding-left: 20px; }

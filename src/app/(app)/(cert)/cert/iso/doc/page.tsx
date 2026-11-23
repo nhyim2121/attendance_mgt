@@ -9,6 +9,7 @@ import * as iso from "@/lib/인증/iso27k";
 import { createIsoDoc } from "../actions";
 import Meta, { DeleteDoc } from "../Meta";
 import Sheet from "../Sheet";
+import GuideBox from "../GuideBox";
 
 export const metadata = { title: "ISO 27001 실적문서 작성 · 통합관리시스템" };
 type Sp = Record<string, string | string[] | undefined>;
@@ -71,6 +72,7 @@ export default async function IsoDocPage({ searchParams }: { searchParams: Promi
           ) : (
             <div className="msg noprint">아래는 빈 양식 미리보기입니다. 적으려면 왼쪽 [+ 새로 작성]을 누르세요.</div>
           )}
+          <GuideBox form={form} open={!list.length} />
           <Sheet key={`${cur?.id ?? 0}|${JSON.stringify(cur?.data.rows ?? {})}`} docId={cur?.id} sheet={sheet} values={cur?.data.v ?? {}} readOnly={!cur} />
         </div>
       </div>
