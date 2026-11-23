@@ -5,7 +5,7 @@ import { cache } from "react";
 import { buildDays, type DayRow, isHoliday } from "./analytics";
 import { DEFAULT_RULE, HOLIDAYS_2026, type Holidays, type WorkRule } from "../config";
 import { mergeLeaves, rankMap } from "./daily";
-import { activeNames, applyEmployees, applyRoster, type Employee, employment, isEmployed, seedFrom } from "./employees";
+import { activeNames, asOf, applyEmployees, applyRoster, type Employee, employment, isEmployed, seedFrom } from "./employees";
 import { dedupeLeaves, type Leave, type RosterRow, sortLeaves } from "./hiworks";
 import { leaveKey } from "./leave";
 import type { CapsRecord } from "./loader";
@@ -138,7 +138,8 @@ export function periodLabel(records: CapsRecord[]): string {
 export async function staffOn(day: DateStr, records: CapsRecord[]): Promise<[string, string][]> {
   const { employees } = await loadBase();
   if (employees.length) {
-    const dept = new Map(employees.map((e) => [e.name, e.dept]));
+    // 부서도 그날 기준 (보직 이동 반영)
+    const dept = new Map(employees.map((e) => [e.name, asOf(e, day).dept]));
     return activeNames(employees, day, day).map((n) => [n, dept.get(n) ?? ""]);
   }
   const lo = addDays(day, -60);

@@ -350,8 +350,10 @@ export function reportCounts(rows: ReportRow[], day?: DateStr): Record<string, n
     const names = new Set(att.filter((r) => splitReportTypes(r.types).some((t) => types.has(t))).map((r) => r.name));
     // (2026-11-19) '휴가일정' 칸은 앞으로의 일정이라, 적힌 날짜에 보고일이 들어 있을 때만 그날 휴가로 센다
     if (label === "휴가") rows.filter((r) => r.section === "휴가일정" && splitReportTypes(r.types).includes(day ?? r.day ?? "")).forEach((r) => names.add(r.name));
-    if (label === "휴일") rows.filter((r) => r.section === "휴일근무" && !isOtRow(r)).forEach((r) => names.add(r.name));
-    if (label === "연장") rows.filter((r) => r.section === "휴일근무" && isOtRow(r)).forEach((r) => names.add(r.name));
+    // (2026-11-23) 휴일·연장 근무는 근무일(types의 날짜)이 보고일인 사람만 '오늘'로 센다. 날짜가 없으면 보고일로 본다.
+    const onDay = (r: ReportRow) => { const ds = splitReportTypes(r.types).filter(isDateStr); return !ds.length || !day || ds.includes(day); };
+    if (label === "휴일") rows.filter((r) => r.section === "휴일근무" && !isOtRow(r) && onDay(r)).forEach((r) => names.add(r.name));
+    if (label === "연장") rows.filter((r) => r.section === "휴일근무" && isOtRow(r) && onDay(r)).forEach((r) => names.add(r.name));
     out[label] = names.size;
   }
   return out;

@@ -189,8 +189,9 @@ const leftIn = (e: Employee, m: string) => spansOf(e).some(([, b]) => b?.startsW
 
 export function headcount(emps: Employee[], base: DateStr): Headcount {
   const month = base.slice(0, 7), first = `${month}-01`;
-  const joined = emps.filter((e) => joinedIn(e, month));
-  const left = emps.filter((e) => leftIn(e, month));
+  // (2026-11-23) 이번 달 입사·퇴직은 기준일까지만: 입사일 ≤ 기준일, 마지막 근무일 < 기준일 (기준일 뒤 예정은 빼기)
+  const joined = emps.filter((e) => spansOf(e).some(([a]) => !!a && a >= first && a <= base));
+  const left = emps.filter((e) => spansOf(e).some(([, b]) => !!b && b >= first && b < base));
   const startActive = emps.filter((e) => activeOn(e, first)).length;
   const y = base.slice(0, 4);
   return {
