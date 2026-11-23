@@ -160,6 +160,9 @@ export const MENU: MenuArea[] = [
     groups: [dutyGroup("cert"), { label: "인증", items: [
       { href: "/cert", label: "인증 현황", desc: "분류별 인증 카드와 일정", also: ["/cert/item"], exact: true },
       { href: "/cert#add", label: "인증 등록", desc: "새 인증·지정 등록" },
+    ] }, { label: "ISO 27001 정보보호", items: [
+      { href: "/cert/iso", label: "업무실적문서", desc: "ISO 27001:2022 실적문서 양식별로 화면에서 작성, 한글(.hwpx)·PDF로 추출", also: ["/cert/iso/doc"], exact: true },
+      { href: "/cert/iso/year", label: "연간 작성 현황", desc: "양식 × 1~12월 작성 수, 써야 하는데 아직인 달" },
     ] }],
   },
   {
@@ -199,7 +202,7 @@ const EMOJI: Record<string, string> = {
   "/attendance": "⏰", "/daily": "📅", "/person": "🙋", "/calendar": "🗓️", "/hours": "📊", "/week52": "⏱️", "/monthly": "🧮",
   "/leave": "🏖️", "/leave/status": "📈", "/leave/calendar": "🌴", "/leave/evidence": "📎", "/leave/register": "✍️",
   "/company": "🏢", "/employees": "🪪", "/org": "🌳", "/jobs": "📑", "/upload": "💾", "/settings": "⚙️",
-  "/ga/mail": "📨", "/ga/issue": "🧾", "/ga/certs": "🔑", "/ga/grants": "🎯", "/ga/ppe": "🦺", "/bid": "⚖️", "/cert?from=ga": "🏅", "/cert": "🏅", "/cert#add": "➕", "/hr/qual": "🧰", "/users": "⚙️",
+  "/ga/mail": "📨", "/ga/issue": "🧾", "/ga/certs": "🔑", "/ga/grants": "🎯", "/ga/ppe": "🦺", "/bid": "⚖️", "/cert?from=ga": "🏅", "/cert": "🏅", "/cert#add": "➕", "/cert/iso": "🛡️", "/cert/iso/year": "🗓️", "/hr/qual": "🧰", "/users": "⚙️",
   "/misc/weekly": "📓", "/misc/coop": "🤝", "/misc/plan": "🧭", "/misc/calendar": "🗓️",
   training: "🎓", licenses: "📜", recruit: "🧲", onoff: "🔁", contracts: "✒️", holidaywork: "🛠️", flex: "🕘", reserve: "🎖️", leavepromo: "📣", absence: "🍼", labor: "⚖️", revisions: "📐", certificates: "📃", foreign: "🌏", programs: "🧑‍🎓", applicants: "📇", appointments: "📢", evaluations: "📝", awards: "🏆", trainplan: "🗓️", council: "🤝", discipline: "🚨", injuries: "🩹", agreements: "✍️", compliance: "✅", meetings: "💬", fixtures: "📦", vehicles: "🚗", drivelog: "🛣️", software: "💿",
   itassets: "🖥️", helpdesk: "🛠️", itdispose: "🗑️", itcontracts: "🌐", accounts: "🔐", accessreview: "🔎", seccheck: "🛡️", incidents: "🚨", pledges: "✍️", media: "💽", privacy: "🔏", privdestroy: "🧯", itedu: "🎓", backups: "💾", cctv: "📹", idcards: "🪪", itroutine: "🔁",

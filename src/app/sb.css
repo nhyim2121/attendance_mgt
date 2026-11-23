@@ -263,3 +263,49 @@
 .ed-cal-f .mates-grid { font-weight: 400; max-height: 150px; overflow: auto; }
 .ed-chip { border: 1px solid #d6dce8; background: #fff; border-radius: 999px; padding: 4px 11px; font: inherit; font-size: .82rem; font-weight: 500; cursor: pointer; }
 .ed-chip.on { background: #0f2a5c; border-color: #0f2a5c; color: #fff; font-weight: 700; }
+
+/* ISO 27001 업무실적문서 (2026-11-23): 양식 카드 보드 · 작성 화면(양식 그대로 A4) · 연간 현황 */
+.iso-group { margin-bottom: 18px; }
+.iso-gh { font-size: 1.02rem; color: #0a2b70; margin: 6px 0 8px; } .iso-gh small { color: var(--muted); font-weight: 500; }
+.iso-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.iso-card { display: flex; flex-direction: column; gap: 5px; padding: 12px 14px; background: #fff; border: 1px solid var(--line-2); border-radius: 12px; text-decoration: none; color: inherit; min-height: 96px; transition: border-color .15s, box-shadow .15s; }
+.iso-card:hover { border-color: #b45309; box-shadow: 0 3px 10px rgba(180,83,9,.12); }
+.iso-card.need { border: 2px solid #ea8a3a; padding: 11px 13px; }
+.iso-card > b { font-size: .98rem; line-height: 1.3; }
+.iso-code { font-size: .74rem; font-weight: 700; color: #b45309; font-variant-numeric: tabular-nums; }
+.iso-sub { margin-top: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: .8rem; }
+.iso-work { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .iso-work { grid-template-columns: 1fr; } }
+.iso-list { display: flex; flex-direction: column; gap: 6px; position: sticky; top: 70px; max-height: calc(100vh - 90px); overflow: auto; }
+.iso-list-h { font-size: .8rem; font-weight: 700; color: var(--muted); margin-top: 8px; }
+.iso-li { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border-radius: 8px; text-decoration: none; color: inherit; border: 1px solid transparent; }
+.iso-li:hover { background: #f6f8fc; } .iso-li.on { background: #fdf3e7; border-color: #ecc58a; }
+.iso-li b { font-size: .9rem; } .iso-li span { font-size: .76rem; color: var(--muted); }
+.iso-main { min-width: 0; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.iso-bar { width: 100%; display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; background: #fff; border: 1px solid var(--line-2); border-radius: 12px; padding: 10px 12px; }
+.iso-meta { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.iso-meta label { display: flex; flex-direction: column; gap: 3px; font-size: .76rem; font-weight: 700; color: #374151; }
+.iso-meta input { padding: 7px 9px; border: 1px solid #d6dce8; border-radius: 8px; font: inherit; font-weight: 400; }
+.iso-meta input[type="text"] { width: 260px; }
+.iso-state { align-self: stretch; font-size: .8rem; color: var(--muted); text-align: right; }
+.iso-page { width: 794px; max-width: 100%; min-height: 1123px; box-sizing: border-box; background: #fff; box-shadow: 0 2px 14px rgba(15,42,92,.14); border-radius: 4px; overflow-x: auto;
+  font-family: "맑은 고딕", "Malgun Gothic", "함초롬돋움", sans-serif; color: #000; line-height: 1.45; }
+.iso-p { white-space: pre-wrap; }
+.iso-tblwrap { margin: 2px 0; display: flex; flex-direction: column; align-items: center; }
+.iso-tbl { border-collapse: collapse; table-layout: fixed; margin: 0 auto; }
+.iso-tbl td { padding: 2px 4px; overflow-wrap: anywhere; }
+.iso-tx { white-space: pre-wrap; min-height: 1.3em; outline: none; border-radius: 2px; }
+.iso-ed { cursor: text; }
+.iso-ed:hover { background: #fffbe6; box-shadow: inset 0 0 0 1px #f2d48b; }
+.iso-ed:focus { background: #fff6cc; box-shadow: inset 0 0 0 2px #e0a526; }
+.iso-grow { display: flex; gap: 6px; justify-content: flex-end; width: 100%; margin-top: 4px; }
+.iso-year th, .iso-year td { text-align: center; padding: 6px 4px; }
+.iso-yg td { background: #f7f8fb; font-weight: 700; color: #0a2b70; text-align: left !important; }
+.iso-n { display: inline-block; min-width: 26px; padding: 2px 0; border-radius: 5px; background: #1f7a3a; color: #fff; font-weight: 700; font-size: .8rem; }
+.iso-due { display: inline-block; width: 26px; height: 20px; border-radius: 5px; border: 2px solid #ea8a3a; box-sizing: border-box; vertical-align: middle; }
+.iso-dot { color: #c7ccd6; }
+@media print {
+  .iso-work { display: block; }
+  .iso-page { box-shadow: none; border-radius: 0; width: 210mm; min-height: 0; }
+  .iso-ed:hover, .iso-ed:focus { background: none; box-shadow: none; }
+}
