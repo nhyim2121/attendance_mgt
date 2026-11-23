@@ -15,6 +15,7 @@ import { noProofFor } from "@/lib/config";
 import Editor, { type EditRow } from "./Editor";
 import { Kinds, rowTone, kindCls, isLeaveText } from "./kinds";
 import { activeNames } from "@/lib/인사노무/employees";
+import Link from "next/link";
 
 const C = (name: string) => SHEET_COLUMNS.indexOf(name);
 
@@ -23,7 +24,7 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
   const [rule, base, holidays] = await Promise.all([getRule(), loadBase(), getHolidays()]);
   const head = (
     <>
-      {cal ? <p className="caption noprint">휴일근무·연장근무한 날만 달력에 표시됩니다. 날짜를 누르면 오른쪽에서 시각·근무지·같이 근무한 사람·업무내용·신청서를 고칠 수 있습니다.</p>
+      {cal ? <p className="caption noprint">전 직원의 휴일근무·연장근무를 한 달력에 모았습니다. 날짜마다 그날 근무한 사람이 보이고, 날짜를 누르면 오른쪽에 시각·근무지·업무내용·신청서가 나옵니다. 고칠 때는 이름 옆 [고치기]로 근태 기입에 들어갑니다.</p>
       : <p className="caption noprint">캡스·하이웍스로 채워지지 않은 조출·연장·출장 시각이나 근무지, 같이 근무한 인원, 업무내용을 직접 적습니다. 저장하면 대시보드와 엑셀에 바로 반영되고, 누가 언제 고쳤는지 남습니다.</p>}
     </>
   );
@@ -161,17 +162,103 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
     const printRows = rows.filter((r) => r.clock_in || r.clock_out || r.kinds.length || Object.values(typed(r.day)).some(Boolean));
     return { mine, me, rows, typed, printRows, dayOf };
   };
+  // 휴일·연장 달력 탭 (2026-11-23): 직원 한 명이 아니라 전 직원을 한 달력에
+  if (cal) return <>{head}{teamCal()}</>;
   const { mine, rows } = build(emp);
-  // 달력(휴일·연장) 탭: 직원 목록에 그 달 휴일·연장 일수를 붙이고, 있는 사람을 앞에
-  const workCount = (x: string) => {
-    const rs = build(x).rows;
-    const has = (r: EditRow, k: string) => r.kinds.includes(k) || !!r.proof?.missing.includes(k);
-    return { h: rs.filter((r) => has(r, "휴일근무")).length, o: rs.filter((r) => has(r, "연장근무")).length };
-  };
-  const empOptions: [string, string][] = cal
-    ? names.map((x) => ({ x, c: workCount(x) })).sort((a, b) => Number(!(a.c.h + a.c.o)) - Number(!(b.c.h + b.c.o)))
-      .map(({ x, c }) => [x, c.h + c.o ? `${x} (휴일 ${c.h} · 연장 ${c.o})` : x])
-    : names.map((x) => [x, x]);
+  const empOptions: [string, string][] = names.map((x) => [x, x]);
+
+  /** 전 직원 휴일·연장 달력: 날짜 칸마다 그날 휴일근무·연장근무한 사람, 누르면 오른쪽에 그날 명단과 내용 */
+  function teamCal() {
+    const WORK = ["휴일근무", "연장근무"];
+    type P = { name: string; dept: string; kinds: string[]; miss: string[]; r: EditRow };
+    const byDay = new Map<string, P[]>();
+    for (const x of names) {
+      const dept = base.employees.find((e) => e.name === x)?.dept ?? "";
+      for (const r of build(x).rows) {
+        const miss = (r.proof?.missing ?? []).filter((k) => WORK.includes(k));
+        const kinds = [...new Set([...r.kinds.filter((k) => WORK.includes(k)), ...miss])];
+        if (!kinds.length) continue;
+        byDay.set(r.day, [...(byDay.get(r.day) ?? []), { name: x, dept, kinds, miss, r }]);
+      }
+    }
+    const all = [...byDay.values()].flat();
+    const cnt = (k: string) => all.filter((p) => p.kinds.includes(k)).length;
+    const missN = all.filter((p) => p.miss.length).length;
+    const people = new Set(all.map((p) => p.name)).size;
+    const dayList = [...byDay.keys()].sort();
+    const want = String(sp.day ?? "");
+    const sel = byDay.has(want) ? want : dayList.find((d) => byDay.get(d)!.some((p) => p.miss.length)) ?? dayList[0] ?? "";
+    const today = new Date().toLocaleDateString("sv-SE");
+    const WD = ["월", "화", "수", "목", "금", "토", "일"];
+    const lead = Math.max(0, WD.indexOf(weekdayKr(makeDate(y, m, 1)!)));
+    const href = (d: string) => `/person?month=${month}&day=${d}`;
+    const editHref = (x: string) => `/sheets?tab=edit&month=${month}&emp=${encodeURIComponent(x)}`;
+    const ps = byDay.get(sel) ?? [];
+    const iSel = dayList.indexOf(sel);
+    return (
+      <>
+        <div className="filters noprint">
+          <Suspense><ParamSelect name="month" label="월" value={month} options={months.map((x) => [x, x])} /></Suspense>
+        </div>
+        <div className="ed-cal-sum">
+          <span className="tag t-휴일근무">휴일근무 {cnt("휴일근무")}건</span>
+          <span className="tag t-연장근무">연장근무 {cnt("연장근무")}건</span>
+          <span>· {dayList.length}일 · {people}명</span>
+          {missN > 0 && <span className="red"><b>● 신청서 없음 {missN}건</b></span>}
+        </div>
+        {!dayList.length ? <p className="fd-empty">{y}년 {m}월에는 휴일근무·연장근무가 없습니다.</p> : (
+          <div className="ed-cal">
+            <div className="ed-cal-grid">
+              {WD.map((w) => <div key={w} className={`ed-cal-wd${w === "토" ? " sat" : w === "일" ? " sun" : ""}`}>{w}</div>)}
+              {Array.from({ length: lead }, (_, i) => <div key={`b${i}`} />)}
+              {Array.from({ length: n }, (_, i) => {
+                const d = makeDate(y, m, i + 1)!;
+                const wd = weekdayKr(d);
+                const dayCls = wd === "일" || isHoliday(d, rule, holidays) ? "sun" : wd === "토" ? "sat" : "";
+                const list = byDay.get(d);
+                if (!list) return <div key={d} className={`ed-cal-day off${d === today ? " today" : ""}`}><b className={dayCls}>{i + 1}</b></div>;
+                const anyHol = list.some((p) => p.kinds.includes("휴일근무"));
+                return (
+                  <Link key={d} href={href(d)} scroll={false}
+                    className={`ed-cal-day tc-day ${anyHol ? "tone-hol" : "tone-ot"}${d === sel ? " sel" : ""}${d === today ? " today" : ""}`}>
+                    <b className={dayCls}>{i + 1}</b>
+                    {list.map((p) => (
+                      <span key={p.name} className={`tc-name ${p.kinds.includes("휴일근무") ? "h" : "o"}${p.miss.length ? " miss" : ""}`}>
+                        {p.miss.length ? "● " : ""}{p.name}
+                      </span>
+                    ))}
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="ed-cal-panel">
+              <div className="ed-cal-head"><b>{+sel.slice(5, 7)}월 {+sel.slice(8)}일 ({weekdayKr(sel)})</b><span className="caption" style={{ margin: 0 }}>{ps.length}명 근무</span></div>
+              {ps.map((p) => (
+                <div key={p.name} className="tc-person">
+                  <div className="tc-top">
+                    <b>{p.name}</b><span className="muted">{p.dept}</span>
+                    {p.kinds.map((k) => <span key={k} className={`tag t-${k}`}>{k}</span>)}
+                    <Link className="btn tc-edit" href={editHref(p.name)}>고치기</Link>
+                  </div>
+                  <div className="tc-line ed-cal-t">
+                    {p.r.clock_in || "--:--"} ~ {p.r.clock_out || <span className="ed-cal-miss">퇴근 없음</span>}
+                    {p.miss.length ? <span className="ed-cal-miss"> · ● 신청서 없음</span> : p.r.proof?.need.length ? <span className="ed-cal-ok"> · ✓ 신청서</span> : null}
+                  </div>
+                  {(p.r.place || p.r.work) && <div className="tc-line">{[p.r.place, p.r.work].filter(Boolean).join(" · ")}</div>}
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: 8 }}>
+                {iSel > 0 ? <Link className="btn" href={href(dayList[iSel - 1])} scroll={false}>‹ 이전 날</Link> : <span className="btn" style={{ opacity: .4 }}>‹ 이전 날</span>}
+                {iSel < dayList.length - 1 ? <Link className="btn primary" style={{ flex: 1, textAlign: "center" }} href={href(dayList[iSel + 1])} scroll={false}>다음 근무일 ›</Link>
+                  : <span className="btn primary" style={{ flex: 1, textAlign: "center", opacity: .4 }}>다음 근무일 ›</span>}
+              </div>
+              <p className="caption" style={{ margin: 0 }}>● 빨간 이름 = 신청서가 없어 아직 인정되지 않은 근무. [고치기]를 누르면 그 사람의 근태 기입으로 갑니다.</p>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
   // 여러 명 한꺼번에 인쇄·저장: 고른 직원(주소 pick)마다 한 장씩
   const pick = String(sp.pick ?? "").split(",").filter((x) => names.includes(x));
   const pickQ = names.filter((x) => pick.includes(x));
