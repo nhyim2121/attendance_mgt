@@ -642,33 +642,68 @@ function attPanels(groups: ReportRow[][]): string {
       + foot(ppl(g)));
   };
   // 휴가 (2026-11-23 1안): 메모지 대신 한 사람 한 줄 표 — 종류(묶음 첫 줄에만, 인원) | 이름 직급 | 부서 | 시간·사유, 세로로 줄 맞춤
+  // 휴가 (2026-11-23 2안+4안): 종류마다 한 줄 — 왼쪽 종류·시간·인원, 오른쪽 부서별 이름표.
+  // 반차·반반차·외출(시간이 있는 휴가)만 사람마다 하루 시간 막대(08:30~17:30)를 붙여 언제 자리를 비우는지 보여 준다.
   const leaveTable = (gs: ReportRow[][]) => {
-    const [, bd] = PANEL_SOFT.휴가;
-    const TD = `${TXT}font-size:14px;line-height:1.5;padding:7px 12px;vertical-align:middle;`;
-    const head = [["종류", "120px"], ["이름", "150px"], ["부서", "110px"], ["시간 · 사유", ""]]
-      .map(([h, w]) => `<th style="${TXT}font-size:12px;font-weight:700;color:#4b6b55;background:#f3faf5;padding:7px 12px;text-align:left;${w ? `width:${w};` : ""}">${h}</th>`).join("");
-    // 사유가 비어도 종류·시간·사유가 같으면 한 묶음으로 (부서 → 직급 순)
-    const merged = new Map<string, ReportRow[]>();
-    for (const r of gs.flat()) {
-      const k = [[...splitReportTypes(r.types)].sort().join("|"), r.detail.trim(), r.title.trim()].join("~");
-      merged.set(k, [...(merged.get(k) ?? []), r]);
-    }
+    const DAY0 = 8 * 60 + 30, DAY1 = 17 * 60 + 30;
+    const hm = (t: string) => { const m = /^(\d{1,2}):(\d{2})$/.exec(t.trim()); return m ? +m[1] * 60 + +m[2] : null; };
+    const span = (detail: string) => {
+      const m = /^\s*(\d{1,2}:\d{2})\s*~\s*(\d{1,2}:\d{2})\s*$/.exec(detail ?? "");
+      const a = m ? hm(m[1]) : null, b = m ? hm(m[2]) : null;
+      return a !== null && b !== null && b > a ? [Math.max(DAY0, a), Math.min(DAY1, b)] as const : null;
+    };
     const rk = (x: string) => (RANK_ORDER.includes(x) ? RANK_ORDER.indexOf(x) : RANK_ORDER.length);
-    const trs = [...merged.values()].map((g) => {
-      const order = [...new Set(g.map((r) => r.dept))];
-      return [...g].sort((a, b) => order.indexOf(a.dept) - order.indexOf(b.dept) || rk(a.rank) - rk(b.rank));
-    }).flatMap((g) => {
-      const r0 = g[0];
-      const time = leaveUnit(r0.types) === "day" ? "종일" : timeLabel(r0.detail) || r0.detail.trim();
-      const info = esc([time, r0.title.trim()].filter(Boolean).join(" · "));
-      return g.map((r, i) => `<tr><td style="${TD}border-top:${i ? `1px dashed ${bd}` : `1px solid ${bd}`};">`
-        + (i ? "" : `${splitReportTypes(r0.types).map(badge).join("")}${g.length > 1 ? `<span style="${small}font-weight:700;margin-left:2px">${g.length}명</span>` : ""}`)
-        + `</td><td style="${TD}border-top:${i ? `1px dashed ${bd}` : `1px solid ${bd}`};"><b>${esc(r.name)}</b>${r.rank ? `<span style="${small}"> ${esc(r.rank)}</span>` : ""}</td>`
-        + `<td style="${TD}border-top:${i ? `1px dashed ${bd}` : `1px solid ${bd}`};${small}font-size:13px;">${esc(r.dept) || "-"}</td>`
-        + `<td style="${TD}border-top:${i ? `1px dashed ${bd}` : `1px solid ${bd}`};font-size:13px;">${i ? `<span style="color:#b6bdca">〃</span>` : info || "-"}</td></tr>`);
+    const byType = new Map<string, ReportRow[]>();
+    for (const r of gs.flat()) {
+      const k = [...splitReportTypes(r.types)].sort().join(",");
+      byType.set(k, [...(byType.get(k) ?? []), r]);
+    }
+    const chip = (r: ReportRow, bd: string) => `<span style="display:inline-block;${TXT}font-size:13px;background:#ffffff;border:1px solid ${bd};border-radius:999px;padding:1px 10px;margin:0 4px 4px 0;white-space:nowrap">`
+      + `<b>${esc(r.name)}</b>${r.rank ? `<span style="${small}"> ${esc(r.rank)}</span>` : ""}</span>`;
+    const deptLabel = (dp: string) => `<td style="${small}width:52px;vertical-align:top;padding-top:3px;white-space:nowrap">${esc(dp) || "-"}</td>`;
+    /** 막대 안에 시간 글자가 들어갈 만큼 긴지 (아니면 오른쪽에 시간을 다 적는다) */
+    const wide = (detail: string) => { const sp = span(detail); return !!sp && ((sp[1] - sp[0]) / (DAY1 - DAY0)) * 100 > 14; };
+    const bar = (detail: string, fg: string) => {
+      const sp = span(detail);
+      if (!sp) return "";
+      const tot = DAY1 - DAY0, w0 = ((sp[0] - DAY0) / tot) * 100, w1 = ((sp[1] - sp[0]) / tot) * 100, w2 = Math.max(0, 100 - w0 - w1);
+      const cell = (w: number, bg: string, inner = "") => (w > 0.5 ? `<td style="width:${w.toFixed(1)}%;height:16px;background:${bg};${inner ? `${TXT}font-size:11px;font-weight:700;color:#ffffff;padding:0 6px;white-space:nowrap;overflow:hidden;` : ""}">${inner}</td>` : "");
+      return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;border-radius:5px;overflow:hidden"><tr>`
+        + cell(w0, "#eef1f5") + cell(w1, fg, w1 > 14 ? esc(detail.replace(/\s/g, "")) : "") + cell(w2, "#eef1f5") + `</tr></table>`;
+    };
+    const blocks = [...byType.entries()].map(([k, rs]) => {
+      const types = k.split(",");
+      const [fg] = BADGE[types[0]] ?? ["#1f8a3b", "#e3f4e8"];
+      const [bgSoft, bd] = types.some((t) => t === "반차" || t === "반반차") ? ["#f1faf8", "#cdebe6"] : types.includes("외출") ? ["#fff8f3", "#f6dcc8"] : PANEL_SOFT.휴가;
+      const timed = rs.some((r) => span(r.detail));
+      const order = [...new Set(rs.map((r) => r.dept))];
+      const sorted = [...rs].sort((a, b) => order.indexOf(a.dept) - order.indexOf(b.dept) || rk(a.rank) - rk(b.rank));
+      const allDay = leaveUnit(k) === "day";
+      const left = `<td style="width:96px;vertical-align:top;padding:10px 0 10px 14px">${types.map(badge).join("")}`
+        + `<div style="${TXT}font-size:12px;color:#3b4558;margin-top:2px">${allDay ? "종일 · " : ""}${new Set(rs.map((r) => r.name)).size}명</div></td>`;
+      let right: string;
+      if (timed) {
+        // 사람마다 한 줄: 부서 | 이름표 | 시간 막대 | 사유
+        const axis = `<tr><td></td><td></td><td style="padding:0 0 2px"><table role="presentation" cellpadding="0" cellspacing="0" style="width:100%"><tr>`
+          + `<td style="${small}font-size:10px">08:30</td><td style="${small}font-size:10px;text-align:right">17:30</td></tr></table></td><td></td></tr>`;
+        right = `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">${axis}`
+          + sorted.map((r, i) => `<tr>${deptLabel(i && sorted[i - 1].dept === r.dept ? "" : r.dept)}`
+            + `<td style="width:130px;vertical-align:middle">${chip(r, bd)}</td>`
+            + `<td style="vertical-align:middle;padding:0 0 4px">${bar(r.detail, fg) || `<span style="${small}">${esc(timeLabel(r.detail) || r.detail)}</span>`}</td>`
+            + `<td style="${small}vertical-align:middle;padding:0 0 4px 8px;width:150px">${esc([wide(r.detail) ? timeLabel(r.detail).replace(/^.*\(/, "(") : timeLabel(r.detail), r.title.trim()].filter(Boolean).join(" "))}</td></tr>`).join("")
+          + `</table>`;
+      } else {
+        // 부서마다 한 줄: 부서 | 이름표들 (사유는 이름 뒤 괄호)
+        right = `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">`
+          + order.map((dp) => `<tr>${deptLabel(dp)}<td style="vertical-align:top">`
+            + sorted.filter((r) => r.dept === dp).map((r) => chip(r, bd) + (r.title.trim() ? `<span style="${small}margin:0 8px 0 -2px">(${esc(r.title.trim())})</span>` : "")).join("")
+            + `</td></tr>`).join("")
+          + `</table>`;
+      }
+      return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;background:${bgSoft};border:1px solid ${bd};border-radius:8px;margin-bottom:8px"><tr>`
+        + left + `<td style="vertical-align:top;padding:10px 14px 6px 10px">${right}</td></tr></table>`;
     });
-    return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${bd};border-radius:8px">`
-      + `<tr>${head}</tr>${trs.join("")}</table>`;
+    return blocks.join("");
   };
   const COLS = 3;
   return ATT_PANELS.map(([name, color]) => {
