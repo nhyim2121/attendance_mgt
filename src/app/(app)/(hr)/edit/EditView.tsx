@@ -18,11 +18,13 @@ import { activeNames } from "@/lib/인사노무/employees";
 
 const C = (name: string) => SHEET_COLUMNS.indexOf(name);
 
-export default async function EditView({ sp }: { sp: SearchParams }) {
+export default async function EditView({ sp, mode = "table" }: { sp: SearchParams; mode?: "table" | "cal" }) {
+  const cal = mode === "cal";
   const [rule, base, holidays] = await Promise.all([getRule(), loadBase(), getHolidays()]);
   const head = (
     <>
-      <p className="caption noprint">캡스·하이웍스로 채워지지 않은 조출·연장·출장 시각이나 근무지, 같이 근무한 인원, 업무내용을 직접 적습니다. 저장하면 대시보드와 엑셀에 바로 반영되고, 누가 언제 고쳤는지 남습니다.</p>
+      {cal ? <p className="caption noprint">휴일근무·연장근무한 날만 달력에 표시됩니다. 날짜를 누르면 오른쪽에서 시각·근무지·같이 근무한 사람·업무내용·신청서를 고칠 수 있습니다.</p>
+      : <p className="caption noprint">캡스·하이웍스로 채워지지 않은 조출·연장·출장 시각이나 근무지, 같이 근무한 인원, 업무내용을 직접 적습니다. 저장하면 대시보드와 엑셀에 바로 반영되고, 누가 언제 고쳤는지 남습니다.</p>}
     </>
   );
   if (!base.months.length) return <>{head}<NoData /></>;
@@ -160,6 +162,16 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
     return { mine, me, rows, typed, printRows, dayOf };
   };
   const { mine, rows } = build(emp);
+  // 달력(휴일·연장) 탭: 직원 목록에 그 달 휴일·연장 일수를 붙이고, 있는 사람을 앞에
+  const workCount = (x: string) => {
+    const rs = build(x).rows;
+    const has = (r: EditRow, k: string) => r.kinds.includes(k) || !!r.proof?.missing.includes(k);
+    return { h: rs.filter((r) => has(r, "휴일근무")).length, o: rs.filter((r) => has(r, "연장근무")).length };
+  };
+  const empOptions: [string, string][] = cal
+    ? names.map((x) => ({ x, c: workCount(x) })).sort((a, b) => Number(!(a.c.h + a.c.o)) - Number(!(b.c.h + b.c.o)))
+      .map(({ x, c }) => [x, c.h + c.o ? `${x} (휴일 ${c.h} · 연장 ${c.o})` : x])
+    : names.map((x) => [x, x]);
   // 여러 명 한꺼번에 인쇄·저장: 고른 직원(주소 pick)마다 한 장씩
   const pick = String(sp.pick ?? "").split(",").filter((x) => names.includes(x));
   const pickQ = names.filter((x) => pick.includes(x));
@@ -222,29 +234,29 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
       <div className="filters noprint">
         <Suspense>
           <ParamSelect name="month" label="월" value={month} options={months.map((x) => [x, x])} />
-          <ParamSelect name="emp" label="직원" value={emp} options={names.map((x) => [x, x])} />
-          <span style={{ alignSelf: "flex-end" }}>
+          <ParamSelect name="emp" label="직원" value={emp} options={empOptions} />
+          {!cal && <span style={{ alignSelf: "flex-end" }}>
             <ParamMulti name="pick" values={pickQ} options={names} label="여러 명 저장·인쇄" allLabel="선택 안 함" />
-          </span>
+          </span>}
         </Suspense>
-        {pickQ.length > 0 && <span className="caption" style={{ alignSelf: "flex-end", margin: 0 }}>
+        {!cal && pickQ.length > 0 && <span className="caption" style={{ alignSelf: "flex-end", margin: 0 }}>
           고른 {pickQ.length}명을 한 사람씩 한 장에 인쇄하고, 엑셀은 한 사람씩 파일로 묶어(ZIP) 받습니다.</span>}
         <span className="spacer" />
-        <a className="btn primary" style={{ alignSelf: "flex-end" }}
+        {!cal && <><a className="btn primary" style={{ alignSelf: "flex-end" }}
           href={pickQ.length
             ? `/api/export?kind=zip&month=${month}&emps=${encodeURIComponent(pickQ.join(","))}`
             : `/api/export?kind=one&month=${month}&emp=${encodeURIComponent(emp)}`}>
           {pickQ.length ? `엑셀 저장 (${pickQ.length}명)` : "엑셀 저장"}</a>
-        <span style={{ alignSelf: "flex-end" }}><PrintButton label={pickQ.length ? `PDF 저장 / 인쇄 (${pickQ.length}명)` : "PDF 저장 / 인쇄"} /></span>
+        <span style={{ alignSelf: "flex-end" }}><PrintButton label={pickQ.length ? `PDF 저장 / 인쇄 (${pickQ.length}명)` : "PDF 저장 / 인쇄"} /></span></>}
       </div>
-      {(pickQ.length ? pickQ : [emp]).map(printPage)}
+      {!cal && (pickQ.length ? pickQ : [emp]).map(printPage)}
       <div className="card noprint">
         <div className="card-title">{mine[0]?.dept} {emp} · {y}년 {m}월</div>
-        <Editor key={`${emp}|${month}`} employee={emp} rows={rows}
+        <Editor key={`${emp}|${month}|${mode}`} employee={emp} rows={rows} mode={mode}
           staff={base.employees.filter((e) => activeNames([e], `${month}-01`, `${month}-31`).length > 0).map((e) => e.name)} />
-        <p className="caption" style={{ marginTop: 10 }}>
+        {!cal && <p className="caption" style={{ marginTop: 10 }}>
           시각을 직접 넣은 행은 엑셀의 인증 칸에 &apos;수기입력&apos;으로 표시됩니다. 근무형태(휴일·연장)는 기준에 따라 자동으로 적고, 고쳐 쓰면 그 값이 저장됩니다. 근무지·인원·업무내용은 일일 근태 보고서에 적은 값이 <span style={{ color: "#0c3994", fontWeight: 700 }}>파란 글씨</span>로 들어오고, 고쳐 쓰면 근태 기입 값으로 저장됩니다.
-        </p>
+        </p>}
       </div>
     </>
   );

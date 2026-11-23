@@ -222,6 +222,8 @@
 .ed-cal-wd.sat { color: #2563eb; } .ed-cal-wd.sun { color: var(--red); }
 .ed-cal-day { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-height: 92px; padding: 6px 7px; border: 1px solid #eef0f4; border-radius: 8px; background: #fff; text-align: left; cursor: pointer; font: inherit; font-size: .76rem; color: #374151; }
 .ed-cal-day:hover { border-color: #0f2a5c; }
+.ed-cal-day.off { background: #fafbfc; cursor: default; min-height: 92px; } .ed-cal-day.off:hover { border-color: #eef0f4; } .ed-cal-day.off > b { color: #9ca3af; font-weight: 500; }
+.ed-cal-sum { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 4px 0 10px; font-size: .9rem; }
 .ed-cal-day > b { font-size: .95rem; color: #1f2937; }
 .ed-cal-day > b.sat { color: #2563eb; } .ed-cal-day > b.sun { color: var(--red); }
 .ed-cal-day.tone-hol { background: #fdf8ee; border-color: #e7c98f; }
