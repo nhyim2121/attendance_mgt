@@ -323,3 +323,14 @@
 .iso-guide-full { margin-bottom: 12px; break-inside: avoid; } .iso-guide-full h3 { margin: 0 0 4px; font-size: 1.05rem; color: #0a2b70; }
 .iso-guide-full .iso-guide-b { padding: 4px 0 0; }
 .iso-guide-intro { margin-bottom: 14px; font-size: .9rem; line-height: 1.6; } .iso-guide-intro ul { margin: 6px 0 10px; padding-left: 20px; }
+/* ISO 실적문서 인쇄·PDF (2026-11-23): 문서(양식 한 장)만, 안쪽 여백 없이 → PrintFit이 A4 한 장에 꽉 차게 키움 */
+@media print {
+  main.main:has(.iso-page) > :not(.iso-work) { display: none !important; }
+  .iso-work > aside, .iso-main > :not(.iso-page) { display: none !important; }
+  .iso-main { display: block; }
+  .iso-page { width: 100% !important; max-width: none; min-height: 0; padding: 0 !important; margin: 0; box-shadow: none; border-radius: 0; overflow: visible; }
+}
+.measuring main.main:has(.iso-page) > :not(.iso-work) { display: none !important; }
+.measuring .iso-work > aside, .measuring .iso-main > :not(.iso-page) { display: none !important; }
+.measuring .iso-work, .measuring .iso-main { display: block; }
+.measuring .iso-page { width: 100% !important; max-width: none; min-height: 0; padding: 0 !important; margin: 0; box-shadow: none; border-radius: 0; overflow: visible; }

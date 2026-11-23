@@ -70,7 +70,7 @@ export default function Sheet({ docId, sheet, values, readOnly }: { docId?: numb
     const w = b.cols.reduce((s, x) => s + x, 0);
     return (
       <div key={b.id} className="iso-tblwrap">
-        <table className="iso-tbl" style={{ width: Math.min(w, 680) }}>
+        <table className="iso-tbl" style={{ width: `${(Math.min(w, 680) / 680) * 100}%` }}>
           <colgroup>{b.cols.map((x, i) => <col key={i} style={{ width: `${(x / w) * 100}%` }} />)}</colgroup>
           <tbody>{b.rows.map((row, i) => <tr key={i}>{row.map(cell)}</tr>)}</tbody>
         </table>
