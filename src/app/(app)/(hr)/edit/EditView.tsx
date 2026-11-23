@@ -172,12 +172,14 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
     const WORK = ["휴일근무", "연장근무"];
     type P = { name: string; dept: string; kinds: string[]; miss: string[]; r: EditRow };
     const byDay = new Map<string, P[]>();
-    // 직원 고르기 (2026-11-23): 고른 사람만 달력에. 아무도 안 고르면 전 직원
+    // 부서 고르기 (2026-11-23): 고른 부서 사람만 달력에. 아무것도 안 고르면 전 직원
+    const deptOf = (x: string) => base.employees.find((e) => e.name === x)?.dept || "부서 없음";
     const workers = names.filter((x) => build(x).rows.some((r) => r.kinds.some((k) => WORK.includes(k)) || r.proof?.missing.some((k) => WORK.includes(k))));
-    const who = String(sp.who ?? "").split(",").filter((x) => workers.includes(x));
-    const whoQ = workers.filter((x) => who.includes(x));
-    for (const x of whoQ.length ? whoQ : names) {
-      const dept = base.employees.find((e) => e.name === x)?.dept ?? "";
+    const deptList = [...new Set(workers.map(deptOf))].sort((a, b) => a.localeCompare(b, "ko"));
+    const part = String(sp.part ?? "").split(",").filter((x) => deptList.includes(x));
+    const whoQ = deptList.filter((x) => part.includes(x));
+    for (const x of whoQ.length ? names.filter((x) => whoQ.includes(deptOf(x))) : names) {
+      const dept = deptOf(x);
       for (const r of build(x).rows) {
         const miss = (r.proof?.missing ?? []).filter((k) => WORK.includes(k));
         const kinds = [...new Set([...r.kinds.filter((k) => WORK.includes(k)), ...miss])];
@@ -195,7 +197,7 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
     const today = new Date().toLocaleDateString("sv-SE");
     const WD = ["월", "화", "수", "목", "금", "토", "일"];
     const lead = Math.max(0, WD.indexOf(weekdayKr(makeDate(y, m, 1)!)));
-    const href = (d: string) => `/person?month=${month}&day=${d}${whoQ.length ? `&who=${encodeURIComponent(whoQ.join(","))}` : ""}`;
+    const href = (d: string) => `/person?month=${month}&day=${d}${whoQ.length ? `&part=${encodeURIComponent(whoQ.join(","))}` : ""}`;
     const editHref = (x: string) => `/sheets?tab=edit&month=${month}&emp=${encodeURIComponent(x)}`;
     const ps = byDay.get(sel) ?? [];
     const iSel = dayList.indexOf(sel);
@@ -205,7 +207,7 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
           <Suspense>
             <ParamSelect name="month" label="월" value={month} options={months.map((x) => [x, x])} />
             <span style={{ alignSelf: "flex-end" }}>
-              <ParamMulti name="who" values={whoQ} options={workers} label="직원 고르기" allLabel="전 직원" />
+              <ParamMulti name="part" values={whoQ} options={deptList} label="부서 고르기" allLabel="전 부서" />
             </span>
           </Suspense>
           {whoQ.length > 0 && <span className="caption" style={{ alignSelf: "flex-end", margin: 0 }}>{whoQ.join(", ")}만 보는 중</span>}
@@ -214,7 +216,12 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
           <span className="tag t-휴일근무">휴일근무 {cnt("휴일근무")}건</span>
           <span className="tag t-연장근무">연장근무 {cnt("연장근무")}건</span>
           <span>· {dayList.length}일 · {people}명</span>
-          {missN > 0 && <span className="red"><b>● 신청서 없음 {missN}건</b></span>}
+          {missN > 0 && <span><mark className="tc-hl">신청서 없음</mark> {missN}건</span>}
+        </div>
+        <div className="tc-legend noprint">
+          <span><i className="tc-k h">휴</i> 휴일근무</span>
+          <span><i className="tc-k o">연</i> 연장근무 <em>(이름 옆 = 퇴근 시각)</em></span>
+          <span><mark className="tc-hl">형광펜 밑줄</mark> = 신청서 안 냄</span>
         </div>
         {!dayList.length ? <p className="fd-empty">{y}년 {m}월에는 휴일근무·연장근무가 없습니다.</p> : (
           <div className="ed-cal">
@@ -232,11 +239,16 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
                   <Link key={d} href={href(d)} scroll={false}
                     className={`ed-cal-day tc-day ${anyHol ? "tone-hol" : "tone-ot"}${d === sel ? " sel" : ""}${d === today ? " today" : ""}`}>
                     <b className={dayCls}>{i + 1}</b>
-                    {list.map((p) => (
-                      <span key={p.name} className={`tc-name ${p.kinds.includes("휴일근무") ? "h" : "o"}${p.miss.length ? " miss" : ""}`}>
-                        {p.miss.length ? "● " : ""}{p.name}
-                      </span>
-                    ))}
+                    {[...list].sort((a, b) => Number(!a.kinds.includes("휴일근무")) - Number(!b.kinds.includes("휴일근무")) || (b.r.clock_out || "").localeCompare(a.r.clock_out || "")).map((p) => {
+                      const h = p.kinds.includes("휴일근무");
+                      return (
+                        <span key={p.name} className="tc-name">
+                          <i className={`tc-k ${h ? "h" : "o"}`}>{h ? "휴" : "연"}</i>
+                          <span className={p.miss.length ? "tc-hl" : ""}>{p.name}</span>
+                          {!h && p.r.clock_out && <em className="tc-out">{p.r.clock_out}</em>}
+                        </span>
+                      );
+                    })}
                   </Link>
                 );
               })}
@@ -252,7 +264,7 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
                   </div>
                   <div className="tc-line ed-cal-t">
                     {p.r.clock_in || "--:--"} ~ {p.r.clock_out || <span className="ed-cal-miss">퇴근 없음</span>}
-                    {p.miss.length ? <span className="ed-cal-miss"> · ● 신청서 없음</span> : p.r.proof?.need.length ? <span className="ed-cal-ok"> · ✓ 신청서</span> : null}
+                    {p.miss.length ? <> · <mark className="tc-hl">신청서 없음</mark></> : p.r.proof?.need.length ? <span className="ed-cal-ok"> · ✓ 신청서</span> : null}
                   </div>
                   {(p.r.place || p.r.work) && <div className="tc-line">{[p.r.place, p.r.work].filter(Boolean).join(" · ")}</div>}
                 </div>
@@ -262,7 +274,7 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
                 {iSel < dayList.length - 1 ? <Link className="btn primary" style={{ flex: 1, textAlign: "center" }} href={href(dayList[iSel + 1])} scroll={false}>다음 근무일 ›</Link>
                   : <span className="btn primary" style={{ flex: 1, textAlign: "center", opacity: .4 }}>다음 근무일 ›</span>}
               </div>
-              <p className="caption" style={{ margin: 0 }}>● 빨간 이름 = 신청서가 없어 아직 인정되지 않은 근무. [고치기]를 누르면 그 사람의 근태 기입으로 갑니다.</p>
+              <p className="caption" style={{ margin: 0 }}>형광펜 밑줄 이름 = 신청서가 없어 아직 인정되지 않은 근무. [고치기]를 누르면 그 사람의 근태 기입으로 갑니다.</p>
             </div>
           </div>
         )}
