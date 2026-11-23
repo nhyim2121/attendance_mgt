@@ -460,7 +460,8 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
 
   // 한 줄 요약 (메일에서도 나란히 보이도록 표로)
   const counts = reportCounts(rows, day);
-  if (home) parts.push(glance(home, counts, withTitle), yesterdayCards(home));
+  // 어제 근무 칸: 월요일 보고서에서는 빼기 (지난 금요일 이야기라 필요 없음 — 2026-11-23 사용자 요청)
+  if (home) parts.push(glance(home, counts, withTitle), weekday(day) === 0 ? "" : yesterdayCards(home));
   else {
     // 홈 숫자가 없을 때 (예전 방식): 칸 사이 세로선, 0명은 흐리게
     const cards = SUMMARY_CARDS.map(([label, color], i) => {
