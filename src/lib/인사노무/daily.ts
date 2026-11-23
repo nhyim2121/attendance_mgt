@@ -640,11 +640,46 @@ function attPanels(groups: ReportRow[][]): string {
       + line(esc(r.detail.trim()) + (extra.length ? ` ${extra.map(badge).join("")}` : ""))
       + foot(ppl(g)));
   };
+  // 휴가 (2026-11-23 1안): 메모지 대신 한 사람 한 줄 표 — 종류(묶음 첫 줄에만, 인원) | 이름 직급 | 부서 | 시간·사유, 세로로 줄 맞춤
+  const leaveTable = (gs: ReportRow[][]) => {
+    const [, bd] = PANEL_SOFT.휴가;
+    const TD = `${TXT}font-size:14px;line-height:1.5;padding:7px 12px;vertical-align:middle;`;
+    const head = [["종류", "120px"], ["이름", "150px"], ["부서", "110px"], ["시간 · 사유", ""]]
+      .map(([h, w]) => `<th style="${TXT}font-size:12px;font-weight:700;color:#4b6b55;background:#f3faf5;padding:7px 12px;text-align:left;${w ? `width:${w};` : ""}">${h}</th>`).join("");
+    // 사유가 비어도 종류·시간·사유가 같으면 한 묶음으로 (부서 → 직급 순)
+    const merged = new Map<string, ReportRow[]>();
+    for (const r of gs.flat()) {
+      const k = [[...splitReportTypes(r.types)].sort().join("|"), r.detail.trim(), r.title.trim()].join("~");
+      merged.set(k, [...(merged.get(k) ?? []), r]);
+    }
+    const rk = (x: string) => (RANK_ORDER.includes(x) ? RANK_ORDER.indexOf(x) : RANK_ORDER.length);
+    const trs = [...merged.values()].map((g) => {
+      const order = [...new Set(g.map((r) => r.dept))];
+      return [...g].sort((a, b) => order.indexOf(a.dept) - order.indexOf(b.dept) || rk(a.rank) - rk(b.rank));
+    }).flatMap((g) => {
+      const r0 = g[0];
+      const time = leaveUnit(r0.types) === "day" ? "종일" : timeLabel(r0.detail) || r0.detail.trim();
+      const info = esc([time, r0.title.trim()].filter(Boolean).join(" · "));
+      return g.map((r, i) => `<tr><td style="${TD}border-top:${i ? `1px dashed ${bd}` : `1px solid ${bd}`};">`
+        + (i ? "" : `${splitReportTypes(r0.types).map(badge).join("")}${g.length > 1 ? `<span style="${small}font-weight:700;margin-left:2px">${g.length}명</span>` : ""}`)
+        + `</td><td style="${TD}border-top:${i ? `1px dashed ${bd}` : `1px solid ${bd}`};"><b>${esc(r.name)}</b>${r.rank ? `<span style="${small}"> ${esc(r.rank)}</span>` : ""}</td>`
+        + `<td style="${TD}border-top:${i ? `1px dashed ${bd}` : `1px solid ${bd}`};${small}font-size:13px;">${esc(r.dept) || "-"}</td>`
+        + `<td style="${TD}border-top:${i ? `1px dashed ${bd}` : `1px solid ${bd}`};font-size:13px;">${i ? `<span style="color:#b6bdca">〃</span>` : info || "-"}</td></tr>`);
+    });
+    return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid ${bd};border-radius:8px">`
+      + `<tr>${head}</tr>${trs.join("")}</table>`;
+  };
   const COLS = 3;
   return ATT_PANELS.map(([name, color]) => {
     const gs = groups.filter((g) => panelOf(g[0].types) === name);
     if (!gs.length) return "";
     const n = new Set(gs.flat().map((r) => r.name)).size;
+    if (name === "휴가") {
+      return `<div style="margin-bottom:12px">`
+        + `<div style="${TXT}font-size:13px;font-weight:800;color:${color};margin-bottom:6px">`
+        + `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${color};margin-right:6px"></span>${name}`
+        + `<span style="${small}font-weight:700;margin-left:6px">${n}명</span></div>${leaveTable(gs)}</div>`;
+    }
     const cells = gs.map((g) => tile(name, g));
     const trs: string[] = [];
     for (let i = 0; i < cells.length; i += COLS) {
