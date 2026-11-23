@@ -172,7 +172,11 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
     const WORK = ["휴일근무", "연장근무"];
     type P = { name: string; dept: string; kinds: string[]; miss: string[]; r: EditRow };
     const byDay = new Map<string, P[]>();
-    for (const x of names) {
+    // 직원 고르기 (2026-11-23): 고른 사람만 달력에. 아무도 안 고르면 전 직원
+    const workers = names.filter((x) => build(x).rows.some((r) => r.kinds.some((k) => WORK.includes(k)) || r.proof?.missing.some((k) => WORK.includes(k))));
+    const who = String(sp.who ?? "").split(",").filter((x) => workers.includes(x));
+    const whoQ = workers.filter((x) => who.includes(x));
+    for (const x of whoQ.length ? whoQ : names) {
       const dept = base.employees.find((e) => e.name === x)?.dept ?? "";
       for (const r of build(x).rows) {
         const miss = (r.proof?.missing ?? []).filter((k) => WORK.includes(k));
@@ -191,14 +195,20 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
     const today = new Date().toLocaleDateString("sv-SE");
     const WD = ["월", "화", "수", "목", "금", "토", "일"];
     const lead = Math.max(0, WD.indexOf(weekdayKr(makeDate(y, m, 1)!)));
-    const href = (d: string) => `/person?month=${month}&day=${d}`;
+    const href = (d: string) => `/person?month=${month}&day=${d}${whoQ.length ? `&who=${encodeURIComponent(whoQ.join(","))}` : ""}`;
     const editHref = (x: string) => `/sheets?tab=edit&month=${month}&emp=${encodeURIComponent(x)}`;
     const ps = byDay.get(sel) ?? [];
     const iSel = dayList.indexOf(sel);
     return (
       <>
         <div className="filters noprint">
-          <Suspense><ParamSelect name="month" label="월" value={month} options={months.map((x) => [x, x])} /></Suspense>
+          <Suspense>
+            <ParamSelect name="month" label="월" value={month} options={months.map((x) => [x, x])} />
+            <span style={{ alignSelf: "flex-end" }}>
+              <ParamMulti name="who" values={whoQ} options={workers} label="직원 고르기" allLabel="전 직원" />
+            </span>
+          </Suspense>
+          {whoQ.length > 0 && <span className="caption" style={{ alignSelf: "flex-end", margin: 0 }}>{whoQ.join(", ")}만 보는 중</span>}
         </div>
         <div className="ed-cal-sum">
           <span className="tag t-휴일근무">휴일근무 {cnt("휴일근무")}건</span>
