@@ -195,9 +195,9 @@ export default async function EditView({ sp }: { sp: SearchParams }) {
         </div>
         <table className="doc-tbl full ep-tbl">
           <colgroup>
-            <col style={{ width: "5.5%" }} /><col style={{ width: "3.5%" }} /><col style={{ width: "11%" }} />
-            <col style={{ width: "7.5%" }} /><col style={{ width: "8.5%" }} /><col style={{ width: "7.5%" }} /><col style={{ width: "8.5%" }} />
-            <col style={{ width: "9%" }} /><col style={{ width: "27%" }} /><col style={{ width: "12%" }} />
+            <col style={{ width: "5.5%" }} /><col style={{ width: "3.5%" }} /><col style={{ width: "10%" }} />
+            <col style={{ width: "8.5%" }} /><col style={{ width: "9.5%" }} /><col style={{ width: "8.5%" }} /><col style={{ width: "9.5%" }} />
+            <col style={{ width: "9%" }} /><col style={{ width: "23%" }} /><col style={{ width: "13%" }} />
           </colgroup>
           <thead><tr><th>일자</th><th>요일</th><th>근태 구분</th><th>출근</th><th>출근 형태</th><th>퇴근</th><th>퇴근 형태</th><th>근무지</th><th>인원</th><th>업무내용</th></tr></thead>
           <tbody>{printRows.map((r) => (

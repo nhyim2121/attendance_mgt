@@ -44,6 +44,14 @@ export default function PrintFit() {
         z = nz;
       }
       main.style.width = `${W / z}px`;
+      // 문서형 표(.doc-tbl)는 칸 너비가 고정이라, 크게 키우면 배치 폭이 좁아져 시각·글자가 옆 칸으로 넘친다.
+      // 넘치는 칸이 없어질 때까지 배율을 조금씩 낮춘다 (2026-11-23 직원별 근태 세로 인쇄 깨짐)
+      const cells = [...main.querySelectorAll<HTMLElement>("table.doc-tbl td, table.doc-tbl th")];
+      const spills = () => cells.some((c) => c.scrollWidth > c.clientWidth + 1);
+      for (let i = 0; i < 20 && z > 0.5 && cells.length && spills(); i++) {
+        z *= 0.95;
+        main.style.width = `${W / z}px`;
+      }
       main.style.zoom = String(z);
     };
     window.addEventListener("beforeprint", before);
