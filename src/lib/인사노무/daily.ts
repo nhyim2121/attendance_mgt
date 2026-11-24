@@ -306,15 +306,15 @@ function scheduleCalendar(day: DateStr, sub: ReportRow[]): string {
         const full = ks.some((t) => !isPartialSchedule(t));
         const mark = now ? `background:${RED};border-radius:4px;` : ks.length ? HL(full ? "#ffd43b" : "#ffe9a0") : "";
         const color = now ? "#ffffff" : !inM ? "#d1d5db" : holiday(d) ? RED : INK;
-        cells.push(`<td style="padding:1px 0;text-align:center;height:21px">`
+        cells.push(`<td width="24" style="width:24px;padding:1px 0;text-align:center;height:21px">`
           + `<span style="${TXT}display:inline-block;min-width:18px;font-size:11px;line-height:17px;${mark}font-weight:${now || ks.length ? 800 : 500};color:${color}">${+d.slice(8)}</span></td>`);
       }
       weeks.push(`<tr>${cells.join("")}</tr>`);
     }
-    return `<td style="width:172px;vertical-align:top;padding-right:12px">`
+    return `<td width="180" style="width:180px;min-width:180px;vertical-align:top;padding-right:14px">`
       + `<div style="${TXT}font-size:13px;font-weight:800;color:${NAVY};margin-bottom:4px">${y}년 ${m}월</div>`
-      + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed">`
-      + `<tr>${W.map((w, i) => `<td style="${TXT}font-size:10px;font-weight:700;text-align:center;padding-bottom:2px;color:${i >= 5 ? RED : SUB}">${w}</td>`).join("")}</tr>`
+      + `<table role="presentation" width="168" cellpadding="0" cellspacing="0" style="width:168px;border-collapse:collapse;table-layout:fixed">`
+      + `<tr>${W.map((w, i) => `<td width="24" style="${TXT}width:24px;font-size:10px;font-weight:700;text-align:center;padding-bottom:2px;color:${i >= 5 ? RED : SUB}">${w}</td>`).join("")}</tr>`
       + weeks.join("") + `</table></td>`;
   }).join("");
   const legend = `<div style="${TXT}font-size:11px;color:${SUB};text-align:right;margin-bottom:4px">`
@@ -329,13 +329,13 @@ function scheduleCalendar(day: DateStr, sub: ReportRow[]): string {
       `<span style="${HL(isPartialSchedule(k) ? "#ffe9a0" : "#ffd43b")}padding:0 2px;white-space:nowrap">${esc(t)}</span>`).join(" · ");
     const backs = [...new Set(p.backs)];
     const real = backs.filter((b) => b !== "당일 근무");
-    const back = real.length ? real.join(" · ") : backs.length ? "당일 근무" : "-";
+    const back = real.length ? real.join("\n") : backs.length ? "당일 근무" : "-";
     const who = [p.r.dept, p.r.rank].filter(Boolean).join("·");
     const note = p.notes.length ? `<div style="${TXT}font-size:11px;color:${SUB};margin-top:2px">${esc([...new Set(p.notes)].join(" / "))}</div>` : "";
     return `<tr><td style="padding:6px 8px 6px 0;border-bottom:1px solid ${LINE};white-space:nowrap;vertical-align:top">`
       + `<span style="${TXT}font-size:13px;font-weight:800">${esc(nm)}</span>${who ? ` <span style="${TXT}font-size:11px;color:${SUB}">${esc(who)}</span>` : ""}</td>`
       + `<td style="${TXT}padding:6px 8px 6px 0;border-bottom:1px solid ${LINE};font-size:12px;vertical-align:top">${leaves}${note}</td>`
-      + `<td style="${TXT}padding:6px 0;border-bottom:1px solid ${LINE};text-align:right;white-space:nowrap;vertical-align:top;font-size:13px;font-weight:800;color:${back === "당일 근무" ? SUB : NAVY}">${esc(back)}</td></tr>`;
+      + `<td style="${TXT}padding:6px 0;border-bottom:1px solid ${LINE};text-align:right;white-space:nowrap;vertical-align:top;font-size:13px;font-weight:800;color:${back === "당일 근무" ? SUB : NAVY}">${esc(back).replace(/\n/g, "<br>")}</td></tr>`;
   }).join("");
   const tbl = legend + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">`
     + `<tr><td style="${TXT}font-size:11px;color:${SUB};padding:3px 0;border-bottom:1px solid #d6dce8">이름</td><td style="${TXT}font-size:11px;color:${SUB};border-bottom:1px solid #d6dce8">휴가</td>`
