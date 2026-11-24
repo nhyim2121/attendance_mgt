@@ -180,6 +180,12 @@ const panelOf = (types: string) => {
   return PANEL_PRIORITY.find((k) => ATT_PANELS.find(([n]) => n === k)![2](ts)) ?? "휴가";
 };
 
+/** 휴가 종류 형광펜 (휴가 일정 칸과 같은 개나리색, 반차·반반차·외출은 연하게) */
+function hlBadge(t: string): string {
+  const c = ["반차", "반반차", "외출"].includes(t) ? "#ffe9a0" : "#ffd43b";
+  return `<span style="${TXT}font-size:13px;font-weight:800;white-space:nowrap;background-image:linear-gradient(transparent 50%,${c} 50%);padding:0 2px">${esc(t)}</span>`;
+}
+
 export function badge(t: string): string {
   const [fg, bg] = BADGE[t] ?? ["#374151", "#eef0f4"];
   return `<span style="display:inline-block;${TXT}font-size:12px;font-weight:700;color:${fg};background:${bg};`
@@ -232,13 +238,20 @@ function table(heads: [string, string][], bodyRows: string[][]): string {
     + `<tr>${head}</tr>${body}</table>`;
 }
 
+/** 가벼운 표 (휴가 일정 칸과 같은 모양): 작은 회색 머리줄 + 줄마다 얇은 선 */
+function liteTable(heads: [string, string][], bodyRows: string[][]): string {
+  const th = heads.map(([h, w]) => `<td style="${TXT}font-size:11px;color:${SUB};padding:3px 8px 3px 0;border-bottom:1px solid #d6dce8;${w ? `width:${w};` : ""}">${h}</td>`).join("");
+  const tr = bodyRows.map((cells) => `<tr>${cells.map((c) => `<td style="${TXT}font-size:13px;padding:7px 8px 7px 0;border-bottom:1px solid ${LINE};vertical-align:top">${c}</td>`).join("")}</tr>`).join("");
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%"><tr>${th}</tr>${tr}</table>`;
+}
+
 function section(title: string, count: number, inner: string): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;${CARD}margin-top:14px">`
-    + `<tr><td style="padding:14px 18px 10px">`
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;${CARD}margin-top:12px">`
+    + `<tr><td style="padding:12px 16px 8px">`
     + `<span style="display:inline-block;width:4px;height:16px;background:${NAVY};border-radius:2px;vertical-align:-2px;margin-right:8px"></span>`
-    + `<span style="${TXT}font-size:16px;font-weight:800">${title}</span>`
+    + `<span style="${TXT}font-size:15px;font-weight:800">${title}</span>`
     + `<span style="${TXT}font-size:12px;font-weight:700;color:${NAVY};background:#eaf0fc;border-radius:999px;padding:2px 9px;margin-left:8px">${count}명</span></td></tr>`
-    + `<tr><td style="padding:0 18px 12px">${inner}</td></tr></table>`;
+    + `<tr><td style="padding:0 16px 12px">${inner}</td></tr></table>`;
 }
 
 /** 휴가 일정 칸 (2026-11-24 ③안): 왼쪽 작은 달력 두 달(휴가일 개나리색 형광펜) + 오른쪽 한 사람 한 줄 표 (휴가·출근 예정).
@@ -419,23 +432,23 @@ function glance(h: ReportHome, counts: Record<string, number>, withTitle: boolea
 
 /** 어제 근무 칸 (2026-11-17 최종안 = D안 카드, 퇴근미체크 뺌): 출장 · 휴가 · 연장근무, 카드마다 이름·부서 */
 function yesterdayCards(h: ReportHome): string {
-  const cards: [string, [string, string][]][] = [["출장·교육", h.trip], ["휴가", h.leave], ["연장근무", h.ot]];
-  const tds = cards.map(([label, xs], i) => `<td style="width:33.3%;vertical-align:top;${i ? "padding-left:10px;" : ""}">`
-    + `<div style="background:#f7f8fb;border-radius:12px;padding:12px 14px">`
+  const cards: [string, [string, string][], string][] = [["출장·교육", h.trip, "#6d28d9"], ["휴가", h.leave, "#1f8a3b"], ["연장근무", h.ot, "#be123c"]];
+  const tds = cards.map(([label, xs, color], i) => `<td style="width:33.3%;vertical-align:top;${i ? "padding-left:10px;" : ""}">`
+    + `<div style="background:#ffffff;border:1px solid ${LINE};border-radius:10px;padding:10px 12px">`
     + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%"><tr>`
-    + `<td style="${TXT}font-size:13px;font-weight:700;color:#4b5563">${label}</td>`
-    + `<td style="${TXT}text-align:right;white-space:nowrap"><span style="${TXT}font-size:22px;font-weight:900;color:${xs.length ? INK : "#c3c9d4"}">${xs.length}</span>`
+    + `<td style="${TXT}font-size:13px;font-weight:800;color:${color}">${label}</td>`
+    + `<td style="${TXT}text-align:right;white-space:nowrap"><span style="${TXT}font-size:18px;font-weight:900;color:${xs.length ? INK : "#c3c9d4"}">${xs.length}</span>`
     + `<span style="${TXT}font-size:12px;color:${SUB};margin-left:3px">명</span></td></tr></table>`
     + (xs.length
       ? xs.map(([n, d]) => `<div style="${TXT}font-size:13px;line-height:1.7"><b>${esc(n)}</b> <span style="color:${SUB}">${esc(d)}</span></div>`).join("")
       : `<div style="${TXT}font-size:13px;color:#9ca3af;line-height:1.7">없음</div>`)
     + `</div></td>`).join("");
-  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;${CARD}margin-top:14px">`
-    + `<tr><td style="padding:14px 18px 10px">`
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;${CARD}margin-top:12px">`
+    + `<tr><td style="padding:12px 16px 8px">`
     + `<span style="display:inline-block;width:4px;height:16px;background:${NAVY};border-radius:2px;vertical-align:-2px;margin-right:8px"></span>`
-    + `<span style="${TXT}font-size:16px;font-weight:800">어제 근무</span>`
+    + `<span style="${TXT}font-size:15px;font-weight:800">어제 근무</span>`
     + `<span style="${TXT}font-size:13px;color:${SUB};margin-left:6px">${dayLabel(h.yday)}</span></td></tr>`
-    + `<tr><td style="padding:0 18px 16px"><table role="presentation" cellpadding="0" cellspacing="0" style="width:100%"><tr>${tds}</tr></table></td></tr></table>`;
+    + `<tr><td style="padding:0 16px 14px"><table role="presentation" cellpadding="0" cellspacing="0" style="width:100%"><tr>${tds}</tr></table></td></tr></table>`;
 }
 
 /** 일일 근태현황 보고서 HTML (사이트 미리보기·이미지 저장·메일 본문 공용). */
@@ -496,11 +509,11 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   sub = rows.filter((r) => r.section === "도제");
   if (sub.length) {
     parts.push(section(SECTION_TITLES.도제, sub.length,
-      table([["부서", "80px"], ["성명", "110px"], ["출근일", "150px"], ["근무시간", "110px"], ["비고", ""]],
+      liteTable([["이름", "180px"], ["출근일", "150px"], ["근무시간", "100px"], ["비고", ""]],
         // 출근한 날이 있으면 근무시간 08:30~16:30, 해당 없음('-')이면 근무시간 '-'에 비고 '사유(기간 총 N일)'
         sub.map((r) => {
           const went = !!r.value.trim() && r.value.trim() !== "-";
-          return [esc(r.dept), person(r), went ? esc(r.value) : "-", went ? "08:30~16:30" : "-", esc(r.note) || "-"];
+          return [`${person(r)}${r.dept ? ` <span style="${TXT}font-size:11px;color:${SUB}">${esc(r.dept)}</span>` : ""}`, went ? esc(r.value) : "-", went ? "08:30~16:30" : "-", esc(r.note) || "-"];
         }))));
   }
   parts.push("</div>");
@@ -598,8 +611,8 @@ function workWeek(sub: ReportRow[]): string {
 /** 근태 현황 칸 그리기 (2026-11-11 메모지형): 있는 종류만, 종류마다 한 줄 전체를 쓰고
  *  그 안에 근무지(건)마다 네모난 메모지 타일을 3개씩 나란히 둔다. 메일에서도 나란히 보이도록 표로. */
 const PANEL_SOFT: Record<string, [string, string]> = { // 타일 바탕, 타일 테두리
-  휴가: ["#f3faf5", "#d5ecdc"], 출장: ["#f7f3fe", "#e2d6f8"], 교육: ["#f4f4fe", "#dcdcf7"],
-  외근: ["#f0f9fb", "#cfe9ee"], 휴일근무: ["#fdf8ee", "#f1e1bf"],
+  휴가: ["#ffffff", LINE], 출장: ["#ffffff", LINE], 교육: ["#ffffff", LINE],
+  외근: ["#ffffff", LINE], 휴일근무: ["#ffffff", LINE],
 };
 function attPanels(groups: ReportRow[][]): string {
   const small = `${TXT}font-size:12px;color:${SUB};`;
@@ -618,7 +631,7 @@ function attPanels(groups: ReportRow[][]): string {
       + `<td style="text-align:right;vertical-align:top;white-space:nowrap;padding-left:6px">${right}</td></tr></table>`;
     const line = (t: string) => `<div style="${TXT}font-size:12.5px;color:#3b4558;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t || "&nbsp;"}</div>`;
     const foot = (inner: string) => `<div style="border-top:1px dashed ${bd};margin-top:8px;padding-top:6px">${inner}</div>`;
-    const box = (inner: string) => `<div style="background:${bg};border:1px solid ${bd};border-radius:6px;padding:10px 12px;min-height:96px;box-sizing:border-box">${inner}</div>`;
+    const box = (inner: string) => `<div style="background:${bg};border:1px solid ${bd};border-radius:10px;padding:10px 12px;min-height:86px;box-sizing:border-box">${inner}</div>`;
     if (panel === "휴가") {
       const unit = leaveUnit(r.types);
       const time = unit === "day" ? "종일" : timeLabel(r.detail);
@@ -669,12 +682,12 @@ function attPanels(groups: ReportRow[][]): string {
       // 사유 칸에 종류 이름(연차 등)만 적힌 경우는 왼쪽에 이미 있으니 다시 적지 않는다
       const why = (r: ReportRow) => { const t = r.title.trim(); return t && !types.includes(t) && !SCHEDULE_TYPES.includes(t) ? t : ""; };
       const [fg] = BADGE[types[0]] ?? ["#1f8a3b", "#e3f4e8"];
-      const [bgSoft, bd] = types.some((t) => t === "반차" || t === "반반차") ? ["#f1faf8", "#cdebe6"] : types.includes("외출") ? ["#fff8f3", "#f6dcc8"] : PANEL_SOFT.휴가;
+      const [bgSoft, bd] = ["#ffffff", LINE];
       const timed = rs.some((r) => span(r.detail));
       const order = [...new Set(rs.map((r) => r.dept))];
       const sorted = [...rs].sort((a, b) => order.indexOf(a.dept) - order.indexOf(b.dept) || rk(a.rank) - rk(b.rank));
       const allDay = leaveUnit(k) === "day";
-      const left = `<td style="width:96px;vertical-align:top;padding:10px 0 10px 14px">${types.map(badge).join("")}`
+      const left = `<td style="width:96px;vertical-align:top;padding:10px 0 10px 12px">${types.map(hlBadge).join(" ")}`
         + `<div style="${TXT}font-size:12px;color:#3b4558;margin-top:2px">${allDay ? "종일 · " : ""}${new Set(rs.map((r) => r.name)).size}명</div></td>`;
       let right: string;
       if (timed) {
@@ -695,7 +708,7 @@ function attPanels(groups: ReportRow[][]): string {
             + `</td></tr>`).join("")
           + `</table>`;
       }
-      return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;background:${bgSoft};border:1px solid ${bd};border-radius:8px;margin-bottom:8px"><tr>`
+      return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;background:${bgSoft};border:1px solid ${bd};border-radius:10px;margin-bottom:8px"><tr>`
         + left + `<td style="vertical-align:top;padding:10px 14px 6px 10px">${right}</td></tr></table>`;
     });
     return blocks.join("");
