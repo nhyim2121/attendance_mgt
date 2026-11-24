@@ -9,6 +9,7 @@
 import { dedupeLeaves, type Leave, sortLeaves } from "./leave";
 import { RANK_ORDER } from "./org";
 import { addDays, type DateStr, dayLabel, isDateStr, makeDate, weekday } from "../time";
+import { HOLIDAYS_2026 } from "../config";
 
 export const SECTIONS = ["근태", "도제", "휴가일정", "휴일근무"] as const;
 export type Section = (typeof SECTIONS)[number];
@@ -254,7 +255,13 @@ function section(title: string, count: number, inner: string): string {
     + `<tr><td style="padding:0 16px 12px">${inner}</td></tr></table>`;
 }
 
-/** 휴가 일정 칸 (2026-11-24 ⑤안): 위에 달력 가로 두 달(휴가일 = 날짜 밑 개나리색 막대) + 아래 이름 알약(세 장씩, 휴가·출근 예정).
+/** 휴가 종류 색 (휴가 일정 타임라인): 연차 개나리 · 반차 연두 · 반반차 하늘 · 외출 분홍 · 그 밖 보라 */
+const LEAVE_KINDS = ["연차", "반차", "반반차", "외출", "기타"];
+function leaveColor(kind: string): string {
+  return ({ 연차: "#ffd43b", 반차: "#8ce99a", 반반차: "#74c0fc", 외출: "#faa2c1" } as Record<string, string>)[kind] ?? "#d0bfff";
+}
+
+/** 휴가 일정 칸 (2026-11-24 ⑦안): 보고일부터 평일만 가로 한 줄, 날짜 아래에 그날 쉬는 사람 이름 칩(휴가 종류마다 색).
  *  메일에서도 보이도록 표와 인라인 스타일만 쓴다. */
 function scheduleCalendar(day: DateStr, sub: ReportRow[]): string {
   type P = { r: ReportRow; pills: [string, string, string][]; backs: string[]; notes: string[]; first: string };
@@ -289,57 +296,39 @@ function scheduleCalendar(day: DateStr, sub: ReportRow[]): string {
   }
   const list = [...people.values()].sort((a, b) => a.first.localeCompare(b.first));
 
-  // 달력 가로 두 달 (2026-11-24 ⑤안): 보고일 달 + 다음 달을 한 줄씩. 휴가일 = 날짜 밑 개나리색 막대(반차·반반차·외출은 연하게), 보고일 = 빨간 칸, 지난 날 = 흐리게
-  const months: [number, number][] = [[+day.slice(0, 4), +day.slice(5, 7)]];
-  months.push(months[0][1] === 12 ? [months[0][0] + 1, 1] : [months[0][0], months[0][1] + 1]);
-  const HL = (c: string) => `background-image:linear-gradient(transparent 55%,${c} 55%);`;
-  const WD = ["월", "화", "수", "목", "금", "토", "일"];
-  const strip = months.map(([y, m]) => {
-    const first = makeDate(y, m, 1)!;
-    const cells: string[] = [];
-    for (let i = 0; i < 31; i++) {
-      const d = addDays(first, i);
-      if (+d.slice(5, 7) !== m) { cells.push(`<td style="padding:0 1px"></td>`); continue; }
-      const ks = marks.get(d) ?? [], now = d === day, we = weekday(d) >= 5, past = d < day;
-      const bar = ks.length ? (ks.some((t) => !isPartialSchedule(t)) ? "#ffd43b" : "#ffe9a0") : "transparent";
-      const fg = now ? "#ffffff" : past ? "#c4c9d2" : we ? RED : "#374151";
-      cells.push(`<td style="padding:0 1px;text-align:center;vertical-align:bottom">`
-        + `<div style="${TXT}font-size:9px;line-height:12px;color:${we ? RED : "#9ca3af"}">${WD[weekday(d)]}</div>`
-        + `<div style="${TXT}font-size:11px;line-height:18px;border-radius:3px;font-weight:${now || ks.length ? 800 : 500};color:${fg};${now ? `background:${RED};` : ""}">${i + 1}</div>`
-        + `<div style="height:5px;line-height:5px;font-size:0;border-radius:2px;margin-top:1px;background:${bar}">&nbsp;</div></td>`);
+  // 한 줄 타임라인 (2026-11-24 ⑦안): 보고일부터 평일만 가로 한 줄, 날짜 아래에 그날 쉬는 사람 이름 칩 (휴가 종류마다 색)
+  const byDay = new Map<DateStr, [string, string][]>();
+  for (const r of sub) {
+    const kind = r.title.trim() || "휴가";
+    for (const d of new Set(splitReportTypes(r.types).filter(isDateStr))) {
+      const xs = byDay.get(d) ?? [];
+      if (!xs.some(([n, k]) => n === r.name && k === kind)) xs.push([r.name.trim(), kind]);
+      byDay.set(d, xs);
     }
-    return `<tr><td width="44" style="${TXT}width:44px;font-size:13px;font-weight:800;color:${NAVY};vertical-align:bottom;padding:0 0 8px">${m}월</td>`
-      + `<td style="padding:0 0 8px"><table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed"><tr>${cells.join("")}</tr></table></td></tr>`;
-  }).join("");
-  const legend = `<div style="${TXT}font-size:11px;color:${SUB};text-align:right;margin:0 0 4px">`
-    + `<span style="display:inline-block;width:14px;height:5px;background:#ffd43b;border-radius:2px;vertical-align:middle"></span> 휴가일 · `
-    + `<span style="display:inline-block;width:14px;height:5px;background:#ffe9a0;border-radius:2px;vertical-align:middle"></span> 반차·반반차·외출 · `
-    + `<span style="background:${RED};color:#fff;border-radius:3px;padding:0 4px;font-weight:700">${+day.slice(8)}</span> 보고일</div>`;
-  const cal = legend + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">${strip}</table>`;
-
-  // 이름 알약: 한 사람 한 장 (세 장씩 한 줄) — 이름·부서 | 출근 예정, 아래에 휴가(형광펜)
-  const cards = list.map((p) => {
-    const nm = p.r.name.trim();
-    const leaves = [...p.pills].sort((a, b) => a[2].localeCompare(b[2])).map(([k, t]) =>
-      `<span style="${HL(isPartialSchedule(k) ? "#ffe9a0" : "#ffd43b")}padding:0 2px;white-space:nowrap">${esc(t)}</span>`).join(" · ");
-    const backs = [...new Set(p.backs)];
-    const real = backs.filter((b) => b !== "당일 근무");
-    const back = real.length ? `출근 ${real.join(" · ")}` : backs.length ? "당일 근무" : "";
-    const who = [p.r.dept, p.r.rank].filter(Boolean).join("·");
-    const note = p.notes.length ? `<div style="${TXT}font-size:11px;color:${SUB};margin-top:2px">${esc([...new Set(p.notes)].join(" / "))}</div>` : "";
-    return `<div style="border:1px solid ${LINE};border-radius:10px;padding:7px 10px">`
-      + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse"><tr>`
-      + `<td style="white-space:nowrap"><span style="${TXT}font-size:13px;font-weight:800">${esc(nm)}</span>${who ? ` <span style="${TXT}font-size:11px;color:${SUB}">${esc(who)}</span>` : ""}</td>`
-      + `<td style="${TXT}text-align:right;font-size:11px;font-weight:800;color:${real.length ? NAVY : SUB}">${esc(back)}</td></tr></table>`
-      + `<div style="${TXT}font-size:12px;line-height:1.7;margin-top:3px">${leaves}</div>${note}</div>`;
-  });
-  const grid: string[] = [];
-  for (let i = 0; i < cards.length; i += 3) {
-    grid.push(`<tr>${[0, 1, 2].map((k) => `<td style="width:33.3%;vertical-align:top;padding:0 ${k < 2 ? 8 : 0}px 8px 0">${cards[i + k] ?? ""}</td>`).join("")}</tr>`);
   }
+  const order = list.map((p) => p.r.name.trim());
+  const off = (d: DateStr) => weekday(d) >= 5 || !!HOLIDAYS_2026[d];
+  const last = [...byDay.keys()].sort().pop() ?? day;
+  const days: DateStr[] = [];
+  for (let d = day; days.length < 25 && (days.length < 15 || d <= last); d = addDays(d, 1)) if (!off(d)) days.push(d);
+  const WD = ["월", "화", "수", "목", "금", "토", "일"];
+  const cells = days.map((d, i) => {
+    const now = d === day, newMon = i === 0 || d.slice(5, 7) !== days[i - 1].slice(5, 7);
+    const xs = (byDay.get(d) ?? []).sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
+    const chips = xs.map(([n, k]) => `<div style="${TXT}font-size:10px;font-weight:700;line-height:15px;white-space:nowrap;background:${leaveColor(k)};border-radius:3px;margin:2px 1px 0;text-align:center">${esc(n)}</div>`).join("");
+    return `<td style="vertical-align:top;text-align:center;padding:3px 0 2px;border-left:1px solid ${weekday(d) === 0 && i ? "#d6dce8" : "transparent"}">`
+      + `<div style="${TXT}font-size:9px;line-height:11px;font-weight:800;color:${NAVY}">${newMon ? `${+d.slice(5, 7)}월` : "&nbsp;"}</div>`
+      + `<div style="${TXT}font-size:11px;line-height:17px;font-weight:${now || xs.length ? 800 : 500};color:${now ? "#ffffff" : INK};${now ? `background:${RED};border-radius:3px;` : ""}margin:0 3px">${+d.slice(8)}</div>`
+      + `<div style="${TXT}font-size:9px;line-height:12px;color:#9ca3af">${WD[weekday(d)]}</div>${chips}</td>`;
+  }).join("");
+  const kinds = [...new Set(sub.map((r) => r.title.trim() || "휴가"))];
+  const shown = [...LEAVE_KINDS.filter((k) => k !== "기타" && kinds.includes(k)), ...(kinds.some((k) => !LEAVE_KINDS.includes(k)) ? ["기타"] : [])];
+  const legend = `<div style="${TXT}font-size:11px;color:${SUB};text-align:right;margin-bottom:4px">평일만 · `
+    + shown.map((k) => `<span style="background:${leaveColor(k)};border-radius:3px;padding:0 5px;font-weight:700;color:${INK}">${k}</span>`).join(" ")
+    + ` · <span style="background:${RED};color:#fff;border-radius:3px;padding:0 4px;font-weight:700">${+day.slice(8)}</span> 보고일</div>`;
 
-  return section(SECTION_TITLES.휴가일정, list.length,
-    cal + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:2px">${grid.join("")}</table>`);
+  return section(SECTION_TITLES.휴가일정, list.length, legend
+    + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;border-top:2px solid ${NAVY}"><tr>${cells}</tr></table>`);
 }
 
 /** 요약 카드 숫자 (사람 수). 휴일·연장은 근태 목록 + 휴일근무 표. */
