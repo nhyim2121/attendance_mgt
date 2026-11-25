@@ -9,7 +9,6 @@
 import { dedupeLeaves, type Leave, sortLeaves } from "./leave";
 import { RANK_ORDER } from "./org";
 import { addDays, type DateStr, dayLabel, isDateStr, makeDate, weekday } from "../time";
-import { HOLIDAYS_2026 } from "../config";
 
 export const SECTIONS = ["근태", "도제", "휴가일정", "휴일근무"] as const;
 export type Section = (typeof SECTIONS)[number];
@@ -255,13 +254,17 @@ function section(title: string, count: number, inner: string): string {
     + `<tr><td style="padding:0 16px 12px">${inner}</td></tr></table>`;
 }
 
-/** 휴가 종류 색 (휴가 일정 타임라인): 연차 개나리 · 반차 연두 · 반반차 하늘 · 외출 분홍 · 그 밖 보라 */
+/** 휴가 종류 색 (휴가 일정 달력 점·범례): 연차 개나리 · 반차 연두 · 반반차 하늘 · 외출 분홍 · 그 밖 보라 */
 const LEAVE_KINDS = ["연차", "반차", "반반차", "외출", "기타"];
 function leaveColor(kind: string): string {
   return ({ 연차: "#ffd43b", 반차: "#8ce99a", 반반차: "#74c0fc", 외출: "#faa2c1" } as Record<string, string>)[kind] ?? "#d0bfff";
 }
+/** 휴가 알약 [글자색, 바탕색] — 종류별 색 (leaveColor와 같은 계열, 연하게) */
+function leavePill(kind: string): [string, string] {
+  return ({ 연차: ["#8a5a00", "#fff3bf"], 반차: ["#2b8a3e", "#d3f9d8"], 반반차: ["#1864ab", "#d0ebff"], 외출: ["#a61e4d", "#ffdeeb"] } as Record<string, [string, string]>)[kind] ?? ["#5f3dc4", "#e5dbff"];
+}
 
-/** 휴가 일정 칸 (2026-11-24 ⑦안): 보고일부터 평일만 가로 한 줄, 날짜 아래에 그날 쉬는 사람 이름 칩(휴가 종류마다 색).
+/** 휴가 일정 칸 (2026-11-25 이전 디자인으로 되돌림): 왼쪽 남색 미니 달력(휴가일 밑 종류별 색 점) + 오른쪽 사람별 카드(종류별 색 알약 + 시간).
  *  메일에서도 보이도록 표와 인라인 스타일만 쓴다. */
 function scheduleCalendar(day: DateStr, sub: ReportRow[]): string {
   type P = { r: ReportRow; pills: [string, string, string][]; backs: string[]; notes: string[]; first: string };
@@ -296,39 +299,70 @@ function scheduleCalendar(day: DateStr, sub: ReportRow[]): string {
   }
   const list = [...people.values()].sort((a, b) => a.first.localeCompare(b.first));
 
-  // 한 줄 타임라인 (2026-11-24 ⑦안): 보고일부터 평일만 가로 한 줄, 날짜 아래에 그날 쉬는 사람 이름 칩 (휴가 종류마다 색)
-  const byDay = new Map<DateStr, [string, string][]>();
-  for (const r of sub) {
-    const kind = r.title.trim() || "휴가";
-    for (const d of new Set(splitReportTypes(r.types).filter(isDateStr))) {
-      const xs = byDay.get(d) ?? [];
-      if (!xs.some(([n, k]) => n === r.name && k === kind)) xs.push([r.name.trim(), kind]);
-      byDay.set(d, xs);
-    }
+  // 남색 미니 달력 (2026-11-25 되돌림): 보고일 달부터 휴가가 있는 마지막 달까지 (최대 3달), 월요일 시작. 휴가일 밑 점 = 종류별 색
+  const last = [...marks.keys()].sort().pop() ?? day;
+  const months: [number, number][] = [];
+  for (let y = +day.slice(0, 4), m = +day.slice(5, 7); months.length < 3; m === 12 ? (y++, m = 1) : m++) {
+    months.push([y, m]);
+    if (`${y}-${String(m).padStart(2, "0")}` >= last.slice(0, 7)) break;
   }
-  const order = list.map((p) => p.r.name.trim());
-  const off = (d: DateStr) => weekday(d) >= 5 || !!HOLIDAYS_2026[d];
-  const last = [...byDay.keys()].sort().pop() ?? day;
-  const days: DateStr[] = [];
-  for (let d = day; days.length < 25 && (days.length < 15 || d <= last); d = addDays(d, 1)) if (!off(d)) days.push(d);
-  const WD = ["월", "화", "수", "목", "금", "토", "일"];
-  const cells = days.map((d, i) => {
-    const now = d === day, newMon = i === 0 || d.slice(5, 7) !== days[i - 1].slice(5, 7);
-    const xs = (byDay.get(d) ?? []).sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
-    const chips = xs.map(([n, k]) => `<div style="${TXT}font-size:10px;font-weight:700;line-height:15px;white-space:nowrap;background:${leaveColor(k)};border-radius:3px;margin:2px 1px 0;text-align:center">${esc(n)}</div>`).join("");
-    return `<td style="vertical-align:top;text-align:center;padding:3px 0 2px;border-left:1px solid ${weekday(d) === 0 && i ? "#d6dce8" : "transparent"}">`
-      + `<div style="${TXT}font-size:9px;line-height:11px;font-weight:800;color:${NAVY}">${newMon ? `${+d.slice(5, 7)}월` : "&nbsp;"}</div>`
-      + `<div style="${TXT}font-size:11px;line-height:17px;font-weight:${now || xs.length ? 800 : 500};color:${now ? "#ffffff" : INK};${now ? `background:${RED};border-radius:3px;` : ""}margin:0 3px">${+d.slice(8)}</div>`
-      + `<div style="${TXT}font-size:9px;line-height:12px;color:#9ca3af">${WD[weekday(d)]}</div>${chips}</td>`;
+  const W = ["월", "화", "수", "목", "금", "토", "일"];
+  const cal = months.map(([y, m]) => {
+    const first = makeDate(y, m, 1)!;
+    let d = addDays(first, -weekday(first));
+    const weeks: string[] = [];
+    while (+d.slice(5, 7) === m || d < first) {
+      const cells: string[] = [];
+      for (let k = 0; k < 7; k++, d = addDays(d, 1)) {
+        const inM = +d.slice(5, 7) === m, ks = inM ? marks.get(d) ?? [] : [], now = inM && d === day;
+        const bg = now ? RED : ks.length ? "rgba(255,255,255,0.16)" : "transparent";
+        const dots = ks.slice(0, 4).map((t) => `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${leaveColor(t)};margin:0 1px"></span>`).join("");
+        cells.push(`<td style="padding:2px 0;text-align:center;vertical-align:top;height:34px">`
+          + `<div style="${TXT}display:inline-block;width:24px;height:24px;line-height:24px;border-radius:50%;background:${bg};font-size:12px;`
+          + `font-weight:${now || ks.length ? 800 : 500};color:${inM ? "#ffffff" : "rgba(255,255,255,0.3)"}">${+d.slice(8)}</div>`
+          + `<div style="line-height:5px;height:6px">${dots}</div></td>`);
+      }
+      weeks.push(`<tr>${cells.join("")}</tr>`);
+    }
+    return `<div style="${TXT}font-size:15px;font-weight:800;color:#ffffff;margin:${m !== months[0][1] ? "12px" : "0"} 0 6px">${y}년 ${m}월</div>`
+      + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">`
+      + `<tr>${W.map((w, i) => `<td style="${TXT}font-size:11px;font-weight:700;text-align:center;padding-bottom:4px;color:${i >= 5 ? "#8fa3d6" : "#b9c8ec"}">${w}</td>`).join("")}</tr>`
+      + weeks.join("") + `</table>`;
   }).join("");
   const kinds = [...new Set(sub.map((r) => r.title.trim() || "휴가"))];
   const shown = [...LEAVE_KINDS.filter((k) => k !== "기타" && kinds.includes(k)), ...(kinds.some((k) => !LEAVE_KINDS.includes(k)) ? ["기타"] : [])];
-  const legend = `<div style="${TXT}font-size:11px;color:${SUB};text-align:right;margin-bottom:4px">평일만 · `
-    + shown.map((k) => `<span style="background:${leaveColor(k)};border-radius:3px;padding:0 5px;font-weight:700;color:${INK}">${k}</span>`).join(" ")
-    + ` · <span style="background:${RED};color:#fff;border-radius:3px;padding:0 4px;font-weight:700">${+day.slice(8)}</span> 보고일</div>`;
+  const legend = [...shown.map((t) => [leaveColor(t), t, 7] as const), [RED, "보고일", 10] as const]
+    .map(([c, l, s]) => `<span style="${TXT}font-size:11px;color:#d6dff4;white-space:nowrap;margin-right:10px">`
+      + `<span style="display:inline-block;width:${s}px;height:${s}px;border-radius:50%;background:${c};margin-right:4px;vertical-align:0"></span>${l}</span>`).join("");
+  const left = `<div style="${TXT}font-size:11px;font-weight:800;letter-spacing:0.14em;color:#b9c8ec;margin-bottom:4px">LEAVE SCHEDULE</div>`
+    + cal + `<div style="margin-top:8px;line-height:1.8">${legend}</div>`;
 
-  return section(SECTION_TITLES.휴가일정, list.length, legend
-    + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;border-top:2px solid ${NAVY}"><tr>${cells}</tr></table>`);
+  // 사람별 카드: 휴가 알약은 종류별 색 + 시간 (종일 휴가는 "종일")
+  const cards = list.map((p) => {
+    const nm = p.r.name.trim();
+    const pills = [...p.pills].sort((a, b) => a[2].localeCompare(b[2])).map(([k, t, d0]) => {
+      const [fg, bg] = leavePill(k);
+      const txt = isPartialSchedule(k) || !d0 ? t : `${t} · 종일`;
+      return `<span style="${TXT}display:inline-block;font-size:12px;font-weight:800;color:${fg};background:${bg};border-radius:999px;padding:3px 10px;margin:4px 5px 0 0;white-space:nowrap">${esc(txt)}</span>`;
+    }).join("");
+    const backs = [...new Set(p.backs)];
+    const real = backs.filter((b) => b !== "당일 근무");
+    const back = real.length ? real.join(" · ") : backs.length ? "당일 근무" : "-";
+    const who = [p.r.dept, p.r.rank].filter(Boolean).join(" · ");
+    const note = p.notes.length ? `<div style="${TXT}font-size:12px;color:${SUB};margin-top:4px">${esc([...new Set(p.notes)].join(" / "))}</div>` : "";
+    return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border:1px solid ${LINE};border-radius:12px;margin-bottom:8px;background:#ffffff">`
+      + `<tr>`
+      + `<td style="padding:12px 12px 12px 16px;vertical-align:middle"><div style="${TXT}font-size:15px;font-weight:800">${esc(nm)}`
+      + (who ? ` <span style="${TXT}font-size:12px;font-weight:500;color:${SUB}">${esc(who)}</span>` : "") + `</div>${pills}${note}</td>`
+      + `<td style="padding:12px 14px 12px 0;text-align:right;vertical-align:middle;white-space:nowrap">`
+      + `<div style="${TXT}font-size:11px;color:${SUB}">출근 예정</div>`
+      + `<div style="${TXT}font-size:15px;font-weight:800;color:${back === "당일 근무" ? SUB : NAVY}">${esc(back)}</div></td></tr></table>`;
+  }).join("");
+
+  return section(SECTION_TITLES.휴가일정, list.length,
+    `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse"><tr>`
+    + `<td style="width:250px;vertical-align:top;background:${NAVY};border-radius:14px;padding:16px 14px">${left}</td>`
+    + `<td style="width:14px"></td><td style="vertical-align:top">${cards}</td></tr></table>`);
 }
 
 /** 요약 카드 숫자 (사람 수). 휴일·연장은 근태 목록 + 휴일근무 표. */
