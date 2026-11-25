@@ -266,7 +266,7 @@ function leavePill(kind: string): [string, string] {
 
 /** 휴가 일정 칸 (2026-11-25 월별로 나눔): 달마다 왼쪽 남색 미니 달력(휴가일 밑 종류별 색 점) + 오른쪽 그 달 휴가 카드(종류별 색 알약 + 시간 + 출근 예정).
  *  메일에서도 보이도록 표와 인라인 스타일만 쓴다. */
-function scheduleCalendar(day: DateStr, sub: ReportRow[]): string {
+function scheduleCalendar(day: DateStr, sub: ReportRow[], remain?: Record<string, number>): string {
   type P = { r: ReportRow; pills: [string, string, string, string][]; notes: string[]; first: string };
   const people = new Map<string, P>();
   const marks = new Map<DateStr, string[]>();
@@ -339,6 +339,13 @@ function scheduleCalendar(day: DateStr, sub: ReportRow[]): string {
   // 사람별 카드 (그 달 휴가만): 휴가 알약은 종류별 색 + 시간 (종일 휴가는 "종일"), 출근 예정도 그 달 휴가 기준
   const firstKey = `${months[0][0]}-${String(months[0][1]).padStart(2, "0")}`;
   const monthOf = (d0: string) => { const k = ym(d0 || day); return k < firstKey ? firstKey : k > lastKey ? lastKey : k; };
+  // 잔여 연차 (마이너스는 빨간색 그대로)
+  const left = (nm: string) => {
+    const v = remain?.[nm];
+    if (v === undefined || v === null || Number.isNaN(v)) return "";
+    const n = Math.round(v * 100) / 100, neg = n < 0;
+    return ` <span style="${TXT}display:inline-block;font-size:11px;font-weight:700;color:${neg ? RED : NAVY};background:${neg ? "#fff0f0" : "#eef2fb"};border-radius:999px;padding:1px 8px;margin-left:4px;vertical-align:2px">잔여 연차 <b>${n}</b>일</span>`;
+  };
   const cardsOf = (key: string) => list
     .map((p) => [p, p.pills.filter((x) => monthOf(x[2]) === key).sort((a, b) => a[2].localeCompare(b[2]))] as const)
     .filter(([, mine]) => mine.length)
@@ -359,7 +366,7 @@ function scheduleCalendar(day: DateStr, sub: ReportRow[]): string {
     return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border:1px solid ${LINE};border-radius:12px;margin-bottom:8px;background:#ffffff">`
       + `<tr>`
       + `<td style="padding:12px 12px 12px 16px;vertical-align:middle"><div style="${TXT}font-size:15px;font-weight:800">${esc(nm)}`
-      + (who ? ` <span style="${TXT}font-size:12px;font-weight:500;color:${SUB}">${esc(who)}</span>` : "") + `</div>${pills}${note}</td>`
+      + (who ? ` <span style="${TXT}font-size:12px;font-weight:500;color:${SUB}">${esc(who)}</span>` : "") + left(nm) + `</div>${pills}${note}</td>`
       + `<td style="padding:12px 14px 12px 0;text-align:right;vertical-align:middle;white-space:nowrap">`
       + `<div style="${TXT}font-size:11px;color:${SUB}">출근 예정</div>`
       + `<div style="${TXT}font-size:15px;font-weight:800;color:${back === "당일 근무" ? SUB : NAVY}">${esc(back)}</div></td></tr></table>`;
@@ -417,6 +424,8 @@ function clean(rows: ReportRow[]): ReportRow[] {
 export interface ReportHome {
   staff: number; depts: number; present: number; future: boolean;
   usedRate: number; fyLabel: string; turnover: number; joined: number; left: number;
+  /** 이름 → 잔여 연차 (연차 현황과 같은 숫자, 마이너스 그대로) */
+  remain?: Record<string, number>;
   yday: DateStr; trip: [string, string][]; leave: [string, string][]; ot: [string, string][];
 }
 
@@ -528,7 +537,7 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
 
   // 휴가 일정 (2026-11-17 F안): 왼쪽 미니 달력(휴가 날짜에 점, 보고일 빨간 동그라미) + 오른쪽 사람별 카드(휴가 알약·출근 예정)
   let sub = rows.filter((r) => r.section === "휴가일정");
-  if (sub.length) parts.push(scheduleCalendar(day, sub));
+  if (sub.length) parts.push(scheduleCalendar(day, sub, home?.remain));
 
   // 휴일·연장 근무 (2026-11-23 C안): 위에 주간 띠(근무 있는 날만 색·인원), 아래에 한 줄씩 목록 (휴일 주황 · 연장 빨강 왼쪽 띠)
   sub = rows.filter((r) => r.section === "휴일근무");

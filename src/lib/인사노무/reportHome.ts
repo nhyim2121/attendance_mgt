@@ -76,10 +76,12 @@ export async function annualUsage(day: DateStr, policy: LeavePolicy) {
   const fy = fyOf(day, policy);
   const active = base.employees.filter((e) => employedOn(e, day));
   const excl = new Set(policy.exclude ?? []);
-  const bal = leaveBook(active, base.leaves, adjusts, fy, policy, await store.loadLeaveStatus(fy))(day, (b) => !excl.has(b.name))
-    .bal.filter((b) => b.total > 0);
+  const all = leaveBook(active, base.leaves, adjusts, fy, policy, await store.loadLeaveStatus(fy))(day, (b) => !excl.has(b.name)).bal;
+  const bal = all.filter((b) => b.total > 0);
   const usedRate = bal.length ? Math.round((bal.reduce((t, b) => t + b.used, 0) / bal.reduce((t, b) => t + b.total, 0)) * 100) : 0;
-  return { fy, bal, usedRate };
+  // 잔여 연차 (연차 현황표와 같은 숫자, 마이너스 그대로) — 보고서 휴가 일정 카드에 씀
+  const remain = Object.fromEntries(all.map((b) => [b.name, b.remain]));
+  return { fy, bal, usedRate, remain };
 }
 
 const hm = (x: number) => `${Math.floor(x)}시간${Math.round((x % 1) * 60) ? ` ${Math.round((x % 1) * 60)}분` : ""}`;
@@ -95,13 +97,13 @@ export async function reportHome(day: DateStr): Promise<ReportHome | null> {
   const board = dailyBoard(days, base.leaves, staff, day, rule, day === today ? parseTs(nowKst()) : null, isHoliday(day, rule, holidays));
   const present = board.filter((b) => b.in !== null).length;
   const hc = headcount(base.employees, day);
-  const { fy, usedRate } = await annualUsage(day, policy);
+  const { fy, usedRate, remain } = await annualUsage(day, policy);
   const rows = await yesterdayRows(days, base.leaves, records, yday, rule);
   const who = (pick: (r: YRow) => string[]) => rows.flatMap((r) => pick(r).map((e) => [e, r.dept] as [string, string]));
   return {
     staff: staff.length, depts: new Set(staff.map(([, d]) => d || "(부서 없음)")).size, present,
     future: day > today,
-    usedRate, fyLabel: `${fy}${policy.fyStartMonth === 1 ? "년" : "회계연도"}`,
+    usedRate, remain, fyLabel: `${fy}${policy.fyStartMonth === 1 ? "년" : "회계연도"}`,
     turnover: hc.turnover, joined: hc.joined.length, left: hc.left.length,
     yday,
     trip: who((r) => r.trip),
