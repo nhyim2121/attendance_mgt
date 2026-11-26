@@ -140,7 +140,8 @@ export const hwRemainDiffers = (s: Pick<HwStatus, "used" | "granted" | "remain">
 /** 사이트 계산 결과 (하이웍스 숫자로 바꾸기 전) */
 export interface SiteCalc { total: number; used: number; planned: number; remain: number }
 
-export type HwBalance = LeaveBalance & { hw?: HwStatus; site?: SiteCalc };
+/** ahead = 기준일 뒤에 빠질(잔여에서 이미 뺀) 휴가 [날짜, 일수] — 월말 잔여를 거꾸로 셈할 때 쓴다 */
+export type HwBalance = LeaveBalance & { hw?: HwStatus; site?: SiteCalc; ahead?: [string, number][] };
 
 /** 연차 현황을 하이웍스 휴가현황 숫자로 바꾼다. 파일에 있는 사람만 (없는 사람은 사이트 계산 그대로).
  * 부여 = 올해 생성 (정기 = 연차 칸, 포상·기타 = 조정 칸), 사용 = 잔여에서 빠지는 유형 합 (앞날 결재 포함),

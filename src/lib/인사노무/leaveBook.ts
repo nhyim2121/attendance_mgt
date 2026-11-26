@@ -30,12 +30,12 @@ export function leaveBook(emps: Employee[], leaves: Leave[], adjusts: Adjust[], 
 
   return (asOf: DateStr, keep: (b: LeaveBalance) => boolean = () => true): Book => {
     const site = leaveBalances(emps, leaves, adjusts, fy, asOf, p).filter(keep);
-    if (!hwRows.length) return { bal: site, useHw: false, past: false, hwAt };
+    if (!hwRows.length) return { bal: site.map((b) => ({ ...b, ahead: aheadOf(b) })), useHw: false, past: false, hwAt };
     const applied = applyHwStatus(site, hwRows, p);
     if (asOf >= hwDay) {
       // (2026-11-26) 하이웍스 파일 날짜 뒤에 쓴·잡힌 휴가(사이트 기록)를 더해 뺀다. 파일이 오래돼도 잔여가 맞도록.
       const siteBy = new Map(site.map((b) => [b.name, b]));
-      return { bal: applied.map((b) => (b.hw ? forward(b, b.hw, siteBy.get(b.name)!, hwDay, asOf, p) : b)), useHw: true, past: false, hwAt };
+      return { bal: applied.map((b) => (b.hw ? forward(b, b.hw, siteBy.get(b.name)!, hwDay, asOf, p) : { ...b, ahead: aheadOf(b) })), useHw: true, past: false, hwAt };
     }
     const siteBy = new Map(site.map((b) => [b.name, b]));
     const bal = applied.map((b) => (b.hw ? rewind(b, b.hw, siteBy.get(b.name)!, exportBal().get(b.name), asOf, p) : b));
@@ -46,6 +46,9 @@ export function leaveBook(emps: Employee[], leaves: Leave[], adjusts: Adjust[], 
 /** 하이웍스 숫자(내려받은 날 기준)에 그 뒤 사이트 휴가 기록을 더한다.
  *  하이웍스 파일에는 앞날 결재분도 들어 있으므로, 파일 달부터는 달·유형마다 (사이트 − 하이웍스 월별) 남는 만큼만 더한다.
  *  월별 시트가 없으면 파일 날짜 뒤 사이트 기록을 모두 더한다. 기준일 뒤 것은 '예정'으로 둔다. */
+/** 사이트 계산의 기준일 뒤 휴가 [날짜, 일수] */
+const aheadOf = (b: LeaveBalance): [string, number][] => b.items.filter((it) => it.planned && it.days).map((it) => [it.day, it.days]);
+
 function forward(b: HwBalance, s: HwStatus, site: LeaveBalance, hwDay: DateStr, asOf: DateStr, p: LeavePolicy): HwBalance {
   const hwMonth = hwDay.slice(0, 7);
   const hasMonths = Object.keys(s.months).length > 0;
@@ -53,6 +56,8 @@ function forward(b: HwBalance, s: HwStatus, site: LeaveBalance, hwDay: DateStr, 
   const items = site.items.filter((it) => HW_DEDUCT.includes(it.type) && (hasMonths ? it.day.slice(0, 7) >= hwMonth : it.day > hwDay));
   const extra: Record<string, number> = {}; // 유형별 더할 일수
   let used = 0, planned = 0;
+  const ahead: [string, number][] = []; // 기준일 뒤에 빠지는 휴가 (하이웍스에 이미 든 앞날 결재 + 새로 더한 것)
+  const asOfMonth = asOf.slice(0, 7);
   // 달·유형별 사이트 합 − 하이웍스 월별 = 하이웍스에 없는 만큼. 날짜순으로 채워서 지난 것/예정 나눔
   const groups = new Map<string, typeof items>();
   for (const it of items) {
@@ -64,6 +69,7 @@ function forward(b: HwBalance, s: HwStatus, site: LeaveBalance, hwDay: DateStr, 
     let skip = hasMonths ? (s.months[m]?.[t] ?? 0) : 0; // 하이웍스에 이미 든 만큼은 앞쪽 날짜부터 건너뜀
     for (const it of [...xs].sort((a, c) => a.day.localeCompare(c.day))) {
       let d = daysOf(it);
+      if (it.day > asOf && d > 0) ahead.push([it.day, d]);
       const sk = Math.min(skip, d);
       skip -= sk; d -= sk;
       if (d <= 0) continue;
@@ -71,11 +77,20 @@ function forward(b: HwBalance, s: HwStatus, site: LeaveBalance, hwDay: DateStr, 
       if (it.day > asOf) planned += d; else used += d;
     }
   }
-  if (!used && !planned) return b;
+  // 하이웍스 월별에만 있는 앞날 달 사용분 (사이트 기록 없음) → 그 달 1일로
+  if (hasMonths) for (const [m, u] of Object.entries(s.months)) {
+    if (m <= asOfMonth) continue;
+    for (const t of HW_DEDUCT) {
+      const siteDays = items.filter((it) => it.type === t && it.day.startsWith(m)).reduce((x, it) => x + daysOf(it), 0);
+      const rest = (u[t] ?? 0) - siteDays;
+      if (rest > 0) ahead.push([`${m}-01`, rest]);
+    }
+  }
+  if (!used && !planned) return { ...b, ahead };
   const typeDays = { ...b.typeDays }, counts = { ...b.counts };
   for (const [t, d] of Object.entries(extra)) { typeDays[t] = r4((typeDays[t] ?? 0) + d); counts[t] = Math.max(counts[t] ?? 0, site.counts[t] ?? 1); }
   return {
-    ...b, typeDays, counts, used: r4(b.used + used), planned: r4(b.planned + planned),
+    ...b, typeDays, counts, used: r4(b.used + used), planned: r4(b.planned + planned), ahead,
     remain: r4(b.remain - used - planned), outingHours: r4((typeDays.외출 ?? 0) * p.outingHoursPerDay),
   };
 }
