@@ -85,7 +85,8 @@ export async function annualUsage(day: DateStr, policy: LeavePolicy) {
   const ends = [0, 1, 2].map((i) => { const [y, m] = day.slice(0, 7).split("-").map(Number); const t = new Date(Date.UTC(y, m - 1 + i, 1)); return t.toISOString().slice(0, 7); }).filter((ym) => fyOf(`${ym}-01` as DateStr, policy) === fy); // 다음 회계연도 달은 새로 생기므로 뺀다
   const remainMonths = Object.fromEntries(all.map((b) => [b.name, Object.fromEntries(ends.map((ym) =>
     [ym, Math.round((b.remain + (b.ahead ?? []).filter(([d]) => d.slice(0, 7) > ym).reduce((x, [, n]) => x + n, 0)) * 10000) / 10000]))]));
-  return { fy, bal, usedRate, remain, remainMonths };
+  const negatives = all.filter((b) => b.remain < 0).map((b) => ({ name: b.name, dept: b.dept, total: b.total, used: b.used, planned: b.planned, remain: b.remain }));
+  return { fy, bal, usedRate, remain, remainMonths, negatives };
 }
 
 const hm = (x: number) => `${Math.floor(x)}시간${Math.round((x % 1) * 60) ? ` ${Math.round((x % 1) * 60)}분` : ""}`;
@@ -101,13 +102,13 @@ export async function reportHome(day: DateStr): Promise<ReportHome | null> {
   const board = dailyBoard(days, base.leaves, staff, day, rule, day === today ? parseTs(nowKst()) : null, isHoliday(day, rule, holidays));
   const present = board.filter((b) => b.in !== null).length;
   const hc = headcount(base.employees, day);
-  const { fy, usedRate, remain, remainMonths } = await annualUsage(day, policy);
+  const { fy, usedRate, remain, remainMonths, negatives } = await annualUsage(day, policy);
   const rows = await yesterdayRows(days, base.leaves, records, yday, rule);
   const who = (pick: (r: YRow) => string[]) => rows.flatMap((r) => pick(r).map((e) => [e, r.dept] as [string, string]));
   return {
     staff: staff.length, depts: new Set(staff.map(([, d]) => d || "(부서 없음)")).size, present,
     future: day > today,
-    usedRate, remain, remainMonths, fyLabel: `${fy}${policy.fyStartMonth === 1 ? "년" : "회계연도"}`,
+    usedRate, remain, remainMonths, negatives, fyLabel: `${fy}${policy.fyStartMonth === 1 ? "년" : "회계연도"}`,
     turnover: hc.turnover, joined: hc.joined.length, left: hc.left.length,
     yday,
     trip: who((r) => r.trip),

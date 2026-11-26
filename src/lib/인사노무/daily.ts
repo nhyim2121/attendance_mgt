@@ -245,6 +245,18 @@ function liteTable(heads: [string, string][], bodyRows: string[][]): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%"><tr>${th}</tr>${tr}</table>`;
 }
 
+/** 마이너스 연차 표: 이름(부서) | 생성 | 사용 | 예정 | 잔여(빨간색) */
+function negativeTable(xs: NonNullable<ReportHome["negatives"]>): string {
+  const f = (v: number) => `${Math.round(v * 10000) / 10000}`;
+  const R = (h: string) => `<span style="display:block;text-align:right">${h}</span>`;
+  return liteTable([["이름", ""], [R("생성"), "90px"], [R("사용"), "90px"], [R("예정"), "90px"], [R("잔여 연차"), "110px"]],
+    [...xs].sort((a, b) => a.remain - b.remain).map((x) => [
+      `<b>${esc(x.name)}</b>${x.dept ? ` <span style="${TXT}font-size:11px;color:${SUB}">${esc(x.dept)}</span>` : ""}`,
+      R(`${f(x.total)}일`), R(`${f(x.used)}일`), R(x.planned ? `${f(x.planned)}일` : "-"),
+      R(`<span style="${TXT}font-size:13px;font-weight:800;color:${RED};background:#fff0f0;border-radius:999px;padding:1px 8px">${f(x.remain)}일</span>`),
+    ]));
+}
+
 function section(title: string, count: number, inner: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;${CARD}margin-top:12px">`
     + `<tr><td style="padding:12px 16px 8px">`
@@ -344,7 +356,7 @@ function scheduleCalendar(day: DateStr, sub: ReportRow[], remain?: Record<string
     const v = remainMonths?.[nm]?.[key] ?? remain?.[nm];
     if (v === undefined || v === null || Number.isNaN(v)) return "";
     const n = Math.round(v * 10000) / 10000, neg = n < 0; // 외출(30분 = 0.0625일)까지 그대로
-    return ` <span style="${TXT}display:inline-block;font-size:11px;font-weight:700;color:${neg ? RED : NAVY};background:${neg ? "#fff0f0" : "#eef2fb"};border-radius:999px;padding:1px 8px;margin-left:4px;vertical-align:2px">${+key.slice(5)}월 말 잔여 <b>${n}</b>일</span>`;
+    return ` <span style="${TXT}display:inline-block;font-size:11px;font-weight:700;color:${neg ? RED : NAVY};background:${neg ? "#fff0f0" : "#eef2fb"};border-radius:999px;padding:1px 8px;margin-left:4px;vertical-align:2px"><b>${n}</b>일</span>`;
   };
   const cardsOf = (key: string) => list
     .map((p) => [p, p.pills.filter((x) => monthOf(x[2]) === key).sort((a, b) => a[2].localeCompare(b[2]))] as const)
@@ -428,6 +440,8 @@ export interface ReportHome {
   remain?: Record<string, number>;
   /** 이름 → 달(YYYY-MM) → 그 달 말 잔여 연차 (그 달까지 쓴·잡힌 휴가만 뺌) */
   remainMonths?: Record<string, Record<string, number>>;
+  /** 잔여 연차가 마이너스인 직원 (전 직원, 잡힌 휴가까지 뺀 잔여) */
+  negatives?: { name: string; dept: string; total: number; used: number; planned: number; remain: number }[];
   yday: DateStr; trip: [string, string][]; leave: [string, string][]; ot: [string, string][];
 }
 
@@ -540,6 +554,9 @@ export function renderReportHtml(day: DateStr, input: ReportRow[], withTitle = t
   // 휴가 일정 (2026-11-17 F안): 왼쪽 미니 달력(휴가 날짜에 점, 보고일 빨간 동그라미) + 오른쪽 사람별 카드(휴가 알약·출근 예정)
   let sub = rows.filter((r) => r.section === "휴가일정");
   if (sub.length) parts.push(scheduleCalendar(day, sub, home?.remain, home?.remainMonths));
+
+  // 마이너스 연차 (2026-11-26): 전 직원 중 잔여 연차가 마이너스인 사람 (잡힌 휴가까지 뺀 숫자)
+  if (home?.negatives?.length) parts.push(section("마이너스 연차", home.negatives.length, negativeTable(home.negatives)));
 
   // 휴일·연장 근무 (2026-11-23 C안): 위에 주간 띠(근무 있는 날만 색·인원), 아래에 한 줄씩 목록 (휴일 주황 · 연장 빨강 왼쪽 띠)
   sub = rows.filter((r) => r.section === "휴일근무");
