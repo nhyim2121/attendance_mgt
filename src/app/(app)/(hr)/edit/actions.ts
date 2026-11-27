@@ -84,3 +84,15 @@ export async function toggleProofCheck(employee: string, day: string, kind: stri
   revalidatePath("/", "layout");
   return { ok: mine.length ? "체크를 풀었습니다." : "신청서 있음으로 체크했습니다." };
 }
+
+/** 휴일·연장 달력(cal)·근태 기입(edit)에 기본 범위 밖으로 더 보일 직원 (돋보기로 넣은 사람) */
+export async function saveEditScope(view: "cal" | "edit", names: string[]): Promise<{ ok?: string; error?: string }> {
+  await requirePerm("update");
+  if (view !== "cal" && view !== "edit") return { error: "잘못된 화면입니다." };
+  const cur = await store.getSetting<{ cal: string[]; edit: string[] }>("edit_scope_extra", { cal: [], edit: [] });
+  const next = { ...cur, [view]: [...new Set(names.map((x) => String(x).trim()).filter(Boolean))].slice(0, 100) };
+  await store.setSetting("edit_scope_extra", next);
+  revalidatePath("/person");
+  revalidatePath("/sheets");
+  return { ok: "저장했습니다." };
+}

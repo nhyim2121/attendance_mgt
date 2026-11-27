@@ -1,6 +1,7 @@
 /** 직원별 근태 > 근태 기입 탭: 직원·월을 골라 날짜별 출퇴근 시각, 근무형태(조출·연장 등), 근무지, 인원, 업무내용을 직접 기입·수정. */
 import { Suspense } from "react";
 import { ParamMulti, ParamSelect } from "@/components/ParamControls";
+import ScopeSearch from "./ScopeSearch";
 import { NoData } from "@/components/ui";
 import { isHoliday } from "@/lib/인사노무/analytics";
 import { computeDays, getHolidays, getRecords, getRule, loadBase, type SearchParams } from "@/lib/인사노무/data";
@@ -24,7 +25,7 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
   const [rule, base, holidays] = await Promise.all([getRule(), loadBase(), getHolidays()]);
   const head = (
     <>
-      {cal ? <p className="caption noprint">전 직원의 휴일근무·연장근무를 한 달력에 모았습니다. 날짜마다 그날 근무한 사람이 보이고, 날짜를 누르면 오른쪽에 시각·근무지·업무내용·신청서가 나옵니다. 고칠 때는 이름 옆 [고치기]로 근태 기입에 들어갑니다.</p>
+      {cal ? <p className="caption noprint">영업팀(임택권)·생산팀·품질팀의 휴일근무·연장근무를 한 달력에 모았습니다. 다른 직원은 [직원 추가] 돋보기로 넣을 수 있습니다. 날짜마다 그날 근무한 사람이 보이고, 날짜를 누르면 오른쪽에 시각·근무지·업무내용·신청서가 나옵니다. 고칠 때는 이름 옆 [고치기]로 근태 기입에 들어갑니다.</p>
       : <p className="caption noprint">캡스·하이웍스로 채워지지 않은 조출·연장·출장 시각이나 근무지, 같이 근무한 인원, 업무내용을 직접 적습니다. 저장하면 대시보드와 엑셀에 바로 반영되고, 누가 언제 고쳤는지 남습니다.</p>}
     </>
   );
@@ -41,6 +42,17 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
   const employed = new Set(base.employees.filter((e) => activeNames([e], `${month}-01`, `${month}-31`).length > 0).map((e) => e.name));
   let names = base.roster.map((r) => r.name).filter((x) => present.has(x) || (employed.has(x) && (typedIn.has(x) || !!rule.byEmp?.[x])));
   if (!names.length) names = [...present].sort();
+  // 보이는 직원 범위 (2026-11-27): 영업팀은 임택권만, 생산팀·품질팀 전체, 근태 기입은 일학습병행 김진호도.
+  // 그 밖의 직원은 돋보기(직원 추가)로 넣으면 설정(edit_scope_extra)에 저장돼 계속 보인다.
+  const view = cal ? "cal" : "edit";
+  const extraAll = await store.getSetting<{ cal: string[]; edit: string[] }>("edit_scope_extra", { cal: [], edit: [] });
+  const extra = (extraAll[view] ?? []).filter((x) => names.includes(x));
+  const deptOfName = (x: string) => base.employees.find((e) => e.name === x)?.dept ?? "";
+  const inScope = (x: string) => ["생산팀", "품질팀"].includes(deptOfName(x)) || x === "임택권" || (!cal && x === "김진호") || extra.includes(x);
+  const allNamesOfMonth = names;
+  names = names.filter((x) => inScope(x) || (!cal && x === String(sp.emp)));
+  const outside = allNamesOfMonth.filter((x) => !inScope(x));
+  const scopeBox = <Suspense><ScopeSearch view={view} added={extra} candidates={outside} /></Suspense>;
   const emp = names.includes(String(sp.emp)) ? String(sp.emp) : names[0];
 
   const days = await computeDays(records, rule);
@@ -209,6 +221,7 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
             <span style={{ alignSelf: "flex-end" }}>
               <ParamMulti name="part" values={whoQ} options={deptList} label="부서 고르기" allLabel="전 부서" />
             </span>
+            <span style={{ alignSelf: "flex-end" }}>{scopeBox}</span>
           </Suspense>
           {whoQ.length > 0 && <span className="caption" style={{ alignSelf: "flex-end", margin: 0 }}>{whoQ.join(", ")}만 보는 중</span>}
         </div>
@@ -347,6 +360,7 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
           {!cal && <span style={{ alignSelf: "flex-end" }}>
             <ParamMulti name="pick" values={pickQ} options={names} label="여러 명 저장·인쇄" allLabel="선택 안 함" />
           </span>}
+          {!cal && <span style={{ alignSelf: "flex-end" }}>{scopeBox}</span>}
         </Suspense>
         {!cal && pickQ.length > 0 && <span className="caption" style={{ alignSelf: "flex-end", margin: 0 }}>
           고른 {pickQ.length}명을 한 사람씩 한 장에 인쇄하고, 엑셀은 한 사람씩 파일로 묶어(ZIP) 받습니다.</span>}
