@@ -299,8 +299,7 @@ function Drawer({ emp, today, extra, admin, avatar, fyLabel, onClose }: {
               <div><span>캡스 출입</span><b>{extra?.span ? extra.span[1].slice(5).replace("-", "/") : "-"}</b>{extra?.span && <small>{extra.span[0]}부터</small>}</div>
             </div>
             <div className="ep-links">
-              <Link href={`/person?emp=${encodeURIComponent(emp.name)}`}>🙋 직원별 근태</Link>
-              <Link href={`/sheets?tab=edit&emp=${encodeURIComponent(emp.name)}`}>✍️ 근태 기입</Link>
+              <Link href={`/person?emp=${encodeURIComponent(emp.name)}`}>✍️ 근태 기입</Link>
               <Link href="/leave/status">📈 연차 현황</Link>
               {emp.phone && <a href={`tel:${emp.phone.replace(/[^\d+]/g, "")}`}>📞 전화</a>}
               {emp.email && <a href={`mailto:${emp.email}`}>✉️ 메일</a>}

@@ -4,7 +4,7 @@ import type { SearchParams } from "@/lib/인사노무/data";
 
 export default async function EditRedirect({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
-  const q = new URLSearchParams({ tab: "edit" });
+  const q = new URLSearchParams();
   for (const k of ["month", "emp"]) if (typeof sp[k] === "string") q.set(k, sp[k] as string);
-  redirect(`/sheets?${q.toString()}`);
+  redirect(q.size ? `/person?${q}` : "/person");
 }

@@ -93,6 +93,6 @@ export async function saveEditScope(view: "cal" | "edit", names: string[]): Prom
   const next = { ...cur, [view]: [...new Set(names.map((x) => String(x).trim()).filter(Boolean))].slice(0, 100) };
   await store.setSetting("edit_scope_extra", next);
   revalidatePath("/person");
-  revalidatePath("/sheets");
+  revalidatePath("/calendar/work");
   return { ok: "저장했습니다." };
 }

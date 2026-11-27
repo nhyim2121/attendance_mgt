@@ -89,8 +89,8 @@ export const MENU: MenuArea[] = [
       { label: "3-2. 복무 및 근태관리", items: [
         { href: "/attendance", label: "근태 홈", desc: "오늘 출근·지각·휴가 한눈에" },
         { href: "/daily", label: "일일 현황", desc: "날짜별 출근·지각·미출근, 근태 보고서" },
-        { href: "/person", label: "직원별 근태", desc: "한 사람의 휴일·연장근무 달력, 근태 기입", also: ["/sheets", "/edit"] },
-        { href: "/calendar", label: "근태 캘린더", desc: "달력으로 보는 근태", also: ["/evidence"] },
+        { href: "/person", label: "직원별 근태", desc: "근태 기입: 직원 한 명의 한 달 시각·근무지·인원·업무내용, 인쇄·엑셀", also: ["/sheets", "/edit"] },
+        { href: "/calendar", label: "근태 캘린더", desc: "달력으로 보는 근태, 휴일·연장 달력, 출장 증빙", also: ["/evidence", "/calendar/work"] },
         { href: "/hours", label: "근로시간 리포트", desc: "부서·월별 근로시간", also: ["/depts"] },
         { href: "/week52", label: "주 52시간 관리", desc: "주간 근로시간 경고" },
         { href: "/monthly", label: "월 근태 집계", desc: "월별 지각·결근·연장 합계" },

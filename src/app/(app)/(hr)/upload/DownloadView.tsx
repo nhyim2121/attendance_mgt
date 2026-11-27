@@ -62,7 +62,7 @@ export default async function DownloadView({ sp, head }: { sp: SearchParams; hea
         {exceptions.length ? (
           <Table head={[...EXCEPTION_COLUMNS, ""]} tall rows={exceptions.map((r) => [
             r[0], empLink(r[1]), ...r.slice(2),
-            <a key="edit" className="btn sm" href={`/sheets?tab=edit&month=${r[2].slice(0, 7)}&emp=${encodeURIComponent(r[1])}`}>기입</a>,
+            <a key="edit" className="btn sm" href={`/person?month=${r[2].slice(0, 7)}&emp=${encodeURIComponent(r[1])}`}>기입</a>,
           ])} />
         ) : <span className="muted">확인할 날이 없습니다.</span>}
       </div>
@@ -79,7 +79,7 @@ export default async function DownloadView({ sp, head }: { sp: SearchParams; hea
           <Suspense><ParamSelect name="preview" value={preview} options={emps.map((e) => [e, e])} /></Suspense>
           <b>{pd.length ? `${pd[0].dept} ${preview}` : preview}</b>
           <span className="spacer" />
-          <a className="btn sm" href={`/sheets?tab=edit&month=${d.f.filter.from.slice(0, 7)}&emp=${encodeURIComponent(preview)}`}>이 직원 근태 기입</a>
+          <a className="btn sm" href={`/person?month=${d.f.filter.from.slice(0, 7)}&emp=${encodeURIComponent(preview)}`}>이 직원 근태 기입</a>
         </div>
         <Table head={SHEET_COLUMNS} rows={rows} tall rowClass={(i) => rowKind(rows[i])} />
         <div className="row" style={{ marginTop: 10 }}>

@@ -165,7 +165,7 @@ export default async function Home() {
       {noProof.length > 0 && (
         <div className="msg warn">📎 신청서 없는 휴일·연장근무·조출 <b>{noProof.length}건</b>은 <b>미인정</b>으로 표시됩니다 (시간 합계에는 들어감):{" "}
           {noProof.slice(0, 6).map((m, i) => (
-            <span key={`${m.emp}${m.day}`}>{i ? ", " : ""}<Link href={`/sheets?tab=edit&month=${m.day.slice(0, 7)}&emp=${encodeURIComponent(m.emp)}`}>{m.emp} {+m.day.slice(5, 7)}/{+m.day.slice(8)} {m.kinds.join("·")}</Link></span>
+            <span key={`${m.emp}${m.day}`}>{i ? ", " : ""}<Link href={`/person?month=${m.day.slice(0, 7)}&emp=${encodeURIComponent(m.emp)}`}>{m.emp} {+m.day.slice(5, 7)}/{+m.day.slice(8)} {m.kinds.join("·")}</Link></span>
           ))}{noProof.length > 6 && ` 외 ${noProof.length - 6}건`} · 근태 기입에서 [☐ 신청서]를 누르면(또는 📎 첨부) 바로 인정됩니다.</div>
       )}
       {!hasToday && !holiday && (
@@ -265,7 +265,7 @@ export default async function Home() {
               <Tile label="출장" n={ySum("trip")} people={yRows.flatMap((r) => r.trip.map((e) => [e, r.dept] as [string, string]))} href="/evidence" />
               <Tile label="휴가" n={ySum("leave")} people={yRows.flatMap((r) => r.leave.map((e) => [e, `${r.dept} · ${r.leaveKind[e]}`] as [string, string]))} href="/leave" />
               <Tile label="퇴근미체크" n={ySum("noOut")} warn people={yRows.flatMap((r) => r.noOut.map((e) => [e, r.dept] as [string, string]))}
-                href={`/sheets?tab=edit&month=${yday.slice(0, 7)}`} />
+                href={`/person?month=${yday.slice(0, 7)}`} />
               <Tile label="연장근무" n={ySum("ot")} people={yRows.flatMap((r) => r.ot.map((o) => [o.emp, r.dept] as [string, string]))} />
             </div>
             <table className="tbl ydept" style={{ marginTop: 14 }}>

@@ -209,8 +209,8 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
     const today = new Date().toLocaleDateString("sv-SE");
     const WD = ["월", "화", "수", "목", "금", "토", "일"];
     const lead = Math.max(0, WD.indexOf(weekdayKr(makeDate(y, m, 1)!)));
-    const href = (d: string) => `/person?month=${month}&day=${d}${whoQ.length ? `&part=${encodeURIComponent(whoQ.join(","))}` : ""}`;
-    const editHref = (x: string) => `/sheets?tab=edit&month=${month}&emp=${encodeURIComponent(x)}`;
+    const href = (d: string) => `/calendar/work?month=${month}&day=${d}${whoQ.length ? `&part=${encodeURIComponent(whoQ.join(","))}` : ""}`;
+    const editHref = (x: string) => `/person?month=${month}&emp=${encodeURIComponent(x)}`;
     const ps = byDay.get(sel) ?? [];
     const iSel = dayList.indexOf(sel);
     return (

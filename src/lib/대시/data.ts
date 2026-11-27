@@ -135,7 +135,7 @@ export const todos = cache(async (admin: boolean): Promise<Todo[]> => {
   // 신청서 없는 휴일·연장근무 (2026-11부터, 미인정 표시)
   for (const m of (await missingProofs().catch(() => [])).slice(0, 30)) {
     out.push({ area: "hr", cat: "인사", icon: "/sheets", title: `${m.emp} ${m.kinds.join("·")} 신청서 없음`, sub: `미인정 · ${m.day}`,
-      href: `/sheets?tab=edit&month=${m.day.slice(0, 7)}&emp=${encodeURIComponent(m.emp)}`, left: null });
+      href: `/person?month=${m.day.slice(0, 7)}&emp=${encodeURIComponent(m.emp)}`, left: null });
   }
   // 기타(내 업무): 기한 있는 업무협조(관리팀 공용) + 7일 안 내 개인일정
   const me = await currentUser();
