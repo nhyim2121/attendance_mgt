@@ -61,11 +61,11 @@ const gaRest = booksOf("ga", gaListed);
 
 /** 업무분장 묶음별 대시보드 (/hr/g/<slug>) */
 export const HR_DASH: Record<string, { group: string; name: string; en: string; emoji: string }> = {
-  hire: { group: "3-1. 직원채용", name: "직원채용", en: "HIRING", emoji: "🧲" },
-  work: { group: "3-2. 복무 및 근태관리", name: "복무·근태", en: "ATTENDANCE", emoji: "⏰" },
+  hire: { group: "채용관리", name: "직원채용", en: "HIRING", emoji: "🧲" },
+  work: { group: "근태관리", name: "복무·근태", en: "ATTENDANCE", emoji: "⏰" },
   leave: { group: "3-2. 휴가·휴직", name: "휴가·휴직", en: "LEAVE", emoji: "🏖️" },
   labor: { group: "3-4. 노무관리", name: "노무", en: "LABOR", emoji: "⚖️" },
-  org: { group: "3-5. 조직 관리", name: "조직", en: "ORGANIZATION", emoji: "🌳" },
+  org: { group: "인력계획", name: "조직", en: "ORGANIZATION", emoji: "🌳" },
   people: { group: "3-6. 인사관리", name: "인사", en: "PEOPLE", emoji: "🪪" },
   edu: { group: "3-7. 교육훈련 관리", name: "교육훈련", en: "TRAINING", emoji: "🎓" },
 };
@@ -84,17 +84,25 @@ export const MENU: MenuArea[] = [
   {
     key: "hr", label: "인사노무", en: "HR", color: "#0c3994", desc: "채용·근태·휴가·급여·노무·조직·인사·교육 (업무분장 3-1~3-7)", dash: "/hr", adminOnly: false,
     groups: [
-      dutyGroup("hr", true),
-      { label: "3-1. 직원채용", items: [gdash("hire"), hrBook("recruit"), { ...hrBook("applicants"), also: ["/hr/applicant"] }, hrBook("onoff"), hrBook("contracts")] },
-      { label: "3-2. 복무 및 근태관리", items: [
-        { href: "/attendance", label: "근태 홈", desc: "오늘 출근·지각·휴가 한눈에" },
+      // 2026-11-27 재분류: 직원채용 + 조직 관리 → 인력계획 · 채용관리, 복무 및 근태관리 → 근태관리 (메뉴 4개)
+      { label: "인력계획", items: [
+        { href: "/hr/plan", label: "인력계획 대시보드", desc: "현원·정원·충원계획, 부서별 인원, 조직도·직무기술서·업무분장 한눈에", also: ["/hr/g/org"] },
+        { href: "/org", label: "조직도", desc: "부서·직책 구조, 사내용·대외용 인쇄" },
+        { href: "/jobs", label: "직무기술서", desc: "직무별 목적·주요 업무·필요 역량·자격 · 양식·예시 · 인쇄·엑셀" },
+        { href: DUTY_HREF.hr, label: "업무분장·업무 목록", desc: "묶음별 하는 일과 주기, 관련 대장", admin: true },
+        { ...book(ROUTINE_BOOK.hr), admin: true },
+        hrBook("revisions"),
+      ] },
+      { label: "채용관리", items: [
+        { href: "/hr/hire", label: "채용관리 대시보드", desc: "채용공고·지원자·면접·합격/불합격 통보, 서류 반환·파기 기한", also: ["/hr/g/hire"], admin: true },
+        hrBook("recruit"), { ...hrBook("applicants"), also: ["/hr/applicant"] },
+      ] },
+      { label: "근태관리", items: [
+        { href: "/attendance", label: "대시보드", desc: "금일·명일·주간·월별·연도별 출퇴근·지각·조퇴·외출·결근·연장및휴일근무", exact: true,
+          also: ["/attendance/classic", "/calendar", "/calendar/work", "/evidence", "/hours", "/depts", "/week52", "/monthly", "/hr/g/work", "/hr/b/holidaywork", "/hr/b/flex", "/hr/b/reserve"] },
         { href: "/daily", label: "일일 현황", desc: "날짜별 출근·지각·미출근, 근태 보고서" },
         { href: "/person", label: "직원별 근태", desc: "근태 기입: 직원 한 명의 한 달 시각·근무지·인원·업무내용, 인쇄·엑셀", also: ["/sheets", "/edit"] },
-        { href: "/calendar", label: "근태 캘린더", desc: "달력으로 보는 근태, 휴일·연장 달력, 출장 증빙", also: ["/evidence", "/calendar/work"] },
-        { href: "/hours", label: "근로시간 리포트", desc: "부서·월별 근로시간", also: ["/depts"] },
-        { href: "/week52", label: "주 52시간 관리", desc: "주간 근로시간 경고" },
-        { href: "/monthly", label: "월 근태 집계", desc: "월별 지각·결근·연장 합계" },
-        hrBook("holidaywork"), hrBook("flex"), hrBook("reserve"),
+        { href: "/hr/apprentice", label: "일학습병행(도제)", desc: "학습근로자 출근·근무시간·지각·결근, 보고서 도제 칸 메모, 사업 기간·다음 할 일" },
       ] },
       { label: "3-2. 휴가·휴직", items: [ 
         { href: "/leave", label: "휴가 홈", desc: "사용률·다가오는 휴가", exact: true },
@@ -105,13 +113,9 @@ export const MENU: MenuArea[] = [
         hrBook("leavepromo"), hrBook("absence"),
       ] },
       { label: "3-4. 노무관리", items: [gdash("labor"), hrBook("compliance"), hrBook("council"), hrBook("agreements"), hrBook("labor"), hrBook("discipline"), hrBook("injuries")] },
-      { label: "3-5. 조직 관리", items: [gdash("org"), 
+      { label: "3-6. 인사관리", items: [gdash("people"),
         { href: "/employees", label: "직원 관리", desc: "직원 명부(사원현황)·입사일·근무 기준, 비상연락망" },
-        { href: "/org", label: "조직도", desc: "부서·직책 구조" },
-        { href: "/jobs", label: "직무기술서", desc: "직무별 목적·주요 업무·필요 역량·자격 · 양식·예시 · 인쇄·엑셀" },
-        hrBook("revisions"),
-      ] },
-      { label: "3-6. 인사관리", items: [gdash("people"), hrBook("appointments"), hrBook("evaluations"), hrBook("awards"), hrBook("certificates"), hrBook("licenses"),
+        hrBook("onoff"), hrBook("contracts"), hrBook("appointments"), hrBook("evaluations"), hrBook("awards"), hrBook("certificates"), hrBook("licenses"),
         { href: "/hr/qual", label: "정비적격심사 기술자 등급", desc: "현장심사 관련 자격증·학과 적용표, 경력·등급 자동 계산, 서류 첨부", admin: true },
         hrBook("foreign"), hrBook("programs")] },
       { label: "3-7. 교육훈련 관리", items: [gdash("edu"),

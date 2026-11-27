@@ -1,395 +1,198 @@
-/** 홈 대시보드: 오늘 근무 현황, 어제 근무 현황·다가오는 휴가, 이번 주 근무·부서별 연장, 이번 달 근무시간·인력 변동·연차, 부서별 연장·월별 평균. */
+/** 근태관리 > 대시보드 (2026-11-27 새로): 기준(금일·명일·주간·월별·연도별)마다 출퇴근·지각·조퇴·외출·결근·연장및휴일근무.
+ *  카드를 누르면 명단(모달), 부서별 출근율(진행막대), 오늘 마감 단계, 살펴볼 사람, 아래에 예전 근태 화면·대장 링크.
+ *  예전 근태 홈(그래프 모음)은 /attendance/classic */
 import Link from "next/link";
-import PageHead from "@/components/대시/PageHead";
-import { missingProofs } from "@/lib/인사노무/proofScan";
-import { DeptHeadBars, HOME, HoursArea, HoursBars, JoinLeaveBars, MonthlyCombo, StatusBars } from "@/components/인사노무/Charts";
-import { Ico, Stat } from "@/components/인사노무/HomeKit";
-import PrintButton from "@/components/PrintButton";
+import { Suspense } from "react";
+import { ParamDate, ParamSelect } from "@/components/ParamControls";
+import { Badge, Bar, Fab, Modal, ParamCheck, Segment, SnackHost, Steps, Tip, UxHead } from "@/components/ux/Kit";
 import { NoData } from "@/components/ui";
-import { dailyBoard, isHoliday } from "@/lib/인사노무/analytics";
-import {
-  deptOvertime, frequentLate, headcount, isLeaveType, monthlyAverage, periodHours, weekdayAverage, weekHours,
-} from "@/lib/인사노무/dashboard";
-import { getHolidays, getLeavePolicy, getRule, loadBase, rosterDays, staffOn } from "@/lib/인사노무/data";
-import { buildOrg, defaultNodes, type OrgBox, type OrgNode } from "@/lib/인사노무/org";
+import { isHoliday, splitTypes, type DayRow } from "@/lib/인사노무/analytics";
+import { holidayHours, overtimeHours, weekHours } from "@/lib/인사노무/dashboard";
+import { getHolidays, getRule, loadBase, rosterDays, type SearchParams } from "@/lib/인사노무/data";
+import { activeNames } from "@/lib/인사노무/employees";
+import { missingProofs } from "@/lib/인사노무/proofScan";
 import * as store from "@/lib/store";
-import { addDays, dayLabel, hhmm, nowKst, parseTs, todayKst, tsHM, weekday } from "@/lib/time";
-import { fyOf } from "@/lib/인사노무/vacation";
-import { annualUsage, prevWorkday, yesterdayRows } from "@/lib/인사노무/reportHome";
+import { addDays, dayLabel, isDateStr, todayKst, tsHM, weekday } from "@/lib/time";
+import CopySummary from "./CopySummary";
+import { ATT_MENU } from "@/lib/인사노무/attMenu";
 
-const WEEK_LIMIT = 52;
-const WEEK_WARN = 48;
+export const metadata = { title: "근태 대시보드 · 근태관리통합시스템" };
 
-type Person = [name: string, sub: string];
+const PERIODS: [string, string][] = [["day", "금일"], ["next", "명일"], ["week", "주간"], ["month", "월별"], ["year", "연도별"]];
+const EXEC = /대표|부사장|전무|상무|이사/;
+const KINDS = [
+  { k: "in", label: "출퇴근", color: "#0c3994", tip: "캡스 출근 기록이 있는 사람 (퇴근 미체크 포함). 주간·월별·연도별은 사람×날 수" },
+  { k: "late", label: "지각", color: "#c2410c", tip: "출근 기준 시각을 넘어 출근 (출장·반차 출근 형태 제외)" },
+  { k: "early", label: "조퇴", color: "#7c3aed", tip: "퇴근 기준 시각 전에 캡스로 퇴근 (반차·외출 신청은 제외)" },
+  { k: "out", label: "외출", color: "#0e7490", tip: "외출 신청 (하이웍스·보고서·휴가 등록)" },
+  { k: "absent", label: "결근", color: "#be123c", tip: "근무일인데 캡스 기록·휴가·출장이 모두 없는 날" },
+  { k: "ot", label: "연장및휴일근무", color: "#e8590c", tip: "평일 연장근로 + 주말·공휴일 근무 (캡스 시각 기준)" },
+] as const;
+type Kind = (typeof KINDS)[number]["k"];
+type Who = [name: string, dept: string, detail: string];
 
-/** 숫자 칸. 누르면 해당 직원 목록이 펼쳐진다. */
-function Tile({ label, n, people, warn, unit = "명", href }: {
-  label: string; n: number; people?: Person[]; warn?: boolean; unit?: string; href?: string;
-}) {
-  const num = <span className={`tile-n${warn && n > 0 ? " warn" : ""}`}>{n}<small>{unit}</small></span>;
-  if (!people) return <div className="tile"><span className="tile-l">{label}</span>{num}</div>;
-  return (
-    <details className="pop tile-pop">
-      <summary className="tile"><span className="tile-l">{label}</span>{num}<span className="chev">›</span></summary>
-      <div className="pop-body">
-        <b>{label} {n}{unit}</b>
-        {people.length ? (
-          <table className="list-table" style={{ marginTop: 6 }}><tbody>
-            {people.map(([p, s], i) => <tr key={i}><td>{p}</td><td className="dt">{s}</td></tr>)}
-          </tbody></table>
-        ) : <p className="muted">없습니다.</p>}
-        {href && <p style={{ margin: "8px 0 0" }}><Link href={href}>자세히 보기 →</Link></p>}
-      </div>
-    </details>
-  );
-}
-
-function Empty() {
-  return <div className="empty"><span>≡</span>대상자가 없습니다.</div>;
-}
-
-// ---------------------------------------------------------------- 홈 꾸밈 (아이콘·요약 띠·조직도 요약)
-function OrgMini({ roots }: { roots: OrgBox[] }) {
-  const top = roots[0];
-  if (!top) return <Empty />;
-  const who = (b: OrgBox) => (b.head ? `${b.head.name} ${b.head.rank}`.trim() : `${b.count}명`);
-  return (
-    <div className="omini">
-      <div className="obox top"><b>{top.node.label}</b><span>{top.head ? who(top) : `전체 ${top.count}명`}</span></div>
-      {top.children.length > 0 && (
-        <div className="olevel">
-          {top.children.map((c) => (
-            <div key={c.node.id} className="obranch">
-              <div className="obox" style={{ "--oc": c.color || HOME.navy } as React.CSSProperties}>
-                <b>{c.node.label}</b><span>{who(c)}</span>
-              </div>
-              {c.children.length > 0 && (
-                <div className="osubs">{c.children.slice(0, 4).map((g) => (
-                  <div key={g.node.id} className="obox sm"><b>{g.node.label}</b><span>{who(g)}</span></div>
-                ))}{c.children.length > 4 && <span className="muted">외 {c.children.length - 4}</span>}</div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const h1 = (x: number) => `${Math.floor(x)}시간${Math.round((x % 1) * 60) ? ` ${Math.round((x % 1) * 60)}분` : ""}`;
-
-export default async function Home() {
-  const [rule, holidays, base, policy, savedNodes] = await Promise.all([
-    getRule(), getHolidays(), loadBase(), getLeavePolicy(),
-    store.getSetting<OrgNode[] | null>("org_nodes", null),
-  ]);
-  if (!base.months.length) return <><PageHead href={"/attendance"} /><NoData /></>;
+export default async function AttendanceDash({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const sp = await searchParams;
+  const [rule, holidays, base] = await Promise.all([getRule(), getHolidays(), loadBase()]);
+  const head = <UxHead crumb="인사노무 › 근태관리" title="근태 대시보드" menu={ATT_MENU} />;
+  if (!base.months.length) return <div className="ux-page">{head}<NoData /></div>;
 
   const today = todayKst();
-  const lastDay = base.months[base.months.length - 1].last_day;
-  const yearStart = `${today.slice(0, 4)}-01-01`;
-  const monday = addDays(today, -weekday(today));
-  const { records, days } = await rosterDays(monday < yearStart ? monday : yearStart, today);
-  const lastTs = records.length ? records[records.length - 1].ts : null;
+  const p = PERIODS.some(([v]) => v === sp.p) ? String(sp.p) : "day";
+  const at = isDateStr(sp.day) && String(sp.day) <= addDays(today, 60) ? String(sp.day) : today;
+  const dept = String(sp.dept ?? "");
+  const withApp = sp.app !== "0", noExec = sp.exec === "1";
+  const from = p === "day" ? at : p === "next" ? addDays(at, 1) : p === "week" ? addDays(at, -weekday(at)) : p === "month" ? `${at.slice(0, 7)}-01` : `${at.slice(0, 4)}-01-01`;
+  const to = p === "next" ? addDays(at, 1) : at;
+  const label = p === "day" ? dayLabel(at, true) : p === "next" ? `${dayLabel(to, true)} 예정` : `${dayLabel(from)} ~ ${dayLabel(to)}`;
 
-  // ---------------------------------------------------------------- 오늘
-  const holiday = isHoliday(today, rule, holidays);
-  const staff = await staffOn(today, records);
-  const board = dailyBoard(days, base.leaves, staff, today, rule, parseTs(nowKst()), holiday);
-  const todayRows = days.filter((d) => d.day === today);
-  const by = (g: string) => board.filter((b) => b.group === g);
-  const working = board.filter((b) => b.group !== "휴가" && b.group !== "휴무");
-  const early = todayRows.filter((d) => d.early && (d.outSrc === "캡스" || d.outSrc === "수기입력"));
-  const depts = [...new Set(staff.map(([, d]) => d || "(부서 없음)"))];
-  const hasToday = records.some((r) => r.day === today);
+  const empOf = new Map(base.employees.map((e) => [e.name, e]));
+  const keep = (name: string, d: string) => {
+    const e = empOf.get(name);
+    const dp = d || e?.dept || "";
+    if (dept && dp !== dept) return false;
+    if (!withApp && /일학습/.test(dp)) return false;
+    if (noExec && EXEC.test(e?.rank ?? "")) return false;
+    return true;
+  };
+  const staffAt = activeNames(base.employees, to, to).filter((n) => keep(n, empOf.get(n)?.dept ?? ""));
+  const depts = [...new Set(base.employees.filter((e) => activeNames([e], today, today).length).map((e) => e.dept).filter(Boolean))];
 
-  // ---------------------------------------------------------------- 어제 (직전 근무일) · 보고서와 같은 계산 (reportHome.ts)
-  const yday = prevWorkday(today, rule, holidays);
-  const yRows = await yesterdayRows(days, base.leaves, records, yday, rule);
-  const otAll = yRows.flatMap((r) => r.ot);
-  const ySum = (k: "trip" | "leave" | "noOut" | "ot") => yRows.reduce((t, r) => t + r[k].length, 0);
+  // 실제 기록 (명일은 기록이 없으니 신청·일정으로)
+  const { records, days: all } = p === "next" ? { records: [], days: [] as DayRow[] } : await rosterDays(from, to);
+  const days = all.filter((d) => d.day >= from && d.day <= to && keep(d.emp, d.dept));
+  const tagged = (s: string) => s === "캡스" || s === "수기입력";
+  const hm = (t: number | null) => (t === null ? "" : tsHM(t));
+  const lists: Record<Kind, Who[]> = { in: [], late: [], early: [], out: [], absent: [], ot: [] };
+  const multi = p !== "day";
+  const dl = (d: DayRow) => (multi ? `${+d.day.slice(5, 7)}/${+d.day.slice(8)} ` : "");
+  for (const d of days) {
+    if (d.in !== null) lists.in.push([d.emp, d.dept, `${dl(d)}${hm(d.in)}${d.out !== null ? ` ~ ${hm(d.out)}` : " · 퇴근 미체크"}`]);
+    if (d.late) lists.late.push([d.emp, d.dept, `${dl(d)}${hm(d.in)} 출근`]);
+    if (d.early && tagged(d.outSrc)) lists.early.push([d.emp, d.dept, `${dl(d)}${hm(d.out)} 퇴근`]);
+    if (splitTypes(d.leave).includes("외출")) lists.out.push([d.emp, d.dept, `${dl(d)}${d.leaveOut || d.leaveIn || "외출"}`]);
+    if (!d.holiday && d.status === "기록 없음" && d.day <= today) lists.absent.push([d.emp, d.dept, `${dl(d)}기록 없음`]);
+    const ot = overtimeHours(d, rule) + holidayHours(d, rule);
+    if (ot > 0) lists.ot.push([d.emp, d.dept, `${dl(d)}${d.holiday ? "휴일" : "연장"} ${Math.round(ot * 10) / 10}시간`]);
+  }
+  if (p === "next") {
+    const lv = base.leaves.filter((l) => l.day === to && keep(l.name, empOf.get(l.name)?.dept ?? ""));
+    for (const l of lv) {
+      const dp = empOf.get(l.name)?.dept ?? "";
+      if (l.type === "외출") lists.out.push([l.name, dp, "외출 신청"]);
+      if (l.type === "휴일근무" || l.type === "연장근무") lists.ot.push([l.name, dp, `${l.type} 신청`]);
+    }
+  }
+  const nextOff = p === "next" ? new Set(base.leaves.filter((l) => l.day === to && !["외출", "휴일근무", "연장근무"].includes(l.type)).map((l) => l.name)) : new Set<string>();
+  const nextHoliday = p === "next" && isHoliday(to, rule, holidays);
+  const persons = (xs: Who[]) => new Set(xs.map((x) => x[0])).size;
+  const inCount = p === "day" ? persons(lists.in) : p === "next" ? (nextHoliday ? 0 : staffAt.filter((n) => !nextOff.has(n)).length) : lists.in.length;
+  const value = (k: Kind) => (k === "in" ? inCount : lists[k].length);
 
-  // ---------------------------------------------------------------- 이번 주·이번 달·올해
-  const week = weekHours(days, today, rule);
-  const over = week.filter((w) => w.hours > WEEK_LIMIT), near = week.filter((w) => w.hours >= WEEK_WARN && w.hours <= WEEK_LIMIT);
-  const month = today.slice(0, 7);
-  const monthDays = days.filter((d) => d.day.startsWith(month));
-  const ph = periodHours(monthDays, rule);
-  const late3 = frequentLate(monthDays);
-  const order = [...new Set(base.employees.map((e) => e.dept).filter(Boolean))];
-  // 이번 달 평균 연장근무시간 그래프에서 대전지사·일학습(도제)은 뺀다 (2026-11-11 사용자 결정)
-  const deptOt = deptOvertime(monthDays, rule, order).filter((x) => !/대전|일학습/.test(x.dept));
-  const yearDays = days.filter((d) => d.day >= yearStart);
-  const monthly = monthlyAverage(yearDays, rule).map((m) => ({ ...m, label: `${+m.month.slice(5)}월` }));
-  const org = buildOrg(savedNodes?.length ? savedNodes : defaultNodes(base.employees), base.employees, today);
-  const wdAvg = weekdayAverage(monthDays, rule);
-  const hc = headcount(base.employees, today);
+  // 부서별 출근율 (기간 안 근무일 기준)
+  const deptRate = depts.filter((d) => !dept || d === dept).map((d) => {
+    const g = days.filter((x) => x.dept === d && !x.holiday);
+    const ok = g.filter((x) => x.in !== null || splitTypes(x.leave).some((t) => ["출장", "교육", "외근"].includes(t))).length;
+    return { d, n: g.length, pct: g.length ? (ok / g.length) * 100 : 0 };
+  }).filter((x) => x.n);
 
-  // ---------------------------------------------------------------- 연차 (회계연도)
-  const fy = fyOf(today, policy);
-  const { bal, usedRate } = await annualUsage(today, policy);
-  const most = [...bal].sort((a, b) => b.remain - a.remain).slice(0, 5);
+  // 살펴볼 사람: 52시간·신청서 빠짐·지각 잦음·퇴근 미체크
+  const watch: [string, string, string, string][] = [];
+  if (p !== "next") {
+    const wk = weekHours(days.length && p === "day" ? (await rosterDays(addDays(at, -weekday(at)), at)).days.filter((d) => keep(d.emp, d.dept)) : days, at, rule);
+    wk.filter((w) => w.hours >= 48).forEach((w) => watch.push(["52시간", w.emp, `이번 주 ${Math.round(w.hours)}시간${w.hours > 52 ? " · 초과" : " · 경고"}`, "#be123c"]));
+    const miss = (await missingProofs()).filter((m) => m.day >= from && m.day <= to && keep(m.emp, empOf.get(m.emp)?.dept ?? ""));
+    miss.slice(0, 6).forEach((m) => watch.push(["신청서", m.emp, `${dayLabel(m.day)} ${m.kinds.join("·")} 신청서 없음`, "#b45309"]));
+    const lateN = new Map<string, number>(); lists.late.forEach(([n]) => lateN.set(n, (lateN.get(n) ?? 0) + 1));
+    [...lateN].filter(([, n]) => n >= 3).forEach(([n, c]) => watch.push(["지각", n, `${c}회`, "#c2410c"]));
+    days.filter((d) => d.status === "퇴근 기록 없음" && d.day < today).slice(0, 5).forEach((d) => watch.push(["퇴근", d.emp, `${dayLabel(d.day)} 퇴근 미체크`, "#4b5563"]));
+  }
 
-  // ---------------------------------------------------------------- 다가오는 휴가·출장 (2주)
-  // 홈 상단: 부서별 재직·출근, 오늘 근태 분포
-  const present = board.filter((b) => b.in !== null).length;
-  // 부서별 인원 현황에서 빼는 사람 (2026-11-11 사용자 결정): 품질팀 김동수, 대전지사 김창범
-  const HEAD_EXCLUDE = ["김동수", "김창범"];
-  const deptHead = [...order.filter((d) => depts.includes(d)), ...depts.filter((d) => !order.includes(d))].map((dp) => {
-    const g = board.filter((b) => (b.dept || "(부서 없음)") === dp && !HEAD_EXCLUDE.includes(b.emp));
-    return { dept: dp, staff: g.length, present: g.filter((b) => b.in !== null).length };
-  }).filter((x) => x.staff > 0);
-  const status = [
-    // 항목마다 색을 달리 (출근 남색, 지각 빨강, 휴가 초록, 출장·교육 보라, 미출근 주황)
-    { label: "출근", n: present, color: HOME.navy },
-    { label: "지각", n: board.filter((b) => b.late).length, color: HOME.red },
-    { label: "휴가", n: by("휴가").length, color: "#1f8a5b" },
-    { label: "출장·교육", n: by("출장·교육").length, color: "#6d3fd1" },
-    { label: "미출근", n: by("기록 없음").length, color: "#d9730d" },
-  ];
+  // 오늘 마감 단계: 캡스 기록 → 근태 확인(퇴근 미체크 없음) → 보고서 작성 → 발송
+  const info = await store.reportInfo(today).catch(() => null);
+  const stepAt = !records.some((r) => r.day === today) && p === "day" && at === today ? 0 : !info ? 2 : !info.sent_at ? 3 : 4;
 
-  const soon = base.leaves.filter((l) => l.day > today && l.day <= addDays(today, 14)
-    && (isLeaveType(l.type) || ["출장", "교육", "외근"].includes(l.type)));
+  const summary = `[${label}] ${KINDS.map((k) => `${k.label} ${value(k.k)}`).join(" · ")}`;
+  const unit = (k: Kind) => (k === "in" ? (p === "day" || p === "next" ? `/ ${staffAt.length}명` : "명·일") : k === "ot" ? "건" : p === "day" || p === "next" ? "명" : "회");
 
-  const noProof = await missingProofs().catch(() => []);
   return (
-    <div className="home">
-      <PageHead href="/attendance" desc={<>{dayLabel(today, true)} · 
-          업데이트: <b style={{ fontSize: "1rem", color: "var(--violet)" }}>{lastTs ? `${dayLabel(lastDay)} ${tsHM(lastTs)}` : "-"}</b>
-          {holiday && <> · <span style={{ color: "var(--amber)" }}>{holidays[today] ?? "주말"} (휴일)</span></>}</>}>
-          <Link className="pill" href={`/daily?day=${today}`}>일일 현황</Link>
-          <Link className="pill" href={`/daily?tab=report&day=${today}`}>근태 보고서</Link>
-          <Link className="pill" href="/leave">휴가</Link>
-          <PrintButton className="pill print" label="인쇄" />
-      </PageHead>
-      {noProof.length > 0 && (
-        <div className="msg warn">📎 신청서 없는 휴일·연장근무·조출 <b>{noProof.length}건</b>은 <b>미인정</b>으로 표시됩니다 (시간 합계에는 들어감):{" "}
-          {noProof.slice(0, 6).map((m, i) => (
-            <span key={`${m.emp}${m.day}`}>{i ? ", " : ""}<Link href={`/person?month=${m.day.slice(0, 7)}&emp=${encodeURIComponent(m.emp)}`}>{m.emp} {+m.day.slice(5, 7)}/{+m.day.slice(8)} {m.kinds.join("·")}</Link></span>
-          ))}{noProof.length > 6 && ` 외 ${noProof.length - 6}건`} · 근태 기입에서 [☐ 신청서]를 누르면(또는 📎 첨부) 바로 인정됩니다.</div>
-      )}
-      {!hasToday && !holiday && (
-        <div className="msg warn">오늘 캡스 기록이 아직 올라오지 않았습니다 (마지막 기록 {lastDay}). 출근·미출근 숫자는 기록을 올리면 맞춰집니다.{" "}
-          <Link href="/daily">일일 현황에서 올리기</Link></div>
-      )}
-
-      <section className="card hstats">
-        <Stat icon="people" label="재직 직원" value={staff.length} unit="명" sub={`부서 ${depts.length}개`} />
-        <Stat icon="in" label="오늘 출근" value={present} unit="명"
-          sub={staff.length ? `출근율 ${Math.round((present / staff.length) * 100)}%` : ""} />
-        <Stat icon="beach" label="휴가" value={by("휴가").length} unit="명" />
-        <Stat icon="plane" label="출장·교육" value={by("출장·교육").length} unit="명" />
-        <Stat icon="swap" label="이번 달 이직률" value={hc.turnover} unit="%" sub={`입사 ${hc.joined.length} · 퇴직 ${hc.left.length}`} />
-        <Stat icon="cal" label="연차 사용률" value={usedRate} unit="%" sub={`${fy}${policy.fyStartMonth === 1 ? "년" : "회계연도"}`} />
-      </section>
-
-      <section className="card hero home-row">
-        <div className="card-title">오늘 근무 현황<span className="spacer" />
-          <details className="pop">
-            <summary className="btn sm">부서별 현황 보기</summary>
-            <div className="pop-body">
-              <table className="tbl"><thead><tr>
-                <th>부서</th><th className="num">재직</th><th className="num">출근</th><th className="num">지각</th>
-                <th className="num">휴가</th><th className="num">출장·교육</th><th className="num">미출근</th>
-              </tr></thead><tbody>
-                {depts.map((dp) => {
-                  const g = board.filter((b) => (b.dept || "(부서 없음)") === dp);
-                  return (
-                    <tr key={dp}><td>{dp}</td><td className="num">{g.length}</td>
-                      <td className="num">{g.filter((b) => b.in !== null).length}</td>
-                      <td className="num">{g.filter((b) => b.late).length}</td>
-                      <td className="num">{g.filter((b) => b.group === "휴가").length}</td>
-                      <td className="num">{g.filter((b) => b.group === "출장·교육").length}</td>
-                      <td className="num">{g.filter((b) => b.group === "기록 없음").length}</td></tr>
-                  );
-                })}
-              </tbody></table>
-            </div>
-          </details>
+    <SnackHost>
+      <div className="ux-page">
+        {head}
+        <div className="ux-bar-row noprint">
+          <Suspense><Segment name="p" value={p} label="기준" options={PERIODS.map(([v, l]) => [v, l])} /></Suspense>
+          <Suspense><ParamDate name="day" label="기준일" value={at} /></Suspense>
+          <Suspense><ParamSelect name="dept" label="부서" value={dept} options={[["", "전 부서"], ...depts.map((d): [string, string] => [d, d])]} /></Suspense>
+          <Suspense><ParamCheck name="app" on={withApp} label="일학습병행 포함" /></Suspense>
+          <Suspense><ParamCheck name="exec" on={noExec} label="임원 제외" /></Suspense>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+            <span className="ux-sub">기준: <b>{label}</b></span><CopySummary text={summary} />
+          </span>
         </div>
-        <div className="hero-body">
-          <div>
-            <div className="sub-title">근무 계획</div>
-            <div className="plan">
-              <Tile label="근무자" n={working.length} people={working.map((b) => [b.emp, b.dept])} />
-              <Tile label="휴가자" n={by("휴가").length} people={by("휴가").map((b) => [b.emp, b.leave])} />
-              <Tile label="휴무자" n={by("휴무").length} people={by("휴무").map((b) => [b.emp, b.dept])} />
-              <Tile label="연장신청" n={board.filter((b) => b.overtime).length}
-                people={board.filter((b) => b.overtime).map((b) => [b.emp, b.leaveContent])} />
-            </div>
-          </div>
-          <div>
-            <div className="sub-title">근태 현황</div>
-            <div className="tiles2">
-              <Tile label="출근" n={board.filter((b) => b.in !== null).length} href={`/daily?day=${today}`}
-                people={board.filter((b) => b.in !== null).sort((a, b) => a.in! - b.in!).map((b) => [b.emp, tsHM(b.in)])} />
-              <Tile label="지각" n={board.filter((b) => b.late).length} warn href={`/daily?day=${today}`}
-                people={board.filter((b) => b.late).map((b) => [b.emp, tsHM(b.in)])} />
-              <Tile label="조기퇴근" n={early.length} warn people={early.map((d) => [d.emp, tsHM(d.out)])} />
-              <Tile label="미출근" n={by("기록 없음").length} warn href={`/daily?day=${today}`}
-                people={by("기록 없음").map((b) => [b.emp, b.dept])} />
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <div className="grid2 home-row">
-        <section className="card">
-          <div className="card-title"><Ico name="bars" />부서별 인원 현황</div>
-          {deptHead.length ? <DeptHeadBars data={deptHead} /> : <Empty />}
-        </section>
-        <section className="card">
-          <div className="card-title"><Ico name="flow" />오늘 근태 현황<span className="spacer" />
-            <Link className="btn sm" href={`/daily?day=${today}`}>자세히</Link></div>
-          <StatusBars data={status} total={staff.length} />
-        </section>
-      </div>
-
-      <div className="grid2 home-row">
-        <section className="card">
-          <div className="card-title"><Ico name="org" />조직도<span className="spacer" /><Link className="btn sm" href="/org">조직도 보기</Link></div>
-          <OrgMini roots={org.roots} />
-        </section>
-        <section className="card">
-          <div className="card-title"><Ico name="chart" />월별 근무시간 <span className="muted" style={{ fontWeight: 400 }}>({today.slice(0, 4)}년, 1인 평균)</span></div>
-          <MonthlyCombo data={monthly} />
-        </section>
-      </div>
-
-      <div className="dash">
-        <div className="stack">
-
-          <section className="card">
-            <div className="card-title">어제 근무 현황 <span className="muted" style={{ fontWeight: 400 }}>{dayLabel(yday)}</span></div>
-            <div className="tiles4">
-              <Tile label="출장" n={ySum("trip")} people={yRows.flatMap((r) => r.trip.map((e) => [e, r.dept] as [string, string]))} href="/evidence" />
-              <Tile label="휴가" n={ySum("leave")} people={yRows.flatMap((r) => r.leave.map((e) => [e, `${r.dept} · ${r.leaveKind[e]}`] as [string, string]))} href="/leave" />
-              <Tile label="퇴근미체크" n={ySum("noOut")} warn people={yRows.flatMap((r) => r.noOut.map((e) => [e, r.dept] as [string, string]))}
-                href={`/person?month=${yday.slice(0, 7)}`} />
-              <Tile label="연장근무" n={ySum("ot")} people={yRows.flatMap((r) => r.ot.map((o) => [o.emp, r.dept] as [string, string]))} />
-            </div>
-            <table className="tbl ydept" style={{ marginTop: 14 }}>
-              <thead><tr><th>부서</th><th>출장</th><th>휴가</th><th>퇴근 미체크</th><th>연장근무</th></tr></thead>
-              <tbody>{yRows.map((r) => (
-                <tr key={r.dept}><td><b>{r.dept}</b></td>
-                  {([r.trip, r.leave, r.noOut, r.ot.map((o) => o.emp)] as string[][]).map((list, i) => (
-                    <td key={i}>{list.length ? <><b>{list.length}</b>명 <span className="muted">{list.join(", ")}</span></> : <span className="muted">-</span>}</td>
-                  ))}</tr>
-              ))}</tbody>
-            </table>
-            <div className="sub-title" style={{ marginTop: 16 }}>연장근무자 <span className="muted">({otAll.length}명 · 야간 22:00~06:00 포함)</span></div>
-            {otAll.length ? (
-              <table className="tbl"><thead><tr><th>부서</th><th>이름</th><th>퇴근</th><th className="num">연장근무시간</th></tr></thead>
-                <tbody>{yRows.flatMap((r) => r.ot.map((o, i) => (
-                  <tr key={o.emp}><td>{i ? "" : <b>{r.dept}</b>}</td><td>{o.emp}</td><td>{tsHM(o.out)}</td>
-                    <td className="num">{h1(o.hours)}{o.night > 0 && <span className="muted"> (야간 {h1(o.night)})</span>}</td></tr>
-                )))}</tbody></table>
-            ) : <Empty />}
+        {p === "day" && at === today && (
+          <section className="ux-panel ux-rise" aria-label="오늘 마감 단계" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <b style={{ fontSize: 13 }}>오늘 마감</b>
+            <Steps steps={["캡스 기록 올리기", "근태 확인", "보고서 작성", "발송"]} at={stepAt === 0 ? 0 : stepAt === 2 ? 2 : stepAt === 3 ? 3 : 4} />
+            {stepAt < 4 && <Link href={stepAt === 0 ? "/upload" : "/daily"} style={{ marginLeft: "auto", fontSize: 13 }}>{stepAt === 0 ? "캡스 파일 올리기 ›" : stepAt === 2 ? "보고서 쓰기 ›" : "보고서 보내기 ›"}</Link>}
           </section>
+        )}
 
-          <section className="card">
-            <div className="card-title">다가오는 휴가·출장 <span className="muted" style={{ fontWeight: 400 }}>2주</span></div>
-            {soon.length ? (
-              <table className="list-table"><tbody>
-                {soon.slice(0, 10).map((l, i) => (
-                  <tr key={i}><td className="dt">{dayLabel(l.day)}</td><td>{l.name}</td>
-                    <td><span className={`tag t-${l.type}`}>{l.type}</span></td></tr>
-                ))}
-              </tbody></table>
-            ) : <Empty />}
-            {soon.length > 10 && <p className="caption">외 {soon.length - 10}건 · <Link href="/leave/calendar">휴가 캘린더</Link></p>}
+        <div className="ux-cards">
+          {KINDS.map((k, i) => {
+            const v = value(k.k);
+            const xs = lists[k.k];
+            const card = (
+              <span className="ux-card" style={{ animation: "ux-rise .45s ease both", animationDelay: `${0.05 + i * 0.06}s` }}>
+                <span className="ux-card-l" style={{ color: k.color }}><span className="dot" style={{ background: k.color }} />{k.label}<Tip text={k.tip} label={`${k.label} 기준`} />
+                  {k.k === "ot" && watch.some((w) => w[0] === "신청서") && <Badge bounce>신청서 {watch.filter((w) => w[0] === "신청서").length}</Badge>}
+                  {k.k === "absent" && v > 0 && <Badge bounce>확인</Badge>}</span>
+                <span className={`ux-num${v ? "" : " zero"}`}>{v.toLocaleString()}<small>{unit(k.k)}</small></span>
+                <Bar pct={k.k === "in" ? (staffAt.length ? (inCount / Math.max(1, p === "day" || p === "next" ? staffAt.length : days.filter((d) => !d.holiday).length)) * 100 : 0) : Math.min(100, (v / Math.max(1, staffAt.length)) * 100)} color={k.color} label={`${k.label} 비율`} />
+                <span className="ux-sub">{k.k === "in" ? (p === "next" ? `휴가·출장 예정 ${nextOff.size}명 제외` : `${persons(lists.in)}명 출근`) : xs.length ? `${persons(xs)}명` : "없음"}</span>
+              </span>
+            );
+            return (
+              <Modal key={k.k} className="ux-plain" title={`${k.label} · ${label}`} trigger={card} wide={xs.length > 12}>
+                {xs.length ? (
+                  <table className="ux-list"><thead><tr><th>이름</th><th>부서</th><th>내용</th></tr></thead>
+                    <tbody>{xs.slice(0, 300).map(([n, d, t], j) => <tr key={j}><td><Link href={`/person?emp=${encodeURIComponent(n)}&month=${(t.match(/^(\d+)\//) ? `${at.slice(0, 4)}-${t.split("/")[0].padStart(2, "0")}` : at.slice(0, 7))}`}><b>{n}</b></Link></td><td>{d}</td><td>{t}</td></tr>)}</tbody></table>
+                ) : <p className="ux-sub">{k.k === "in" && p === "next" ? `명일 근무 예정 ${inCount}명 (휴가·출장 예정자 제외)` : "해당하는 사람이 없습니다."}</p>}
+                {xs.length > 300 && <p className="ux-sub">앞 300건만 보입니다.</p>}
+              </Modal>
+            );
+          })}
+        </div>
+
+        <div className="ux-grid2">
+          <section className="ux-panel ux-rise" style={{ animationDelay: ".42s" }}>
+            <h2>부서별 출근율<small>{label} · 근무일 기준 (출장·교육 포함)</small></h2>
+            {deptRate.length ? deptRate.map((x) => (
+              <div key={x.d} className="ux-dept"><b>{x.d}</b><Bar pct={x.pct} label={`${x.d} 출근율`} /><span style={{ textAlign: "right", fontWeight: 700 }}>{Math.round(x.pct)}%</span></div>
+            )) : <p className="ux-sub">{p === "next" ? "명일은 아직 기록이 없습니다." : "기록이 없습니다."}</p>}
+          </section>
+          <section className="ux-panel ux-rise" style={{ animationDelay: ".5s" }}>
+            <h2>살펴볼 사람 {watch.length > 0 && <Badge>{watch.length}</Badge>}</h2>
+            {watch.length ? (
+              <table className="ux-list"><tbody>{watch.slice(0, 12).map(([tag, n, t, c], j) => (
+                <tr key={j}><td style={{ width: 70 }}><span className="ux-tag" style={{ color: c, background: `${c}18` }}>{tag}</span></td><td><b>{n}</b></td><td className="ux-sub">{t}</td></tr>
+              ))}</tbody></table>
+            ) : <p className="ux-sub">살펴볼 사람이 없습니다.</p>}
           </section>
         </div>
 
-        <div className="stack">
-          <section className="card">
-            <div className="card-title">이번 주 근무 <span className="muted" style={{ fontWeight: 400 }}>{dayLabel(monday)} ~</span></div>
-            <div className="tiles2">
-              <Tile label={`초과자 (${WEEK_LIMIT}h↑)`} n={over.length} warn />
-              <Tile label={`임박자 (${WEEK_WARN}h↑)`} n={near.length} />
-            </div>
-            <div className="sub-title" style={{ marginTop: 14 }}>초과/임박 근무자 <span className="muted">({over.length + near.length}명)</span></div>
-            {over.length + near.length ? (
-              <table className="tbl"><thead><tr><th>이름 (부서)</th><th className="num">누적 근무</th></tr></thead>
-                <tbody>{[...over, ...near].map((w) => <tr key={w.emp}><td>{w.emp} <span className="muted">({w.dept})</span></td>
-                  <td className={`num${w.hours > WEEK_LIMIT ? " red" : ""}`}>{h1(w.hours)}</td></tr>)}</tbody></table>
-            ) : <Empty />}
-            <details style={{ marginTop: 6 }}>
-              <summary className="muted">이번 주 전체 누적 ({week.length}명)</summary>
-              <table className="tbl"><tbody>{week.map((w) => <tr key={w.emp}><td>{w.emp}</td><td className="num">{h1(w.hours)}</td></tr>)}</tbody></table>
-            </details>
-            <div className="sub-title" style={{ marginTop: 16 }}>요일별 평균 근무시간 <span className="muted">({+month.slice(5)}월, 1인)</span></div>
-            <HoursArea data={wdAvg} x="wd" color={HOME.navy} />
-          </section>
-
-          <section className="card">
-            <div className="card-title">이번 달 평균 연장근무시간 <span className="muted" style={{ fontWeight: 400 }}>(부서별 1인, 휴일근로 포함)</span></div>
-            {deptOt.length ? <HoursBars data={deptOt} x="dept" /> : <Empty />}
-          </section>
-
-        </div>
-      </div>
-
-      <div className="grid3" style={{ marginTop: 16 }}>
-        <section className="card">
-          <div className="card-title">이번 달 근무시간 <span className="muted" style={{ fontWeight: 400 }}>(인당 평균)</span></div>
-          <div className="split">
-            <div className="big"><span>총 근무시간</span><b>{h1(ph.total)}</b></div>
-            <table className="list-table"><tbody>
-              <tr><td>연장</td><td className="v">{h1(ph.overtime)}</td></tr>
-              <tr><td>야간</td><td className="v">{h1(ph.night)}</td></tr>
-              <tr><td>휴일</td><td className="v">{h1(ph.holiday)}</td></tr>
-            </tbody></table>
+        <section className="ux-panel ux-rise noprint" style={{ animationDelay: ".58s" }}>
+          <h2>더 보기<small>예전 근태 화면과 대장</small></h2>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {[["/calendar", "근태 캘린더"], ["/calendar/work", "휴일·연장 달력"], ["/hours", "근로시간 리포트"], ["/week52", "주 52시간"], ["/monthly", "월 근태 집계"],
+              ["/hr/b/holidaywork", "휴일근무·대체휴무 대장"], ["/hr/b/flex", "유연근무 신청"], ["/hr/b/reserve", "예비군·민방위·공가"], ["/attendance/classic", "예전 근태 홈 (그래프)"]].map(([h, l]) => (
+              <Link key={h} href={h} className="ux-btn" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none", color: "#1b2333" }}>{l}</Link>
+            ))}
           </div>
-          <div className="sub-title" style={{ marginTop: 16 }}>3회 이상 지각자 <span className="muted">({late3.length}명)</span></div>
-          {late3.length ? (
-            <table className="tbl"><thead><tr><th>이름 (부서)</th><th className="num">횟수</th></tr></thead>
-              <tbody>{late3.map((l) => <tr key={l.emp}><td>{l.emp} <span className="muted">({l.dept})</span></td><td className="num">{l.n}회</td></tr>)}</tbody></table>
-          ) : <Empty />}
         </section>
 
-        <section className="card">
-          <div className="card-title">이번 달 인력 변동<span className="spacer" /><Link className="btn sm" href="/employees">더보기</Link></div>
-          <div className="tiles2">
-            <Tile label="입사" n={hc.joined.length} people={hc.joined.map((e) => [e.name, `${e.dept} · ${e.joinDate}`])} />
-            <Tile label="퇴직" n={hc.left.length} people={hc.left.map((e) => [e.name, `${e.dept} · ${e.leaveDate}`])} />
-          </div>
-          <table className="list-table" style={{ marginTop: 8 }}><tbody>
-            <tr><td>순증감</td><td className="v">{hc.joined.length - hc.left.length > 0 ? "+" : ""}{hc.joined.length - hc.left.length} 명</td></tr>
-            <tr><td>이직률</td><td className="v">{hc.turnover} %</td></tr>
-            <tr><td>재직</td><td className="v">{hc.active} 명</td></tr>
-          </tbody></table>
-          <div className="sub-title" style={{ marginTop: 14 }}>월별 입퇴사자 ({today.slice(0, 4)}년)</div>
-          <JoinLeaveBars data={hc.byMonth} />
-        </section>
-
-        <section className="card">
-          <div className="card-title">연차 현황 <span className="muted" style={{ fontWeight: 400 }}>{fy}{policy.fyStartMonth === 1 ? "년" : "회계연도"}</span>
-            <span className="spacer" /><Link className="btn sm" href="/leave/status">연차 현황</Link></div>
-          <table className="list-table"><tbody>
-            <tr><td>대상자</td><td className="v">{bal.length} 명</td></tr>
-            <tr><td>평균 사용률</td><td className="v">{usedRate} %</td></tr>
-            <tr><td>이번 달 휴가 사용</td><td className="v">{base.leaves.filter((l) => l.day.startsWith(month) && l.day <= today && isLeaveType(l.type)).length} 건</td></tr>
-          </tbody></table>
-          <div className="sub-title" style={{ marginTop: 14 }}>잔여 연차가 많은 직원 <span className="muted">(사용 촉진 참고)</span></div>
-          {most.length ? (
-            <table className="report"><tbody>
-              {most.map((b) => (
-                <tr key={b.name}>
-                  <td>{b.name}</td>
-                  <td style={{ width: "45%" }}><div className="bar"><div style={{ width: `${Math.min(100, ((b.used + b.planned) / b.total) * 100)}%` }} /></div></td>
-                  <td className="numcell">잔여 {b.remain} / {b.total}일</td>
-                </tr>
-              ))}
-            </tbody></table>
-          ) : <Empty />}
-        </section>
+        <Fab href="/daily" label="보고서 쓰기" icon="pen" />
       </div>
-
-      <p className="caption" style={{ marginTop: 10 }}>
-        근무시간 = 퇴근 − 출근(평일 {hhmm(rule.start)} 이전은 {hhmm(rule.start)}) − 휴게. 연장 = 평일 {hhmm(rule.end)} + {rule.overtimeMin}분 이후 퇴근한 날의 초과분,
-        야간 = 22:00~06:00. 이번 주 초과자는 주 {WEEK_LIMIT}시간 기준. 기간별 상세는 <Link href="/hours">근로시간 리포트</Link>.
-      </p>
-    </div>
+    </SnackHost>
   );
 }

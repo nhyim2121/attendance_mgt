@@ -334,3 +334,109 @@
 .measuring .iso-work > aside, .measuring .iso-main > :not(.iso-page) { display: none !important; }
 .measuring .iso-work, .measuring .iso-main { display: block; }
 .measuring .iso-page { width: 100% !important; max-width: none; min-height: 0; padding: 0 !important; margin: 0; box-shadow: none; border-radius: 0; overflow: visible; }
+
+/* ---------------------------------------------------------------- 새 인사노무 화면 공통 UI (.ux-*, 2026-11-27) */
+@keyframes ux-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes ux-zoom { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: scale(1); } }
+@keyframes ux-bounce { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } 55% { transform: translateY(0); } 75% { transform: translateY(-3px); } }
+@keyframes ux-slide { from { transform: translateX(-100%); } to { transform: none; } }
+@keyframes ux-snack { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.ux-page { display: flex; flex-direction: column; gap: 16px; padding-bottom: 96px; }
+.ux-head { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 10px; background: #0c3994; color: #fff;
+  height: 60px; padding: 0 16px; border-bottom: 3px solid #e84340; border-radius: 12px; }
+.ux-head-t { display: flex; flex-direction: column; line-height: 1.2; }
+.ux-head-t small { font-size: 11px; color: #b9c8ec; font-weight: 700; }
+.ux-head-t b { font-size: 17px; }
+.ux-head-r { margin-left: auto; font-size: 12px; color: #c9d6f5; }
+.ux-ibtn { width: 44px; height: 44px; border: 0; border-radius: 10px; background: rgba(255,255,255,.12); color: #fff; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 20px; }
+.ux-ibtn.ghost { background: transparent; }
+.ux-ibtn.soft { background: #f1f3f8; color: #1b2333; width: 40px; height: 40px; }
+.ux-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(15,23,42,.35); }
+.ux-drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 280px; z-index: 61; background: #fff; padding: 20px 16px;
+  display: flex; flex-direction: column; gap: 4px; animation: ux-slide .25s ease both; box-shadow: 12px 0 30px -12px rgba(0,0,0,.25); }
+.ux-drawer-h { display: flex; align-items: center; margin-bottom: 10px; font-size: 17px; }
+.ux-drawer-h button { margin-left: auto; }
+.ux-drawer a { display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #1b2333; font-size: 15px; text-decoration: none; }
+.ux-drawer a:hover { background: #f4f6fa; }
+.ux-drawer a.on { background: #eef2fb; font-weight: 800; color: #0c3994; }
+.ux-bar-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.ux-seg { display: inline-flex; background: #e3e8f3; border-radius: 12px; padding: 4px; flex-wrap: wrap; }
+.ux-seg button { border: 0; cursor: pointer; min-height: 40px; padding: 0 16px; border-radius: 9px; font: inherit; font-size: 14px; background: transparent; color: #4b5563; }
+.ux-seg button.on { background: #fff; color: #0c3994; font-weight: 800; box-shadow: 0 2px 6px -2px rgba(12,57,148,.35); }
+.ux-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; min-height: 40px; cursor: pointer; }
+.ux-check input { width: 18px; height: 18px; }
+.ux-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.ux-card { background: #fff; border: 1px solid #e3e7ef; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px;
+  text-align: left; font: inherit; color: inherit; width: 100%; box-sizing: border-box; transition: transform .15s, box-shadow .15s; }
+.ux-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -14px rgba(12,57,148,.45); }
+.ux-card-l { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; }
+.ux-card-l .dot { width: 9px; height: 9px; border-radius: 50%; }
+.ux-card-l .ux-badge { margin-left: auto; }
+.ux-num { font-size: 30px; font-weight: 900; line-height: 1.1; }
+.ux-num small { font-size: 13px; font-weight: 500; color: #6b7280; margin-left: 3px; }
+.ux-num.zero { color: #c3c9d4; }
+.ux-sub { font-size: 12px; color: #6b7280; }
+.ux-panel { background: #fff; border: 1px solid #e3e7ef; border-radius: 14px; padding: 16px 18px; }
+.ux-panel h2 { margin: 0 0 10px; font-size: 15px; }
+.ux-panel h2 small { font-size: 12px; color: #6b7280; font-weight: 500; margin-left: 4px; }
+.ux-grid2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 900px) { .ux-grid2 { grid-template-columns: 1fr; } }
+.ux-rise { animation: ux-rise .45s ease both; }
+.ux-plain { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-align: left; width: 100%; cursor: pointer; }
+.ux-tip { position: relative; display: inline-flex; }
+.ux-tip-i { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #9ca3af; color: #6b7280; font-size: 10px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center; cursor: help; }
+.ux-tipbox { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #1b2333; color: #fff; font-size: 12px;
+  font-weight: 500; line-height: 1.5; padding: 7px 10px; border-radius: 8px; width: 230px; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 40; white-space: normal; }
+.ux-tip:hover .ux-tipbox, .ux-tip:focus-within .ux-tipbox { opacity: 1; }
+.ux-badge { display: inline-block; font-size: 11px; font-weight: 800; color: #fff; background: #e84340; border-radius: 999px; padding: 1px 7px; line-height: 1.5; }
+.ux-badge.sm { margin-left: 6px; padding: 0 6px; }
+.ux-badge.navy { background: #0c3994; }
+.ux-badge.amber { background: #c2410c; }
+.ux-badge.green { background: #1f8a3b; }
+.ux-badge.bounce { animation: ux-bounce 1.4s ease .6s 3; }
+.ux-bar { display: block; height: 8px; background: #eef1f6; border-radius: 99px; overflow: hidden; }
+.ux-bar > span { display: block; height: 100%; background: #0c3994; border-radius: 99px; transition: width .4s; }
+.ux-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; --st: #0c3994; }
+.ux-steps li { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #9ca3af; }
+.ux-steps li + li::before { content: ""; width: 32px; height: 2px; background: #e3e7ef; margin-right: 2px; }
+.ux-steps li.done + li::before { background: var(--st); }
+.ux-step-n { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #e3e7ef; background: #f4f6fa; font-size: 12px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center; }
+.ux-steps li.done { color: #1b2333; }
+.ux-steps li.done .ux-step-n { background: var(--st); border-color: var(--st); color: #fff; }
+.ux-steps li.now { color: #1b2333; font-weight: 800; }
+.ux-steps li.now .ux-step-n { background: #fff; border-color: var(--st); color: var(--st); }
+.ux-modal-bg { position: fixed; inset: 0; z-index: 70; background: rgba(15,23,42,.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.ux-modal { width: 480px; max-width: 100%; max-height: calc(100vh - 32px); overflow: auto; background: #fff; border-radius: 16px; padding: 18px 20px;
+  animation: ux-zoom .22s ease both; box-shadow: 0 24px 60px -20px rgba(0,0,0,.45); text-align: left; }
+.ux-modal.wide { width: 720px; }
+.ux-modal-h { display: flex; align-items: center; margin-bottom: 8px; font-size: 17px; }
+.ux-modal-h button { margin-left: auto; }
+.ux-list { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.ux-list td, .ux-list th { padding: 8px 6px; border-top: 1px solid #f0f2f6; text-align: left; vertical-align: top; }
+.ux-list th { font-size: 12px; color: #6b7280; font-weight: 700; border-top: 0; border-bottom: 2px solid #1b2333; }
+.ux-snack { position: fixed; left: 50%; bottom: 28px; z-index: 80; transform: translateX(-50%); background: #1b2333; color: #fff; border-radius: 12px;
+  padding: 12px 14px 12px 18px; display: flex; align-items: center; gap: 16px; font-size: 14px; animation: ux-snack .25s ease both; box-shadow: 0 14px 30px -12px rgba(0,0,0,.5); }
+.ux-snack button { border: 0; background: none; color: #ffd43b; font: inherit; font-weight: 800; cursor: pointer; min-height: 36px; }
+.ux-fab { position: fixed; right: 28px; bottom: 28px; z-index: 50; height: 56px; border: 0; border-radius: 28px; padding: 0 22px 0 18px; background: #e84340;
+  color: #fff; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+  box-shadow: 0 12px 28px -10px rgba(232,67,64,.7); text-decoration: none; }
+a.ux-fab, a.ux-fab:hover { color: #fff; text-decoration: none; }
+.ux-dept { display: grid; grid-template-columns: 80px 1fr 110px; gap: 10px; align-items: center; padding: 7px 0; font-size: 13px; }
+.ux-tag { display: inline-block; font-size: 11px; font-weight: 800; border-radius: 6px; padding: 2px 7px; }
+.ux-kanban { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .ux-kanban { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ux-col { background: #fff; border: 1px solid #e3e7ef; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-height: 200px; }
+.ux-pcard { border: 1px solid #e3e7ef; background: #fafbfd; border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 2px; width: 100%; box-sizing: border-box; }
+.ux-pcard:hover { border-color: #b8c3dc; }
+.ux-btn { min-height: 44px; padding: 0 16px; border: 1px solid #cfd5df; background: #fff; border-radius: 10px; font: inherit; cursor: pointer; }
+.ux-btn.primary { background: #0c3994; border-color: #0c3994; color: #fff; font-weight: 700; }
+.ux-btn.danger { color: #be123c; }
+.ux-field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: #4b5563; font-weight: 700; }
+.ux-field input, .ux-field select, .ux-field textarea { min-height: 40px; border: 1px solid #cfd5df; border-radius: 9px; padding: 0 10px; font: inherit; font-size: 14px; color: #1b2333; background: #fff; }
+@media print {
+  .ux-head, .ux-fab, .ux-snack, .ux-seg, .ux-check { display: none !important; }
+  .ux-rise { animation: none !important; }
+}
