@@ -4,6 +4,9 @@
 @font-face { font-family: "Paperlogy"; font-weight: 600; src: url("/fonts/Paperlogy-600.ttf") format("truetype"); font-display: swap; }
 @font-face { font-family: "Paperlogy"; font-weight: 700; src: url("/fonts/Paperlogy-700.ttf") format("truetype"); font-display: swap; }
 @font-face { font-family: "Paperlogy"; font-weight: 800; src: url("/fonts/Paperlogy-800.ttf") format("truetype"); font-display: swap; }
+/* 2026-11-28 폰트 ②안: 제목·숫자 = 잘난체, 본문 = 조선굴림 (페이퍼로지는 예비로 남김) */
+@font-face { font-family: "Jalnan2"; src: url("/fonts/Jalnan2.otf") format("opentype"); font-display: swap; }
+@font-face { font-family: "ChosunGu"; src: url("/fonts/ChosunGu.ttf") format("truetype"); font-display: swap; }
 
 :root {
   color-scheme: light;
@@ -23,12 +26,17 @@
   --line-2: #e5e7eb;
   --bg: #f3f5f9;
   --card: #ffffff;
-  --font: "Paperlogy", "Malgun Gothic", "맑은 고딕", sans-serif;
+  --font: "ChosunGu", "Paperlogy", "Malgun Gothic", "맑은 고딕", sans-serif;
+  --font-head: "Jalnan2", "Paperlogy", "Malgun Gothic", sans-serif;
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; }
+button, input, select, textarea { font-family: inherit; }
+/* 제목·큰 숫자 = 잘난체 (한 굵기뿐이라 굵게 흉내 내지 않음) */
+h1, h2, h3, .card-title, .kpi-num, .tile-n, .big, .ux-head-t b, .ux-num, .ux-panel h2, .ux-modal-h b, .ux-drawer-h b, .ux-seg button.on, .side-brand, .ph-title { font-family: var(--font-head); font-weight: 400; font-synthesis: none; letter-spacing: 0; }
+.ux-num small, .kpi-num small, .tile-n small, .ux-panel h2 small, h1 small, h2 small, h3 small { font-family: var(--font); }
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--blue); }
 h1 { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 4px; }
