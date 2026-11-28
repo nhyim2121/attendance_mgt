@@ -223,6 +223,7 @@ const under = (path: string, p: string) => path === p || path.startsWith(`${p}/`
 /** 이 주소가 속한 영역. 통합 대시보드(/)·사용자 관리는 영역 없음, 나머지 근태 화면은 인사노무. */
 export function areaOfPath(path: string): string {
   if (path === "/" || under(path, "/users") || under(path, "/company")) return "";
+  if (path.startsWith("/g/")) return path.split("/")[2] ?? "hr"; // 묶음 안내 화면 (SiteNav)
   for (const a of MENU) if (a.key !== "hr" && (under(path, a.dash) || a.groups.some((g) => g.items.some((i) => under(path, i.href.split("#")[0]))))) return a.key;
   return "hr";
 }

@@ -5,45 +5,13 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState, useTransition } from "react";
 
-// ---------------------------------------------------------------- 고정헤더 + 드로어
-export function UxHead({ crumb, title, menu, back = "/hr", right }: {
-  crumb: string; title: string; menu: [string, string][]; back?: string; right?: ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const path = usePathname();
-  const router = useRouter();
-  useEffect(() => { setOpen(false); }, [path]);
-  useEffect(() => {
-    if (!open) return;
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", esc);
-    return () => window.removeEventListener("keydown", esc);
-  }, [open]);
+// ---------------------------------------------------------------- 화면 제목 (2026-11-28 B′안: 위쪽 메뉴로 바뀌어 남색 고정헤더·햄버거 드로어는 뺌)
+export function UxHead({ crumb, title, right }: { crumb: string; title: string; menu?: [string, string][]; back?: string; right?: ReactNode }) {
   return (
-    <>
-      <header className="ux-head noprint">
-        <button type="button" className="ux-ibtn" aria-label="메뉴 열기" onClick={() => setOpen(true)}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
-        </button>
-        <button type="button" className="ux-ibtn ghost" aria-label="뒤로가기" onClick={() => (window.history.length > 1 ? router.back() : router.push(back))}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
-        </button>
-        <div className="ux-head-t"><small>{crumb}</small><b>{title}</b></div>
-        {right && <div className="ux-head-r">{right}</div>}
-      </header>
-      {open && (
-        <>
-          <div className="ux-scrim" onClick={() => setOpen(false)} />
-          <nav className="ux-drawer" aria-label={`${crumb} 메뉴`}>
-            <div className="ux-drawer-h"><b>{crumb.split("›").pop()?.trim()}</b>
-              <button type="button" className="ux-ibtn soft" aria-label="메뉴 닫기" onClick={() => setOpen(false)}>×</button></div>
-            {menu.map(([href, label]) => (
-              <Link key={href} href={href} className={path === href.split("?")[0] ? "on" : ""}>{label}</Link>
-            ))}
-          </nav>
-        </>
-      )}
-    </>
+    <div className="ux-title">
+      <div><small>{crumb}</small><h1>{title}</h1></div>
+      {right && <span className="r">{right}</span>}
+    </div>
   );
 }
 
