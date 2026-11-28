@@ -440,3 +440,4 @@ a.ux-fab, a.ux-fab:hover { color: #fff; text-decoration: none; }
   .ux-head, .ux-fab, .ux-snack, .ux-seg, .ux-check { display: none !important; }
   .ux-rise { animation: none !important; }
 }
+@media print { .ux-page { padding-bottom: 0 !important; gap: 0 !important; } .ux-cards.noprint { display: none !important; } }

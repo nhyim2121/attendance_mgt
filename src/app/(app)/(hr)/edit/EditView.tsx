@@ -2,11 +2,12 @@
 import { Suspense } from "react";
 import { ParamMulti, ParamSelect } from "@/components/ParamControls";
 import ScopeSearch from "./ScopeSearch";
+import { Badge, Bar, Fab, Modal, Tip } from "@/components/ux/Kit";
 import { NoData } from "@/components/ui";
 import { isHoliday } from "@/lib/인사노무/analytics";
 import { computeDays, getHolidays, getRecords, getRule, loadBase, type SearchParams } from "@/lib/인사노무/data";
 import { employeeRows, SHEET_COLUMNS } from "@/lib/인사노무/splitter";
-import { daysInMonth, makeDate, shortKst, weekdayKr } from "@/lib/time";
+import { daysInMonth, makeDate, shortKst, tsHM, weekdayKr } from "@/lib/time";
 import PrintButton from "@/components/PrintButton";
 import { splitReportTypes } from "@/lib/인사노무/daily";
 import { VACATION_TYPES } from "@/lib/인사노무/vacation";
@@ -177,6 +178,7 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
   // 휴일·연장 달력 탭 (2026-11-23): 직원 한 명이 아니라 전 직원을 한 달력에
   if (cal) return <>{head}{teamCal()}</>;
   const { mine, rows } = build(emp);
+  const nextEmp = names[names.indexOf(emp) + 1] ?? "";
   const empOptions: [string, string][] = names.map((x) => [x, x]);
 
   /** 전 직원 휴일·연장 달력: 날짜 칸마다 그날 휴일근무·연장근무한 사람, 누르면 오른쪽에 그날 명단과 내용 */
@@ -372,6 +374,7 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
           {pickQ.length ? `엑셀 저장 (${pickQ.length}명)` : "엑셀 저장"}</a>
         <span style={{ alignSelf: "flex-end" }}><PrintButton label={pickQ.length ? `PDF 저장 / 인쇄 (${pickQ.length}명)` : "PDF 저장 / 인쇄"} /></span></>}
       </div>
+      {!cal && monthCards()}
       {!cal && (pickQ.length ? pickQ : [emp]).map(printPage)}
       <div className="card noprint">
         <div className="card-title">{mine[0]?.dept} {emp} · {y}년 {m}월</div>
@@ -381,8 +384,42 @@ export default async function EditView({ sp, mode = "table" }: { sp: SearchParam
           시각을 직접 넣은 행은 엑셀의 인증 칸에 &apos;수기입력&apos;으로 표시됩니다. 근무형태(휴일·연장)는 기준에 따라 자동으로 적고, 고쳐 쓰면 그 값이 저장됩니다. 근무지·인원·업무내용은 일일 근태 보고서에 적은 값이 <span style={{ color: "#0c3994", fontWeight: 700 }}>파란 글씨</span>로 들어오고, 고쳐 쓰면 근태 기입 값으로 저장됩니다.
         </p>}
       </div>
+      {!cal && nextEmp && <Fab href={`/person?month=${month}&emp=${encodeURIComponent(nextEmp)}`} label={`다음 직원 · ${nextEmp}`} icon="pen" />}
     </>
   );
+
+  /** 2026-11-28 새 UI: 고른 직원의 그 달 요약 카드 (누르면 날짜 명단 = 모달, 신청서 빠짐은 바운스 뱃지) */
+  function monthCards() {
+    const tagged = (src: string) => src === "캡스" || src === "수기입력";
+    const dl = (d: string) => `${+d.slice(5, 7)}/${+d.slice(8)}`;
+    const work = mine.filter((d) => d.in !== null);
+    const wd = mine.filter((d) => !d.holiday).length;
+    const kinds = (k: string) => rows.filter((r) => r.kinds.includes(k));
+    const miss = rows.filter((r) => r.proof?.missing.length);
+    const cards: [string, string, number, string, [string, string][], number?][] = [
+      ["출근일", "#0c3994", work.length, "캡스·수기 출근 기록이 있는 날 (근무일 대비)", work.map((d) => [dl(d.day), `${d.in !== null ? tsHM(d.in) : ""} ~ ${d.out !== null ? tsHM(d.out) : "미체크"}`]), wd ? (work.length / wd) * 100 : 0],
+      ["지각", "#c2410c", mine.filter((d) => d.late).length, "출근 기준 시각을 넘어 출근", mine.filter((d) => d.late).map((d) => [dl(d.day), d.in !== null ? tsHM(d.in) : ""])],
+      ["조퇴", "#7c3aed", mine.filter((d) => d.early && tagged(d.outSrc)).length, "퇴근 기준 시각 전에 퇴근 (반차·외출 신청 제외)", mine.filter((d) => d.early && tagged(d.outSrc)).map((d) => [dl(d.day), d.out !== null ? tsHM(d.out) : ""])],
+      ["외출", "#0e7490", kinds("외출").length, "외출 신청이 있는 날", kinds("외출").map((r) => [dl(r.day), r.leaveInfo || "외출"])],
+      ["연장및휴일근무", "#e8590c", rows.filter((r) => r.kinds.includes("연장근무") || r.kinds.includes("휴일근무")).length, "평일 연장 + 주말·공휴일 근무", rows.filter((r) => r.kinds.includes("연장근무") || r.kinds.includes("휴일근무")).map((r) => [dl(r.day), `${r.kinds.filter((k) => k === "연장근무" || k === "휴일근무").join("·")} ${r.clock_in.slice(0, 5)}~${r.clock_out.slice(0, 5)}`])],
+      ["신청서 빠짐", "#be123c", miss.length, "휴일·연장근무인데 하이웍스 신청서가 없는 날", miss.map((r) => [dl(r.day), (r.proof?.missing ?? []).join("·")])],
+    ];
+    return (
+      <div className="ux-cards noprint" style={{ marginBottom: 14 }}>
+        {cards.map(([label, color, n, tip, list, pct], i) => (
+          <Modal key={label} className="ux-plain" title={`${emp} · ${label} · ${m}월`} trigger={
+            <span className="ux-card" style={{ animation: "ux-rise .45s ease both", animationDelay: `${0.05 + i * 0.06}s` }}>
+              <span className="ux-card-l" style={{ color }}><span className="dot" style={{ background: color }} />{label}<Tip text={tip} />
+                {label === "신청서 빠짐" && n > 0 && <Badge bounce>확인</Badge>}</span>
+              <span className={`ux-num${n ? "" : " zero"}`}>{n}<small>{label === "출근일" ? `/ ${wd}일` : "일"}</small></span>
+              {pct !== undefined ? <Bar pct={pct} color={color} label="출근률" /> : <span className="ux-sub">{list.slice(0, 3).map(([d]) => d).join(", ") || "없음"}</span>}
+            </span>}>
+            {list.length ? <table className="ux-list"><tbody>{list.map(([a, b], j) => <tr key={j}><td style={{ width: 70 }}>{a}</td><td>{b}</td></tr>)}</tbody></table> : <p className="ux-sub">없습니다.</p>}
+          </Modal>
+        ))}
+      </div>
+    );
+  }
 }
 
 /** 보고서 근태 줄의 종류가 모두 휴가인가 (예: '외출', '반차,외출') */
